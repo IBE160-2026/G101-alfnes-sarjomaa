@@ -1,10 +1,3 @@
----
-title: Toppsvar Product Brief
-status: draft
-created: 2026-09-14
-updated: 2026-09-14
----
-
 # Product Brief: Toppsvar
 
 ## Executive Summary
