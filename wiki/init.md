@@ -1,1 +1,0 @@
-Init for wiki folder

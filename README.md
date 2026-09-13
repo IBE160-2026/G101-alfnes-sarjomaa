@@ -8,3 +8,13 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 
 - Sondre Alfnes
 - Daniel P Sarjomaa
+
+## Dokumentasjon
+
+All prosjektdokumentasjon ligger i [`wiki/`](wiki/index.md) — emnekrav, tidsplan,
+BMAD-faser, produktidé og beslutningslogg.
+
+## Prosess
+
+Prosjektet følger BMAD Method: Product Brief → PRD → UX + Arkitektur → Epics & Stories →
+Implementering. Se [`wiki/kurs/tidsplan.md`](wiki/kurs/tidsplan.md).
