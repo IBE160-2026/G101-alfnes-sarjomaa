@@ -1,6 +1,7 @@
-# Produktidé — Family Feud med egne spørreskjema
+# Produktidé — Toppsvar
 
-> Status: **arbeidsidé**, skal formaliseres i product brief-leveransen (uke 43, se [[fase-1-product-brief]]).
+> Status: **formalisert** i [[repo-konvensjoner|product-brief.md]] 2026-09-14. Produktnavn: **Toppsvar**.
+> Dette notatet er bakgrunnen; briefen er leveransen.
 > Kilde: `.idea/main_brief/task.md` (ikke i git — `.idea/` er gitignorert).
 
 ## Kjerneidé
@@ -37,12 +38,19 @@ teller opp og holder styr på poeng. Vi vil gjøre hele kjeden til ett produkt.
 Kombinasjonen **egendefinert innsamling + automatisk aggregering + spillmodus** er det
 som er nytt.
 
-## Åpne spørsmål før product-brief
+## Åpne spørsmål — avklart 2026-09-14
 
-- [ ] Hvem er primærbrukeren — verten som lager spillet, eller deltakeren som spiller?
-- [ ] Sanntidsspill (alle i samme rom, én skjerm) eller asynkront?
-- [ ] Hvordan aggregeres fritekstsvar til grupper? (manuell gruppering av verten vs. KI-klynging)
-- [ ] Anonymitet: hvor hardt garanteres den?
-- [ ] Hva er eksplisitt utenfor scope i v1?
+- [x] **Primærbruker:** verten. Deltakeren er sekundærbruker — all den manuelle jobben ligger hos verten.
+- [x] **Sanntid eller asynkront:** begge deler, i hver sin fase. Innsamling skjer asynkront i dagene før; spillingen er live og samlokalisert rundt én delt skjerm.
+- [x] **Aggregering av fritekst:** KI grupperer, verten overstyrer (slå sammen, splitte, gi nytt navn) før spillet starter. Dette er prosjektets «Beslutningspunkt».
+- [x] **Anonymitet:** ingen deltakerkontoer, ingen lagret kobling mellom person og svar, ingen innlogget identitet synlig i svarflyten. Behandles som et produktkrav, ikke en personvernfotnote.
+- [x] **Utenfor første versjon:** deltakerkontoer, betaling, gruppering uten vertens bekreftelse, fjernspilling med én enhet per lag, offentlige spill med fremmede, ferdig spørsmålsbank, bilde- og lydsvar.
 
-Se [[beslutninger]] for hva som blir bestemt.
+Begrunnelsene ligger i [[beslutninger]]. Dypere designdrøfting som ikke fikk plass i briefen
+ligger i `addendum.md` ved siden av den.
+
+## Merk om personvern
+
+Opphavsskjemaet navngir privatpersoner og spøker om drikkingen deres. Repoet er offentlig.
+Navnene er derfor erstattet med plassholdere i alt som spores i git; originalen blir liggende
+i den gitignorerte `.idea/`-mappa.

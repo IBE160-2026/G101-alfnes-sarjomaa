@@ -5,6 +5,13 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 
 | Dato | Beslutning | Begrunnelse | Alternativ som ble valgt bort |
 |------|------------|-------------|-------------------------------|
+| 2026-09-14 | Briefen ligger både i BMAD-kjøremappa og som `product-brief.md` i rota | Oppgaveteksten navngir `product-brief.md`; BMAD hardkoder `brief.md`. Kjøremappa er kanonisk, rotfila er en `cp`-kopi | Kun rotfil (signaliserer at rammeverket ikke er brukt), kun kjøremappe (feil filnavn), symlink (overlever ikke zip) |
+| 2026-09-14 | Produktnavn: **Toppsvar** | ASCII uten mellomrom, så kjøremappenavn og shell-stier holder seg rene. G23 fikk `brief-COSI - MRP-…` og måtte URL-enkode overalt | Vennefeud, Gjengen, Lettis |
+| 2026-09-14 | Primærbruker er **verten**, ikke deltakeren | All manuell smerte (skjema, purring, opptelling, brett, poeng) ligger hos verten. Deltakerens opplevelse i dag er allerede grei, så «The Problem» ville blitt tynn | Deltakeren som primærbruker; begge likestilt (BMAD advarer mot brede målgrupper) |
+| 2026-09-14 | KI grupperer fritekstsvar, **verten overstyrer** før spill | Dette er emnets påkrevde «Beslutningspunkt». En feilgruppering blir ellers først synlig midt i spillet, foran gjengen, hvor den ikke kan reddes | Manuell gruppering (løser ikke hovedproblemet); full automatikk uten overstyring |
+| 2026-09-14 | BMAD-artefakter skrives på **engelsk**, resten av repoet på norsk | Matcher emneansvarliges eget eksempel `product-brief-beergame.md` | Engelske overskrifter + norsk brødtekst (G23-formen); alt på norsk |
+| 2026-09-14 | Innsamling er asynkron, spilling er live og samlokalisert | Følger av hvordan opphavsfesten faktisk foregikk, og sparer oss for live multiplayer-transport i et femukersprosjekt | Alt sanntid; alt asynkront |
+| 2026-09-14 | Reelle navn fra kildeskjemaet anonymiseres i alt som spores | Repoet er offentlig på kursorganisasjonen, og skjemaet spøker om navngitte privatpersoners drikking uten deres samtykke | Ta med skjemaet ordrett |
 | 2026-09-13 | Jobber kun på `main` — ingen feature branches | Liten gruppe, dokumenttunge leveranser; enklere historikk | Per-person feature branches (som referansegruppe G23 bruker) |
 | 2026-09-13 | Produktidé: Family Feud med egne spørreskjema | Bygger på en reell, testet brukeropplevelse (innflyttingsfest); tydelig smertepunkt i dagens manuelle Google Forms-flyt | — |
 | 2026-09-13 | Dokumentasjon i `./wiki` som Obsidian-lik vault | Lett å finne fram i, `[[wikilenker]]` binder notatene sammen, ingen verktøy-lås | Alt i README, eller `docs/`-mappe uten intern lenking |
@@ -13,9 +20,11 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 
 | Spørsmål | Hvorfor det haster |
 |----------|--------------------|
-| Skal briefen ligge i rota som `product-brief.md`, eller følge BMAD-konvensjonen `.docs/planning-artifacts/briefs/brief-<navn>-<dato>/brief.md`? | Oppgaveteksten og verktøyet sier ulike ting. Må avklares før fase 1 leveres. Se [[repo-konvensjoner]] |
-| Skal `_bmad/` + `bmad-*`-skillene installeres og committes, slik referansegruppene gjør? | `.gitignore` er allerede forberedt, men rammeverket mangler |
-| Har vi bedt emneansvarlig om tilbakemelding på den egendefinerte idéen? | Staben tilbyr dette eksplisitt for egne prosjekter. Se [[ibe160]] |
+| Har vi bedt emneansvarlig om tilbakemelding på den egendefinerte idéen? | Staben tilbyr dette eksplisitt for egne prosjekter, og det er fortsatt ikke gjort. Se [[ibe160]] |
+| Hvordan leveres uke 43 konkret — Canvas-opplasting, push til repoet, eller begge? | Ikke utledbart av noe materiale vi har. Begge-plasser-løsningen i [[repo-konvensjoner]] er trygg uansett, men spør |
+| Finnes det en språkpolicy for leveransene? | Ingen i kursmaterialet. Vi valgte engelsk på BMAD-artefaktene, men det er en vurdering, ikke en instruks |
+| Hvilke Family Feud-regler overlever til første versjon (strikes, steal, doblet runde)? | PRD-spørsmål. Minimum er poeng etter hvor mange som ga svaret |
+| Hvordan hindres dobbeltsvar uten deltakerkontoer? | Opphavsskjemaet ba folk la være å sende inn på nytt — altså allerede et reelt problem. Engangskode eller throttling per enhet |
 
 ## Mal for nye rader
 

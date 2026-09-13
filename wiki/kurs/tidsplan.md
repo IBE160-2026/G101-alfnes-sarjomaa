@@ -19,8 +19,8 @@
 ## Status for G101
 
 - [x] Uke 42 — `proposal.md`
-- [ ] Uke 43 — `product-brief.md` ← *vi er her*
-- [ ] Uke 43 — `PRD.md`
+- [x] Uke 43 — `product-brief.md` ← **ferdig 2026-09-14** (Toppsvar, 1395 ord)
+- [ ] Uke 43 — `PRD.md` ← *vi er her* (skill: `bmad-prd`)
 - [ ] Uke 44–45 — `solution-architecture.md`, `ux-specification.md`, `frontend-prompt.md`
 - [ ] Uke 46–47 — implementering
 - [ ] Uke 48–49 — refleksjonsrapport + innlevering

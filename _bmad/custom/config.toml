@@ -1,0 +1,27 @@
+# Team / enterprise overrides for _bmad/config.toml.
+# Committed to the repo — applies to every developer on the project.
+# Tables deep-merge over base config; keyed entries merge by key.
+# Example: override an agent descriptor, or add a new agent.
+#
+# [agents.bmad-agent-pm]
+# description = "Prefers short, bulleted PRDs over narrative drafts."
+
+# ─────────────────────────────────────────────────────────────────
+# G101 team layer. Committed on purpose.
+#
+# user_name and communication_language are USER-SCOPED keys: the installer
+# writes them only to _bmad/config.user.toml, which .gitignore excludes.
+# On a fresh clone that file does not exist, and _bmad/scripts/render_skill.py
+# then halts with:
+#     HALT: missing config value `communication_language`
+# which makes bmad-build and bmad-build-auto unusable until the teammate
+# re-runs the installer. Reproduced 2026-09-14 by moving config.user.toml
+# aside and re-rendering. Pinning them here fixes the repo for everyone.
+# ─────────────────────────────────────────────────────────────────
+
+[core]
+user_name = "G101"
+communication_language = "English"
+document_output_language = "English"
+project_name = "Toppsvar"
+output_folder = ".docs"

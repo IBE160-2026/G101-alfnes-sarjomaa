@@ -30,10 +30,22 @@ project_knowledge: "{project-root}/docs"
 output_folder: "{project-root}/.docs"
 ```
 
-> **Avklaring vi trenger:** oppgaveteksten sier «Innlevering av `product-brief.md`», mens
-> BMAD-verktøyet produserer `.docs/planning-artifacts/briefs/brief-.../brief.md`.
-> Vi bør enten følge BMAD-konvensjonen (som referansegruppene) eller legge en `product-brief.md`
-> i rota. Se [[beslutninger]].
+> **Avklart 2026-09-14: vi gjør begge deler.** Oppgaveteksten navngir `product-brief.md`,
+> men BMAD hardkoder filnavnet `brief.md` inne i kjøremappa — det finnes ingen innstilling
+> som endrer det. Kjøremappa er kanonisk og den eneste som redigeres; rotfila er en
+> byte-identisk kopi laget med `cp`.
+>
+> ```bash
+> cp ".docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/brief.md" product-brief.md
+> diff -q ".docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/brief.md" product-brief.md
+> ```
+>
+> Kjør `cp` som siste steg før hver commit som rører briefen. Ikke symlink — sluttleveringen
+> er en zip, og ikke alle zip-verktøy tar vare på symlinker.
+>
+> Bakgrunn: av 13 grupper i kullet som har levert en brief, bruker de 8 som faktisk har
+> installert `_bmad/` kjøremappa; de 5 som la fila i rota har ikke rammeverket i det hele tatt.
+> Å kun ha rotfila er altså det synlige kjennetegnet på å ikke ha brukt verktøyet.
 
 ## Hva som sjekkes inn
 
@@ -52,12 +64,12 @@ _bmad/render/
 .claude/settings.local.json
 ```
 
-> ⚠️ **Vi har `.gitignore`-blokka, men ikke `_bmad/` eller `bmad-*`-skillene installert ennå.**
-> Det må på plass før fase 1 kjøres med verktøystøtte.
+> ✅ **Installert 2026-09-14** — BMAD v6.12.0, moduler `bmm` + `cis` (v0.3.2), 39 skills.
+> Framgangsmåte, flaggbegrunnelser og en konfigurasjonsfeil vi fant og fikset: [[bmad-install]].
 
 ## Kvalitetsnivået i referansebriefen
 
-G23s `brief.md`: **~890 ord / ~85 linjer**, YAML-frontmatter (`title`, `status: draft`, `created`, `updated`),
+G23s `brief.md`: **~890 ord / ~85 linjer** (emneansvarliges eget eksempel, `product-brief-beergame.md`, er til sammenligning **1813 ord** — G23 ligger altså i nedre ende av spennet, ikke i midten), YAML-frontmatter (`title`, `status: draft`, `created`, `updated`),
 åtte `##`-seksjoner. De omrokerte *Who This Serves* foran *The Solution* — i tråd med at malen
 er «starting structure, not a contract».
 
@@ -106,3 +118,18 @@ beslutningsdokumentasjonen. Vår [[beslutninger]] fyller samme rolle inntil `_bm
 
 G23 bruker personlige feature-branches (`carmen/product-brief-forbedringer`) for dokumentgjennomgang.
 **G101 jobber kun på `main`** — ingen feature branches.
+
+
+## Hva G101 faktisk leverte i fase 1
+
+```
+.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/
+    brief.md        1395 ord, 8 seksjoner, engelsk, status: draft
+    addendum.md     ~1000 ord — kildeskjema (anonymisert), grupperingsvalg, spilleflyt, anonymitet
+    .memlog.md      16 oppføringer, append-only
+product-brief.md    byte-identisk kopi av brief.md
+```
+
+Briefen ble skrevet i fire uavhengige varianter med ulik innfallsvinkel, hver vurdert av tre
+dommere (BMAD-sjekklista, emnets rubrikk, formatkrav), og deretter syntetisert fra vinneren
+med det beste fra de tre andre podet inn.

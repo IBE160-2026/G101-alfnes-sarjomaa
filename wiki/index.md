@@ -6,14 +6,19 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 ## Start her
 
 - [[ibe160]] — hva emnet krever, hva som teller ved sensur
-- [[tidsplan]] — ukeplan, faser og frister **(neste: `product-brief.md`, uke 43)**
-- [[produktide]] — hva vi bygger
+- [[tidsplan]] — ukeplan, faser og frister **(neste: `PRD.md`)**
+- [[produktide]] — hva vi bygger: **Toppsvar**
+
+## Leveranser
+
+- `product-brief.md` — fase 1, ferdig 2026-09-14. Kanonisk kopi i `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/`
 
 ## BMAD
 
 - [[bmad-rammeverket]] — planleggingsstien og bærende prinsipp
 - [[fase-1-product-brief]] — krav, kvalitetssjekk og arbeidsøkt for fase 1
 - [[repo-konvensjoner]] — hvor artefaktene skal ligge, hva som sjekkes inn
+- [[bmad-install]] — hvordan rammeverket ble installert, og feilen vi fikset
 
 ## Prosjekt
 
