@@ -34,35 +34,48 @@ norsk brødtekst — vi gjør det ikke. Valget skal holde for `PRD.md` også.
 
 | Sti | Innhold |
 |-----|---------|
-| `product-brief.md` | **Generert kopi** av briefen. Rediger aldri denne direkte |
+| `product-brief.md` | **Generert** av `scripts/sync-brief.sh` — brødteksten uten frontmatter. Rediger aldri direkte |
 | `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/` | Kanonisk fase 1: `brief.md`, `addendum.md`, `.memlog.md` |
 | `_bmad/` | BMAD-rammeverket. `config.toml` er installer-styrt og skal ikke redigeres |
 | `_bmad/custom/config.toml` | Fellesoppsett vi *skal* redigere, og som committes |
 | `.claude/skills/bmad-*` | 39 BMAD-skills |
+| `scripts/sync-brief.sh` | Genererer og verifiserer rot-kopien av briefen |
 | `wiki/` | All prosjektdokumentasjon. Start i `wiki/index.md` |
 | `.idea/` | **Gitignorert.** Oppgavetekst, PDF-er, mal, eksempelbrief — kun lokalt |
 
 ### Briefen finnes to steder — med vilje
 
 Oppgaveteksten krever filnavnet `product-brief.md`, men BMAD hardkoder `brief.md` inne i
-en datert kjøremappe. Løsningen er begge deler, der kjøremappa er kanonisk:
+en datert kjøremappe. Løsningen er begge deler, der kjøremappa er kanonisk og den eneste
+som redigeres for hånd.
+
+Filene skiller seg på **nøyaktig én** måte, med vilje: BMADs product-brief-skill krever
+YAML-frontmatter (`title`, `status`, `created`, `updated`), men **GitHub rendrer den
+frontmatteren som en tabell** øverst på sida. Leveransefila er derfor uten frontmatter —
+noe som også matcher emneansvarliges eget eksempel, `product-brief-beergame.md`, som
+ikke har frontmatter.
 
 ```bash
-cp ".docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/brief.md" product-brief.md
-diff -q ".docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/brief.md" product-brief.md
+./scripts/sync-brief.sh
 ```
 
-Kjør `cp` som siste steg før enhver commit som rører briefen. En kopi som har kommet ut
-av synk er verre enn ingen kopi. Ikke bruk symlink — sluttleveringen er en zip.
+Kjør den som siste steg før enhver commit som rører briefen. Scriptet stripper
+frontmatteren, skriver `product-brief.md`, og feiler hvis brødteksten har kommet ut av
+synk eller frontmatteren har sneket seg inn igjen. En kopi som har kommet ut av synk er
+verre enn ingen kopi.
+
+Ikke bruk symlink — sluttleveringen er en zip, og ikke alle zip-verktøy tar vare på dem.
+Ikke rediger `product-brief.md` direkte; endringene blir overskrevet neste gang scriptet kjører.
 
 ## Status
 
 - [x] Uke 42 — `proposal.md`
-- [x] **Fase 1 — `product-brief.md`** (Toppsvar, 1395 ord, `status: draft`)
+- [x] **Fase 1 — `product-brief.md`** (Toppsvar, 1395 ord, `status: final`)
 - [ ] Fase 2 — `PRD.md` (skill: `bmad-prd`)
 - [ ] Fase 3 — `solution-architecture.md`, `ux-specification.md`, `frontend-prompt.md`
 - [ ] Fase 4 — implementering
 - [ ] Refleksjonsrapport
 
-Sett `status: final` i frontmatteren før innlevering, og kjør `cp`-en på nytt.
+Fase 1 er satt til `status: final`. Samme status brukes på `addendum.md`, og skal brukes
+på `PRD.md`, så vokabularet holdes konsistent (`draft` → `final`).
 Sluttinnlevering: **GitHub-repo som zip + refleksjonsrapport, 5. desember.**

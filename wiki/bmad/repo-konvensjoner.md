@@ -36,12 +36,11 @@ output_folder: "{project-root}/.docs"
 > byte-identisk kopi laget med `cp`.
 >
 > ```bash
-> cp ".docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/brief.md" product-brief.md
-> diff -q ".docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/brief.md" product-brief.md
+> ./scripts/sync-brief.sh
 > ```
 >
-> Kjør `cp` som siste steg før hver commit som rører briefen. Ikke symlink — sluttleveringen
-> er en zip, og ikke alle zip-verktøy tar vare på symlinker.
+> Kjør scriptet som siste steg før hver commit som rører briefen. Ikke symlink —
+> sluttleveringen er en zip, og ikke alle zip-verktøy tar vare på symlinker.
 >
 > Bakgrunn: av 13 grupper i kullet som har levert en brief, bruker de 8 som faktisk har
 > installert `_bmad/` kjøremappa; de 5 som la fila i rota har ikke rammeverket i det hele tatt.
@@ -124,11 +123,24 @@ G23 bruker personlige feature-branches (`carmen/product-brief-forbedringer`) for
 
 ```
 .docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/
-    brief.md        1395 ord, 8 seksjoner, engelsk, status: draft
+    brief.md        1395 ord, 8 seksjoner, engelsk, status: final — KANONISK, med frontmatter
     addendum.md     ~1000 ord — kildeskjema (anonymisert), grupperingsvalg, spilleflyt, anonymitet
-    .memlog.md      16 oppføringer, append-only
-product-brief.md    byte-identisk kopi av brief.md
+    .memlog.md      17 oppføringer, append-only
+product-brief.md    generert av scripts/sync-brief.sh — samme brødtekst, UTEN frontmatter
 ```
+
+### Hvorfor rot-kopien ikke har frontmatter
+
+BMADs product-brief-skill krever de fire frontmatter-feltene, så den kanoniske `brief.md`
+må ha dem. Men **GitHub rendrer YAML-frontmatter som en tabell** øverst på sida, og
+leveransefila skal lese som et dokument, ikke som et skjema med en metadatatabell på toppen.
+
+Det stemmer også med emneansvarliges eget eksempel: `product-brief-beergame.md` har ingen
+frontmatter i det hele tatt. Av de 8 gruppene i kullet som kjørte BMAD har alle frontmatter
+i kjøremappa; de 5 håndskrevne rotfilene har ingen. Vi får begge deler riktig.
+
+`scripts/sync-brief.sh` stripper frontmatteren, skriver rotfila, og feiler hvis brødteksten
+har kommet ut av synk eller frontmatteren har sneket seg inn igjen.
 
 Briefen ble skrevet i fire uavhengige varianter med ulik innfallsvinkel, hver vurdert av tre
 dommere (BMAD-sjekklista, emnets rubrikk, formatkrav), og deretter syntetisert fra vinneren

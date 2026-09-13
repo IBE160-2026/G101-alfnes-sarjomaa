@@ -5,6 +5,8 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 
 | Dato | Beslutning | Begrunnelse | Alternativ som ble valgt bort |
 |------|------------|-------------|-------------------------------|
+| 2026-09-14 | `status: final` på `brief.md` og `addendum.md` | Fase 1 er levert. Samme vokabular (`draft` → `final`) skal brukes på `PRD.md`. G23 lot frontmatteren si `draft` i commiten som het «ferdigstille» — den feilen kopierer vi ikke | `done`, `complete`, `ready` (brukes om hverandre i kullet, ingen håndheving) |
+| 2026-09-14 | Rot-fila `product-brief.md` leveres **uten** frontmatter | GitHub rendrer YAML-frontmatter som en tabell øverst på sida. Emneansvarliges eget eksempel har heller ingen frontmatter. Kjøremappa beholder den, siden BMAD-skillen krever den | Byte-identisk kopi (gir metadatatabell på leveransefila); droppe frontmatter overalt (bryter BMAD-skillen) |
 | 2026-09-14 | Briefen ligger både i BMAD-kjøremappa og som `product-brief.md` i rota | Oppgaveteksten navngir `product-brief.md`; BMAD hardkoder `brief.md`. Kjøremappa er kanonisk, rotfila er en `cp`-kopi | Kun rotfil (signaliserer at rammeverket ikke er brukt), kun kjøremappe (feil filnavn), symlink (overlever ikke zip) |
 | 2026-09-14 | Produktnavn: **Toppsvar** | ASCII uten mellomrom, så kjøremappenavn og shell-stier holder seg rene. G23 fikk `brief-COSI - MRP-…` og måtte URL-enkode overalt | Vennefeud, Gjengen, Lettis |
 | 2026-09-14 | Primærbruker er **verten**, ikke deltakeren | All manuell smerte (skjema, purring, opptelling, brett, poeng) ligger hos verten. Deltakerens opplevelse i dag er allerede grei, så «The Problem» ville blitt tynn | Deltakeren som primærbruker; begge likestilt (BMAD advarer mot brede målgrupper) |
