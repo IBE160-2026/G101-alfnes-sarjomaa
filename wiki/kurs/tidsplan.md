@@ -18,12 +18,30 @@
 
 ## Status for G101
 
-- [x] Uke 42 — `proposal.md`
+- [x] Uke 42 — `proposal.md` — **finnes ikke i repoet, og det er trolig riktig** (se under)
 - [x] Uke 43 — `product-brief.md` ← **ferdig 2026-09-14** (Toppsvar, 1395 ord)
 - [ ] Uke 43 — `PRD.md` ← *vi er her* (skill: `bmad-prd`)
 - [ ] Uke 44–45 — `solution-architecture.md`, `ux-specification.md`, `frontend-prompt.md`
 - [ ] Uke 46–47 — implementering
 - [ ] Uke 48–49 — refleksjonsrapport + innlevering
+
+## `proposal.md` finnes ikke — og skal antakelig ikke gjøre det
+
+Slidens kolonne «Hva er lagd» lister `proposal.md` for uke 42, men **ingen av de 132 repoene
+i `IBE160-2026` har en fil som matcher `proposal`** (sjekket 2026-09-14 ved å gå gjennom
+git-treet til hvert eneste repo — GitHubs kodesøk er blindt for denne organisasjonen).
+Det gjelder også begge repoene oppgaveteksten kaller «Example».
+
+Tolkning: forslaget ble levert et annet sted enn i repoet — mest sannsynlig i Canvas.
+Prosjektforslag-PDF-en støtter dette: «Vi vil gi dere tilbakemeldinger på forslaget deres,
+dersom dere velger et egetdefinert prosjekt.» Det finnes altså en forslagsrunde, men den
+etterlater seg ingen fil i repoet hos noen.
+
+G101 har uansett hoppet over dette steget og gått rett på briefen. Å lage en `proposal.md`
+nå ville vært å tilbakedatere et dokument som allerede er erstattet av
+[[repo-konvensjoner|product-brief.md]]. **Det som fortsatt står ubrukt er selve
+tilbakemeldingen** — staben tilbyr den eksplisitt for egendefinerte prosjekter, og vi har
+ikke bedt om den. Se [[ibe160]] og [[beslutninger]].
 
 ## Merk
 

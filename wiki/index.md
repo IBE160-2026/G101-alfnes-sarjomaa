@@ -25,6 +25,7 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 - [[produktide]] — Family Feud med egne spørreskjema
 - [[beslutninger]] — beslutningslogg (hva, hvorfor, hva ble valgt bort)
 - [[prosjektforslag]] — de 8 forslagene fra emneansvarlig (vi valgte egen idé)
+- [[kullet]] — hva de andre gruppene faktisk har levert, og hvordan man sjekker det
 
 ## Maler
 

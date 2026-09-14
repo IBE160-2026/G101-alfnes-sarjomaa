@@ -10,9 +10,9 @@ kanonisk kilde for hva som gjelder — les den før du gjetter.
 ## Arbeidsregler
 
 - **Ikke commit.** Legg igjen endringene ustagede; Sondre leser gjennom og committer selv.
-- **Jobb på `main`.** Ingen feature branches i dette repoet.
+- **Jobb på `main`.** Ingen feature branches i dette repoet. Med mindre det er spesifisert.
 - **Bruk subagenter** for å holde hovedkonteksten ren. Ikke la orkestratoren lese mange
-  små filer den ikke faktisk trenger — deleger lesing/søk og behold konklusjonen.
+  små filer den ikke faktisk trenger — deleger lesing/søk og behold konklusjonen. Eller bruk også subagents til å få egne eksperter innen egne domener.
 - **Dokumentér i `./wiki`.** Obsidian-lik vault med `[[wikilenker]]`. Nye notater skal
   lenkes inn fra `wiki/index.md`, ellers blir de aldri funnet igjen.
 - **Repoet er offentlig** på `github.com/IBE160-2026/G101-alfnes-sarjomaa`. Kildematerialet
@@ -40,6 +40,7 @@ norsk brødtekst — vi gjør det ikke. Valget skal holde for `PRD.md` også.
 | `_bmad/custom/config.toml` | Fellesoppsett vi *skal* redigere, og som committes |
 | `.claude/skills/bmad-*` | 39 BMAD-skills |
 | `scripts/sync-brief.sh` | Genererer og verifiserer rot-kopien av briefen |
+| `scripts/scan-cohort.sh` | Ser hva resten av kullet har levert, og hvor |
 | `wiki/` | All prosjektdokumentasjon. Start i `wiki/index.md` |
 | `.idea/` | **Gitignorert.** Oppgavetekst, PDF-er, mal, eksempelbrief — kun lokalt |
 
@@ -66,6 +67,36 @@ verre enn ingen kopi.
 
 Ikke bruk symlink — sluttleveringen er en zip, og ikke alle zip-verktøy tar vare på dem.
 Ikke rediger `product-brief.md` direkte; endringene blir overskrevet neste gang scriptet kjører.
+
+## Er du usikker? Sjekk hva resten av kullet gjorde
+
+Alle gruppene ligger åpent i samme organisasjon: `github.com/IBE160-2026`. Når det er uklart
+hva en leveranse skal hete, hvor den skal ligge, eller om den i det hele tatt hører hjemme i
+repoet, er kullet det beste tilgjengelige beviset — bedre enn å gjette.
+
+```bash
+./scripts/scan-cohort.sh                      # hvilke grupper har faktisk laget noe, og hva
+./scripts/scan-cohort.sh 'brief\.md$'         # hvor legger folk briefen?
+./scripts/scan-cohort.sh 'prd|architecture'   # hvem har kommet videre, og hva kalte de det?
+./scripts/scan-cohort.sh --all proposal       # søk i alle repo, også de urørte
+```
+
+**To feller scriptet finnes for å unngå:**
+
+1. **`gh search code --owner IBE160-2026 ...` gir 0 treff på alt.** Organisasjonen er for ny
+   til å være indeksert av GitHubs kodesøk. Stoler du på det, konkluderer du feilaktig med at
+   kullet ikke har levert noe. Scriptet går gjennom git-treet til hvert repo i stedet.
+2. **De fleste repo er bare stillas.** Av 132 repo hadde 18 noe eget innhold da vi sjekket
+   2026-09-14. Scriptet skjuler resten, og holder `_bmad/` og `*/skills/` utenfor tellingen —
+   ellers ser hver gruppe som bare installerte BMAD ut som om de har skrevet både brief,
+   PRD og arkitektur, siden skill-mappene heter `bmad-product-brief`, `bmad-prd` og
+   `bmad-architecture`.
+
+Dette er hvordan vi slo fast at ingen leverer `proposal.md` (se [[tidsplan]]), og at grupper
+som kjører BMAD legger briefen i kjøremappa framfor i rota (se [[repo-konvensjoner]]).
+
+Vurder resultatene som bevis, ikke som fasit: én gruppe kan ha misforstått like gjerne som oss.
+Emneansvarliges eget `beergame`-repo veier tyngre enn en tilfeldig gruppe.
 
 ## Status
 

@@ -47,6 +47,35 @@ Three options were considered for turning free-text answers into playable top-li
 
 Open questions for the architecture phase: whether clustering runs on submission or once at close; whether the host sees a confidence signal per group; how near-threshold answers are surfaced; what happens to answers that cluster into a group of one.
 
+## Source of the ready-made questions
+
+The first version ships a question set that needs no collection round, so a group can play the same evening. The source is **ProtoQA** (Boratko et al., "ProtoQA: A Question Answering Dataset for Prototypical Common-Sense Reasoning", EMNLP 2020), published at `github.com/iesl/protoqa-data` under **CC-BY-4.0**. Verified 2026-09-14.
+
+Why it fits:
+
+- It is built from Family Feud survey questions, which is exactly the question shape the game needs: a general question with no single correct answer.
+- It carries answer clusters **with their sizes**, not just ordered answer lists. The popularity split is the board.
+- Roughly 8,800 training instances scraped from fan sites, plus evaluation sets where about a hundred people answered each question and the answers were clustered by hand.
+- CC-BY-4.0 permits reuse with attribution, which a student project on a public repository can satisfy.
+
+Two caveats to carry into architecture and into the reflection report:
+
+- The large training portion was **scraped from Family Feud fan sites**, so the underlying material originates with a commercial television franchise even though the dataset itself is released openly. The smaller crowdsourced portions were collected by the authors directly and are cleaner in provenance. Prefer the crowdsourced sets for anything user-facing, and attribute ProtoQA visibly.
+- "Family Feud" is a trademarked format. Describing the game as Family Feud-style in a course document is ordinary comparison, but the product name, interface and any shipped branding must not imitate the show.
+
+## The judge, and how it can be wrong
+
+The grouping and the play-time guess matching both use a language model as a judge: given a question and two candidate answers, it rules on whether they mean the same thing. The same mechanism answers both "do these two submitted answers belong in one group" and "does this team's spoken guess match an existing group".
+
+Known failure modes, all of which the host override is designed to absorb:
+
+- **Non-determinism.** The same pair can be judged differently across runs. Grouping therefore happens once, at collection close, and the result is stored — the board is not recomputed during play.
+- **Prompt sensitivity.** Where the model draws the line between one group and two shifts with phrasing. This is why the measurable target is agreement with hand-labelled clusters rather than an abstract accuracy figure.
+- **Cost and latency.** A naive all-pairs comparison grows quadratically with the number of answers. For ten to thirty participants over eight to fifteen questions this is tractable, but the strategy (blocking, candidate generation, or clustering then judging only the boundaries) is an architecture decision.
+- **Disagreement with human judgement is not always model error.** Whether two answers are "the same" often depends on the group's own humour, which the model cannot know. This is the substantive reason the host confirms, not merely a safety net.
+
+ProtoQA doubles as the evaluation set: because its clusters were built by hand from about a hundred human answers per question, the judge can be scored against them directly, which is far stronger evidence than self-assessment.
+
 ## Game flow and timing
 
 Collection is asynchronous; play is live and co-located. The form is filled in during the days before the event, and the game is played together in one room off a single shared screen. This mirrors how the origin party actually worked and avoids building live multiplayer transport in a five-week project.
