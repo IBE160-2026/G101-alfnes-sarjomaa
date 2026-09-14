@@ -25,6 +25,8 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 - [[produktide]] — Family Feud med egne spørreskjema
 - [[beslutninger]] — beslutningslogg (hva, hvorfor, hva ble valgt bort)
 - [[prosjektforslag]] — de 8 forslagene fra emneansvarlig (vi valgte egen idé)
+- [[proposal]] — `proposal.md` og dens 100-poengs vurderingsrubrikk
+- [[refleksjonsrapport]] — **40 % av karakteren**, og hvorfor promptarkivet må startes nå
 - [[kullet]] — hva de andre gruppene faktisk har levert, og hvordan man sjekker det
 
 ## Maler

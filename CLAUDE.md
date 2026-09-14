@@ -41,6 +41,7 @@ norsk brødtekst — vi gjør det ikke. Valget skal holde for `PRD.md` også.
 | `.claude/skills/bmad-*` | 39 BMAD-skills |
 | `scripts/sync-brief.sh` | Genererer og verifiserer rot-kopien av briefen |
 | `scripts/scan-cohort.sh` | Ser hva resten av kullet har levert, og hvor |
+| `prompting/` | Promptarkiv for refleksjonsrapporten (40 % av karakteren) |
 | `wiki/` | All prosjektdokumentasjon. Start i `wiki/index.md` |
 | `.idea/` | **Gitignorert.** Oppgavetekst, PDF-er, mal, eksempelbrief — kun lokalt |
 
@@ -68,40 +69,56 @@ verre enn ingen kopi.
 Ikke bruk symlink — sluttleveringen er en zip, og ikke alle zip-verktøy tar vare på dem.
 Ikke rediger `product-brief.md` direkte; endringene blir overskrevet neste gang scriptet kjører.
 
-## Er du usikker? Sjekk hva resten av kullet gjorde
+## Er du usikker? Sjekk hva andre grupper gjorde
 
-Alle gruppene ligger åpent i samme organisasjon: `github.com/IBE160-2026`. Når det er uklart
-hva en leveranse skal hete, hvor den skal ligge, eller om den i det hele tatt hører hjemme i
-repoet, er kullet det beste tilgjengelige beviset — bedre enn å gjette.
+Det finnes **to** kursorganisasjoner, og **fjoråret er den nyttigste**:
+
+| Org | Hva |
+|-----|-----|
+| `github.com/IBE160` | **Forrige studieår.** 54 repo med ferdige prosjekter, mange 100+ commits og komplett dokumentsett. **Primærreferanse** |
+| `github.com/IBE160-2026` | Årets kull. 132 repo, men 114 er tomme stillas |
 
 ```bash
-./scripts/scan-cohort.sh                      # hvilke grupper har faktisk laget noe, og hva
-./scripts/scan-cohort.sh 'brief\.md$'         # hvor legger folk briefen?
-./scripts/scan-cohort.sh 'prd|architecture'   # hvem har kommet videre, og hva kalte de det?
-./scripts/scan-cohort.sh --all proposal       # søk i alle repo, også de urørte
+./scripts/scan-cohort.sh                      # fjorårets ferdige prosjekter (standard)
+./scripts/scan-cohort.sh proposal             # hvor ligger proposal.md, og hos hvem?
+./scripts/scan-cohort.sh 'prd|architecture'   # hva kalte de de neste dokumentene?
+./scripts/scan-cohort.sh --org IBE160-2026    # årets kull i stedet
+./scripts/scan-cohort.sh --all proposal       # ta med stillas-repoene også
 ```
 
-**To feller scriptet finnes for å unngå:**
+**Tre feller — den tredje kostet oss en feilkonklusjon:**
 
-1. **`gh search code --owner IBE160-2026 ...` gir 0 treff på alt.** Organisasjonen er for ny
-   til å være indeksert av GitHubs kodesøk. Stoler du på det, konkluderer du feilaktig med at
-   kullet ikke har levert noe. Scriptet går gjennom git-treet til hvert repo i stedet.
-2. **De fleste repo er bare stillas.** Av 132 repo hadde 18 noe eget innhold da vi sjekket
-   2026-09-14. Scriptet skjuler resten, og holder `_bmad/` og `*/skills/` utenfor tellingen —
-   ellers ser hver gruppe som bare installerte BMAD ut som om de har skrevet både brief,
-   PRD og arkitektur, siden skill-mappene heter `bmad-product-brief`, `bmad-prd` og
-   `bmad-architecture`.
-
-Dette er hvordan vi slo fast at ingen leverer `proposal.md` (se [[tidsplan]]), og at grupper
-som kjører BMAD legger briefen i kjøremappa framfor i rota (se [[repo-konvensjoner]]).
+1. **`gh search code --owner IBE160 ...` gir 0 treff på alt.** Ingen av organisasjonene er
+   indeksert av GitHubs kodesøk. Scriptet går gjennom git-treet til hvert repo i stedet.
+2. **Skill-mappene forurenser filnavnsøk.** `_bmad/`, `.bmad/`, `*/skills/` og
+   `.gemini/commands/` holdes utenfor — ellers ser hver gruppe som bare installerte
+   rammeverket ut som om de har skrevet brief, PRD og arkitektur, siden mappene heter
+   `bmad-product-brief`, `bmad-prd` og `bmad-architecture`.
+3. **Et kull som ikke har nådd en milepæl beviser ingenting om den milepælen.** Vi sjekket
+   bare `IBE160-2026`, fant null `proposal.md`, og konkluderte med at leveransen ikke fantes.
+   Fjoråret har en i ~48 av 54 repo, pluss en 100-poengs vurderingsrubrikk. **Sjekk alltid
+   fjoråret først.** Se [[proposal]].
 
 Vurder resultatene som bevis, ikke som fasit: én gruppe kan ha misforstått like gjerne som oss.
-Emneansvarliges eget `beergame`-repo veier tyngre enn en tilfeldig gruppe.
+Emneansvarliges egne repo (`IBE160/beergame`, `IBE160-2026/beergame`) veier tyngst.
+
+## Vurdering — vektene er kjent
+
+| Del | Vekt |
+|-----|-----:|
+| Prosjektkode og funksjonalitet | 30 % |
+| **Refleksjonsrapport** | **40 %** |
+| Muntlig eksamen | 30 %, **må bestås** |
+
+Rapporten teller altså mer enn koden. Den krever lagrede prompter («Husk å lagre promptene
+deres! Inkluder ALLE stegene dere gjorde»), som ikke kan rekonstrueres i etterkant — derfor
+finnes `prompting/`. Legg prompter dit underveis, ikke i desember.
+Se [[refleksjonsrapport]] og [[ibe160]].
 
 ## Status
 
-- [x] Uke 42 — `proposal.md`
-- [x] **Fase 1 — `product-brief.md`** (Toppsvar, 1395 ord, `status: final`)
+- [ ] **Uke 42 — `proposal.md` — mangler.** Reelt hull: fjorårets kull har en i ~48 av 54 repo, og den har en 100-poengs rubrikk. Se [[proposal]]
+- [x] **Fase 1 — `product-brief.md`** (Toppsvar, 1628 ord, `status: final`)
 - [ ] Fase 2 — `PRD.md` (skill: `bmad-prd`)
 - [ ] Fase 3 — `solution-architecture.md`, `ux-specification.md`, `frontend-prompt.md`
 - [ ] Fase 4 — implementering

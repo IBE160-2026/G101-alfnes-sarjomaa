@@ -18,30 +18,40 @@
 
 ## Status for G101
 
-- [x] Uke 42 — `proposal.md` — **finnes ikke i repoet, og det er trolig riktig** (se under)
+- [ ] Uke 42 — `proposal.md` — **mangler, og det er et reelt hull.** Se [[proposal]]
 - [x] Uke 43 — `product-brief.md` ← **ferdig 2026-09-14** (Toppsvar, 1395 ord)
 - [ ] Uke 43 — `PRD.md` ← *vi er her* (skill: `bmad-prd`)
 - [ ] Uke 44–45 — `solution-architecture.md`, `ux-specification.md`, `frontend-prompt.md`
 - [ ] Uke 46–47 — implementering
 - [ ] Uke 48–49 — refleksjonsrapport + innlevering
 
-## `proposal.md` finnes ikke — og skal antakelig ikke gjøre det
+## `proposal.md` mangler — korrigert 2026-09-14
 
-Slidens kolonne «Hva er lagd» lister `proposal.md` for uke 42, men **ingen av de 132 repoene
-i `IBE160-2026` har en fil som matcher `proposal`** (sjekket 2026-09-14 ved å gå gjennom
-git-treet til hvert eneste repo — GitHubs kodesøk er blindt for denne organisasjonen).
-Det gjelder også begge repoene oppgaveteksten kaller «Example».
+Her tok vi feil én gang, og korreksjonen er verdt å ha stående.
 
-Tolkning: forslaget ble levert et annet sted enn i repoet — mest sannsynlig i Canvas.
-Prosjektforslag-PDF-en støtter dette: «Vi vil gi dere tilbakemeldinger på forslaget deres,
-dersom dere velger et egetdefinert prosjekt.» Det finnes altså en forslagsrunde, men den
-etterlater seg ingen fil i repoet hos noen.
+**Første konklusjon (feil):** ingen av de 132 repoene i `IBE160-2026` har en `proposal.md`,
+altså er den ikke en reell repo-leveranse.
 
-G101 har uansett hoppet over dette steget og gått rett på briefen. Å lage en `proposal.md`
-nå ville vært å tilbakedatere et dokument som allerede er erstattet av
-[[repo-konvensjoner|product-brief.md]]. **Det som fortsatt står ubrukt er selve
-tilbakemeldingen** — staben tilbyr den eksplisitt for egendefinerte prosjekter, og vi har
-ikke bedt om den. Se [[ibe160]] og [[beslutninger]].
+**Hva som manglet:** forrige studieår ligger i en annen organisasjon, `github.com/IBE160`.
+Der har omtrent **48 av 54 repo** en `proposal.md`, stort sett i rota. Emneansvarlig har
+til og med sin egen i `IBE160/beergame/.grading/proposal.md`, og det finnes en
+**vurderingsrubrikk på 100 poeng** for den. Se [[proposal]].
+
+**Hvorfor feilen oppsto:** årets kull har ikke kommet dit ennå — 114 av 132 repo er tomme
+stillas. Fravær hos et kull som ikke har nådd milepælen er ikke bevis for noe.
+Sjekk alltid fjoråret først, se [[kullet]].
+
+**Konsekvens:** `proposal.md` er et reelt hull hos oss. Den er dessuten et annet dokument
+enn briefen — den krever teknologistack, datamodell, tidsplan med milepæler og
+risikovurdering, som briefen bevisst utelater. Briefen erstatter den altså ikke.
+
+## Navn å merke seg fra fjoråret
+
+- UX-dokumentet het **`ux-design-specification.md`** hos 25 av 26 sterke grupper, ikke
+  `ux-specification.md` som sliden sier.
+- **`frontend-prompt.md` finnes i 1 av 26 repo.** Nesten ingen presedens.
+- Fjoråret la dokumenter i **`docs/`**, ikke `.docs/`. Vår `.docs/` kommer av BMAD v6.12s
+  standard. Se [[kullet]].
 
 ## Merk
 

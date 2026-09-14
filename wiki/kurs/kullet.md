@@ -1,8 +1,70 @@
 # Kullet — hva de andre gruppene faktisk gjør
 
-> Alle gruppene ligger åpent under `github.com/IBE160-2026`. Når kursmaterialet er tvetydig,
-> er kullet det beste tilgjengelige beviset. Kjør `./scripts/scan-cohort.sh`.
-> Tallene under er fra 2026-09-14.
+Det finnes **to** organisasjoner, og den eldste er den nyttigste:
+
+| Org | Hva | Nytte |
+|-----|-----|-------|
+| `github.com/IBE160` | **Forrige studieår.** 54 repo, ferdige prosjekter, pushet nov 2025 – jan 2026, mange med 100+ commits og komplett dokumentsett | **Primær referanse** |
+| `github.com/IBE160-2026` | Årets kull. 132 repo, men nesten alle er tomme stillas | Viser hva samtidige gjør akkurat nå |
+
+```bash
+./scripts/scan-cohort.sh                    # fjorårets ferdige prosjekter (standard)
+./scripts/scan-cohort.sh --org IBE160-2026  # årets kull
+```
+
+> **Feilen vi gjorde.** Vi sjekket først bare `IBE160-2026`, fant null `proposal.md`, og
+> konkluderte med at leveransen ikke fantes. I `IBE160` har omtrent 48 av 54 repo en.
+> **Et kull som ikke har nådd en milepæl ennå beviser ingenting om den milepælen.**
+> Sjekk alltid fjoråret først. Se [[proposal]].
+
+Tallene under er fra 2026-09-14.
+
+## Fjorårets kull — hele dokumentsettet
+
+Fjorårets sterke repo ender opp med alle disse: `proposal.md`, product brief, `PRD.md`,
+arkitektur, og en refleksjonsrapport. Det er fasiten på hva et ferdig prosjekt inneholder.
+
+### Hvilke repo som faktisk er verdt å kopiere fra
+
+`.grading/part-3.md` i `beergame` inneholder muntlig-karakteren til hver student. Snittet per
+gruppe er det nærmeste vi kommer en fasit på hvem som gjorde det bra — men merk at det måler
+den **individuelle muntlige** (30 %), ikke repoet.
+
+| Repo | Commits | Muntlig-snitt | Hvorfor se på den |
+|------|--------:|--------------:|-------------------|
+| `SG-Pre-terminal` | 202 | **4,75** | Ryddigst BMAD-dokumentsett. Beste allroundmodell |
+| `SG-418` | 71 | **4,67** | `docs/decisions/` og `prompting/fase_1|fase_2/` med lagrede sesjoner |
+| `SG-KI-med-KG` | 502 | 4,50 | Mest dokumentasjon av alle (527 egne filer) |
+| `SG-Closed-Group` | 187 | 4,50 | Bygde egne verktøy rundt refleksjonsrapporten |
+| `SG-Gruppe-A` | 146 | 4,50 | Ryddig og kompakt |
+| `SG-Gruppe-13` | 158 | 4,25 | Docs organisert som `fase-1-analysis/`, `fase-2-plan/`, `fase-3-solutioning/` — nærmest vår egen wiki-modell |
+| `SG-NextGenCoding` | 145 | **5,00** | Solo. Viser hva én person rekker |
+| `SG-Kassandra` | 449 | **5,00** | Solo, Playwright-tester med skjermbilder |
+| `SG-Gruppe-Stavanger` | 367 | 3,75 | Den oppgaveteksten vår peker på |
+
+**Commit-antall forutsier ikke karakter.** `SG-418` har 71 commits og 4,67; `SG-Gruppe-12`
+har 229 og 2,67.
+
+### Dokumentsettet et ferdig prosjekt har
+
+Av de 26 sterkeste repoene hadde **alle 26**: `proposal.md`, product brief, `docs/PRD.md`,
+`docs/architecture.md`, `docs/epics.md`, `docs/bmm-workflow-status.yaml`.
+25 av 26 hadde `docs/ux-design-specification.md` og `docs/project-plan.md`.
+
+To navnedetaljer å ta med videre:
+
+- Fjoråret brukte **`docs/` i rota** — 26 av 26. Ingen brukte `.docs/`. Vår `.docs/` kommer
+  av BMAD v6.12s egen standard, ikke av et valg, så det er et versjonsavvik og ikke et brudd.
+- UX-dokumentet heter **`ux-design-specification.md`**, ikke `ux-specification.md` som vår
+  [[tidsplan]] sier.
+- **`frontend-prompt.md` finnes i 1 av 26.** Lager vi en i fase 3, ligger vi foran fjoråret,
+  ikke likt.
+
+Merk at fjoråret brukte en eldre BMAD med `.bmad/` og Gemini-kommandoer i `.gemini/commands/`,
+mens vi har `_bmad/` og `.claude/skills/`. Mappenavn er derfor ikke direkte overførbare —
+dokumentene og strukturen er det.
+
+## Årets kull
 
 ## To feller
 
@@ -52,7 +114,8 @@ standard underveis. Installasjoner til og med 09-09 fikk `.docs`, senere fikk `_
 
 ## Verdt å merke seg
 
-- **`proposal.md` finnes ikke i ett eneste repo.** Se [[tidsplan]].
+- **`proposal.md` finnes ikke i ett eneste av årets repo — men i nesten alle fjorårets.**
+  Se [[proposal]] og [[tidsplan]].
 - **G10 er lengst framme** og eneste gruppe med PRD og arkitektur. De lagde dessuten
   **tre** briefer samme dag (`forplanner`, `pantbuddy`, `VaktMatch`) før de valgte —
   og emneansvarlig la igjen `tilbakemelding-tre-briefer-2026-09-07.md` i repoet deres.
