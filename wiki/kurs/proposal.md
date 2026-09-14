@@ -133,6 +133,30 @@ Arkitekturrubrikken er svært ambisiøs (trusselmodell, SBOM, RTO/RPO, canary-ut
 ingen studentrepo viser tegn til å ha blitt vurdert mot den. Behandle dem som referanse for
 hva som regnes som kvalitet, ikke som krav.
 
+## Vår egen
+
+`proposal.md` i rota, skrevet 2026-09-14, **2626 ord** — innenfor spennet der fjorårets sterke
+grupper klumper seg (1500–3000).
+
+Den følger `case-description-template.md` og legger til de tre seksjonene de sterke gruppene
+la til: `## Technical Specifications` med én underseksjon per rubrikkpunkt, `## User Flows`
+og `## Timeline and Milestones`. I tillegg `## Risk Assessment`.
+
+To ting er gjort bevisst for rubrikkens skyld:
+
+- **Autentisering og betaling er eksplisitt utelukket, ikke forbigått i stillhet.** Rubrikken
+  gir full score (5 + 5) for bevisst utelatelse når prosjektet ikke trenger dem, men null for
+  taushet. Teksten sier derfor rett ut at deltakere ikke har kontoer, og at det ikke finnes
+  noe betalingssystem.
+- **Teknologivalgene er konkrete, ikke vage.** Rubrikken sier «Clarity is valued over
+  cleverness — specific details are essential», og 35 av 100 poeng henger på at frontend,
+  backend, database, KI-integrasjon og plattform er navngitt hver for seg.
+
+**Åpent punkt:** stacken (Next.js 15 + TypeScript + Tailwind på Vercel, route handlers som
+backend, PostgreSQL på Supabase, Claude Haiku 4.5 bak et byttbart grensesnitt) er valgt ut fra
+kursets `.gitignore`, emneansvarliges beergame-stack og hva fjoråret brukte. Den bør bekreftes
+av begge gruppemedlemmer før fase 3.
+
 ## Forbehold
 
 - Rubrikken og eksempelet er fra **forrige studieår**, funnet i et studentrepo. Sannsynligvis

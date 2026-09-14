@@ -18,14 +18,14 @@
 
 ## Status for G101
 
-- [ ] Uke 42 — `proposal.md` — **mangler, og det er et reelt hull.** Se [[proposal]]
-- [x] Uke 43 — `product-brief.md` ← **ferdig 2026-09-14** (Toppsvar, 1395 ord)
+- [x] Uke 42 — `proposal.md` — **skrevet 2026-09-14** (2626 ord). Se [[proposal]]
+- [x] Uke 43 — `product-brief.md` ← **ferdig 2026-09-14** (Toppsvar, 1628 ord)
 - [ ] Uke 43 — `PRD.md` ← *vi er her* (skill: `bmad-prd`)
-- [ ] Uke 44–45 — `solution-architecture.md`, `ux-specification.md`, `frontend-prompt.md`
+- [ ] Uke 44–45 — `solution-architecture.md`, `ux-design-specification.md`, `frontend-prompt.md`
 - [ ] Uke 46–47 — implementering
 - [ ] Uke 48–49 — refleksjonsrapport + innlevering
 
-## `proposal.md` mangler — korrigert 2026-09-14
+## `proposal.md` — feilkonklusjon korrigert 2026-09-14
 
 Her tok vi feil én gang, og korreksjonen er verdt å ha stående.
 
@@ -41,9 +41,9 @@ til og med sin egen i `IBE160/beergame/.grading/proposal.md`, og det finnes en
 stillas. Fravær hos et kull som ikke har nådd milepælen er ikke bevis for noe.
 Sjekk alltid fjoråret først, se [[kullet]].
 
-**Konsekvens:** `proposal.md` er et reelt hull hos oss. Den er dessuten et annet dokument
-enn briefen — den krever teknologistack, datamodell, tidsplan med milepæler og
-risikovurdering, som briefen bevisst utelater. Briefen erstatter den altså ikke.
+**Konsekvens:** `proposal.md` ble skrevet 2026-09-14 og ligger i rota. Den er et annet
+dokument enn briefen — den krever teknologistack, datamodell, tidsplan med milepæler og
+risikovurdering, som briefen bevisst utelater. Briefen erstattet den altså aldri.
 
 ## Navn å merke seg fra fjoråret
 

@@ -17,7 +17,8 @@ Det finnes **to** organisasjoner, og den eldste er den nyttigste:
 > **Et kull som ikke har nådd en milepæl ennå beviser ingenting om den milepælen.**
 > Sjekk alltid fjoråret først. Se [[proposal]].
 
-Tallene under er fra 2026-09-14.
+Tallene under er fra 2026-09-14, og gjenspeiler **det som er pushet til GitHub** —
+vår egen rad henger derfor etter så lenge endringer ligger ustaget lokalt.
 
 ## Fjorårets kull — hele dokumentsettet
 
@@ -90,7 +91,7 @@ null planleggingsartefakter.
 |------|-----------:|-----|
 | `beergame` (emneansvarlig) | 8 | bmad, `.docs`, brief |
 | G10-andreassen-lundberg | 238 | bmad, `_bmad-output`, brief, **PRD**, **arkitektur** |
-| G101 (oss) | 21 | bmad, `.docs`, brief |
+| G101 (oss) | 21 | bmad, `.docs`, brief, proposal |
 | G03, G04, G53, G65 | 4–5 | bmad, `_bmad-output`, brief |
 | G23, G58 | 5 | bmad, `.docs`, brief |
 | G16-shyam | 4 | `.docs`, brief |
@@ -114,7 +115,7 @@ standard underveis. Installasjoner til og med 09-09 fikk `.docs`, senere fikk `_
 
 ## Verdt å merke seg
 
-- **`proposal.md` finnes ikke i ett eneste av årets repo — men i nesten alle fjorårets.**
+- **`proposal.md` fantes ikke i noe repo i årets kull da vi skannet — men i nesten alle fjorårets.** Vi har nå skrevet vår.
   Se [[proposal]] og [[tidsplan]].
 - **G10 er lengst framme** og eneste gruppe med PRD og arkitektur. De lagde dessuten
   **tre** briefer samme dag (`forplanner`, `pantbuddy`, `VaktMatch`) før de valgte —

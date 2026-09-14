@@ -34,6 +34,7 @@ norsk brødtekst — vi gjør det ikke. Valget skal holde for `PRD.md` også.
 
 | Sti | Innhold |
 |-----|---------|
+| `proposal.md` | Prosjektforslaget. Håndskrevet, vurderes mot en egen 100-poengs rubrikk. Se [[proposal]] |
 | `product-brief.md` | **Generert** av `scripts/sync-brief.sh` — brødteksten uten frontmatter. Rediger aldri direkte |
 | `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/` | Kanonisk fase 1: `brief.md`, `addendum.md`, `.memlog.md` |
 | `_bmad/` | BMAD-rammeverket. `config.toml` er installer-styrt og skal ikke redigeres |
@@ -117,10 +118,10 @@ Se [[refleksjonsrapport]] og [[ibe160]].
 
 ## Status
 
-- [ ] **Uke 42 — `proposal.md` — mangler.** Reelt hull: fjorårets kull har en i ~48 av 54 repo, og den har en 100-poengs rubrikk. Se [[proposal]]
+- [x] **Uke 42 — `proposal.md`** (2626 ord, følger `case-description-template.md` + rubrikkens tekniske seksjoner). Se [[proposal]]
 - [x] **Fase 1 — `product-brief.md`** (Toppsvar, 1628 ord, `status: final`)
 - [ ] Fase 2 — `PRD.md` (skill: `bmad-prd`)
-- [ ] Fase 3 — `solution-architecture.md`, `ux-specification.md`, `frontend-prompt.md`
+- [ ] Fase 3 — `solution-architecture.md`, `ux-design-specification.md`, `frontend-prompt.md`
 - [ ] Fase 4 — implementering
 - [ ] Refleksjonsrapport
 

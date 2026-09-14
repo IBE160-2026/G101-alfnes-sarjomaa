@@ -119,15 +119,20 @@ G23 bruker personlige feature-branches (`carmen/product-brief-forbedringer`) for
 **G101 jobber kun på `main`** — ingen feature branches.
 
 
-## Hva G101 faktisk leverte i fase 1
+## Hva G101 faktisk har levert
 
 ```
+proposal.md         2626 ord, prosjektforslaget - håndskrevet, egen 100-poengs rubrikk
 .docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/
-    brief.md        1395 ord, 8 seksjoner, engelsk, status: final — KANONISK, med frontmatter
-    addendum.md     ~1000 ord — kildeskjema (anonymisert), grupperingsvalg, spilleflyt, anonymitet
-    .memlog.md      17 oppføringer, append-only
-product-brief.md    generert av scripts/sync-brief.sh — samme brødtekst, UTEN frontmatter
+    brief.md        1628 ord, 8 seksjoner, engelsk, status: final - KANONISK, med frontmatter
+    addendum.md     ~1503 ord - kildeskjema (anonymisert), ProtoQA-kilde, grupperingsvalg,
+                    dommerens feilmoduser, spilleflyt, anonymitet
+    .memlog.md      37 oppføringer, append-only
+product-brief.md    generert av scripts/sync-brief.sh - samme brødtekst, UTEN frontmatter
 ```
+
+Merk at `proposal.md` **ikke** er en BMAD-artefakt og ikke ligger i kjøremappa. Den er et
+kursdokument som følger `case-description-template.md`, og den redigeres direkte.
 
 ### Hvorfor rot-kopien ikke har frontmatter
 

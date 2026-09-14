@@ -34,6 +34,15 @@ dommere: BMADs egen kvalitetssjekkliste, emnets rubrikk, og rent formatkrav. Vin
 Synteseutkastet dro inn igjen et ekte fornavn fra det private kildeskjemaet. Det ble fanget
 i etterkontrollen og anonymisert. Repoet er offentlig, så dette er verdt å sjekke hver gang.
 
+## Senere samme dag
+
+- Briefen utvidet med LAAJ-grupperingen og ferdige spørsmålssett: 1395 → 1628 ord.
+- Oppdaget at forrige studieår ligger i en egen organisasjon, `github.com/IBE160`, med 54
+  ferdige prosjekter. Det snudde konklusjonen om `proposal.md` — se [[proposal]].
+- `proposal.md` skrevet (2626 ord) mot `case-description-template.md` og 100-poengsrubrikken.
+- Funnet vektingen av emnet: kode 30 %, refleksjonsrapport 40 %, muntlig 30 %. Se [[ibe160]].
+- `prompting/` opprettet, fordi rapporten krever lagrede prompter.
+
 ## Neste
 
 `PRD.md` (fase 2, samme uke) med skillen `bmad-prd`. Språk- og seksjonsvalgene fra briefen

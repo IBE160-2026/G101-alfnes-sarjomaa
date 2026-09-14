@@ -11,7 +11,9 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 
 ## Leveranser
 
-- `product-brief.md` — fase 1, ferdig 2026-09-14. Kanonisk kopi i `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/`
+- `proposal.md` — prosjektforslaget, ferdig 2026-09-14 (2626 ord). Vurderes mot en egen 100-poengs rubrikk, se [[proposal]]
+- `product-brief.md` — fase 1, ferdig 2026-09-14 (1628 ord). Kanonisk kopi i `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/`
+- `PRD.md` — fase 2, **neste**
 
 ## BMAD
 
