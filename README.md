@@ -21,11 +21,11 @@ vente på at et skjema fylles ut.
 
 | Dokument | Fase | Hva det er |
 |----------|------|------------|
-| [`proposal.md`](proposal.md) | Uke 42 | Prosjektforslaget: omfang, teknologivalg, datamodell, tidsplan og risiko. Vurderes mot en egen 100-poengs rubrikk |
-| [`product-brief.md`](product-brief.md) | Fase 1 (uke 43) | Produkthistorien: hva, hvorfor, hvem og hvordan — bevisst uten teknologi |
-| `PRD.md` | Fase 2 (uke 43) | *Ikke skrevet ennå* |
+| [`product-brief.md`](product-brief.md) | Fase 1, arbeidskrav | Produkthistorien: hva, hvorfor, hvem og hvordan — bevisst uten teknologi. Revidert etter faglærers tilbakemelding |
+| [`proposal.md`](proposal.md) | Bakgrunn | Omfang, teknologivalg, datamodell, tidsplan og risiko i fjorårets proposal-format |
+| [`PRD.md`](PRD.md) | Fase 2 | Krav: funksjonelle og ikke-funksjonelle, prioritert i trinn 1 og trinn 2 |
 | `solution-architecture.md`, `ux-design-specification.md` | Fase 3 (uke 44–45) | *Ikke skrevet ennå* |
-| Refleksjonsrapport | Uke 48–49 | **40 % av karakteren.** Leveres 5. desember |
+| Refleksjonsrapport | Uke 48–49 | 30 % av karakteren (koden er 70 %). Leveres 5. desember |
 
 `proposal.md` og `product-brief.md` overlapper med vilje ikke: forslaget spesifiserer stack,
 datamodell, milepæler og risiko, mens briefen holder seg til opplevelsen og utfallet.

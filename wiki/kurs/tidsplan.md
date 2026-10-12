@@ -7,6 +7,7 @@
 
 | Uke | Fase / aktivitet | Leveranse |
 |-----|------------------|-----------|
+| 38 | **Arbeidskrav:** product brief i repoet, frist 20. sept. kl. 23:59 | `product-brief.md` |
 | 42 | Oppdater og forbedre `proposal.md` | `proposal.md` |
 | 43 | **Fase 1 og 2: Analyse + planlegging** (brainstorm + product manager) | `product-brief.md`, `PRD.md` |
 | 44 | **Fase 3: Løsningsarkitektur** (architect + ux/ui designer) | `solution-architecture.md`, `ux-specification.md`, `frontend-prompt.md` |
@@ -18,9 +19,11 @@
 
 ## Status for G101
 
-- [x] Uke 42 — `proposal.md` — **skrevet 2026-09-14** (2626 ord). Se [[proposal]]
-- [x] Uke 43 — `product-brief.md` ← **ferdig 2026-09-14** (Toppsvar, 1628 ord)
-- [ ] Uke 43 — `PRD.md` ← *vi er her* (skill: `bmad-prd`)
+- [x] **Arbeidskrav** — product brief levert 2026-09-14, før fristen 20. sept. Godkjent med
+  justeringer 2026-10-06. Se [[ibe160]]
+- [x] `proposal.md` — skrevet 2026-09-14 (2626 ord). En ekstra leveranse i fjorårets format, ikke krevd i år. Se [[proposal]]
+- [x] Brief revidert etter tilbakemeldingen — 2026-10-12 (trinn 1/2, testbare kriterier, poeng og dobbeltsvar avklart)
+- [ ] `PRD.md` ← *utkast 2026-10-12, uke 42*. Venter på at gruppa bekrefter antakelsene i §10–11. Vi ligger én uke foran sliden
 - [ ] Uke 44–45 — `solution-architecture.md`, `ux-design-specification.md`, `frontend-prompt.md`
 - [ ] Uke 46–47 — implementering
 - [ ] Uke 48–49 — refleksjonsrapport + innlevering

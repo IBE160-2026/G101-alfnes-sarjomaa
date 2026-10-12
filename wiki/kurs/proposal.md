@@ -1,4 +1,12 @@
-# `proposal.md` — leveransen vi trodde ikke fantes
+# `proposal.md` — fjorårets leveranse, en ekstra hos oss
+
+> **Korreksjon 2026-10-12 — les denne først.** I år er arbeidskravet «proposal (product brief)»,
+> altså **selve product brief-en**, med frist 20. september (infosiden i Canvas). Fjorårets
+> separate `proposal.md` med 100-poengs rubrikk er **ikke** en leveranse for høsten 2026.
+> Faglærer leste vår `proposal.md` bare «som bakgrunn». Det som faktisk vurderes står i
+> [[sensorveiledning-del-1]]. Siden under beskriver fjorårets format, og den stemmer fortsatt
+> som historikk. `proposal.md` blir liggende fordi teknologi, datamodell og risiko er nyttig
+> grunnlag for arkitekturfasen, men den vedlikeholdes ikke videre.
 
 > **Korreksjon 2026-09-14.** Vi konkluderte tidligere med at `proposal.md` ikke var en reell
 > leveranse, fordi ingen av de 132 repoene i `IBE160-2026` hadde en. Den konklusjonen var feil.
@@ -7,7 +15,7 @@
 >
 > Lærdommen: et kull som ikke har nådd en milepæl ennå beviser ingenting om den milepælen.
 
-## Hvorfor dette er den viktigste siden i wikien
+## Fjorårets rubrikk
 
 I `IBE160/SG-Gruppe-14-d2/docs/data/proposal-checklist.yaml` ligger en **eksplisitt
 vurderingsrubrikk på 100 poeng** for proposal-en, med karakterskala. Det er den eneste
@@ -155,7 +163,9 @@ To ting er gjort bevisst for rubrikkens skyld:
 **Åpent punkt:** stacken (Next.js 15 + TypeScript + Tailwind på Vercel, route handlers som
 backend, PostgreSQL på Supabase, Claude Haiku 4.5 bak et byttbart grensesnitt) er valgt ut fra
 kursets `.gitignore`, emneansvarliges beergame-stack og hva fjoråret brukte. Den bør bekreftes
-av begge gruppemedlemmer før fase 3.
+av begge gruppemedlemmer før fase 3. Den må dessuten fungere uten nøkkel og uten Supabase-konto
+for sensor (se [[sensorveiledning-del-1]], punkt 6). Modellnavnet bør oppdateres, siden
+Claude 5-familien er ute.
 
 ## Forbehold
 
@@ -163,5 +173,6 @@ av begge gruppemedlemmer før fase 3.
   utdelt av emneansvarlig, men det er ikke bekreftet for årets kull.
 - Ukenumrene i fjorårets eksempel (uke 44–48) er forskjøvet mot årets slide (uke 43–47).
   Strukturen er lik, tallene er det ikke.
-- **Dette bør avklares med emneansvarlig**, sammen med tilbakemeldingen på den egendefinerte
-  idéen som vi fortsatt ikke har bedt om. Se [[ibe160]].
+- ~~Dette bør avklares med emneansvarlig~~ — **avklart 2026-10-12**: infosiden sier at
+  arbeidskravet er product brief-en. Tilbakemeldingen på den egendefinerte idéen kom
+  2026-10-06. Se [[ibe160]].

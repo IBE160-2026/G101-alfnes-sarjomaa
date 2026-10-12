@@ -34,15 +34,17 @@ norsk brødtekst — vi gjør det ikke. Valget skal holde for `PRD.md` også.
 
 | Sti | Innhold |
 |-----|---------|
-| `proposal.md` | Prosjektforslaget. Håndskrevet, vurderes mot en egen 100-poengs rubrikk. Se [[proposal]] |
+| `proposal.md` | Fjorårets proposal-format. **Ikke krevd i år**, men stack, datamodell og risiko er grunnlag for arkitekturen. Se [[proposal]] |
 | `product-brief.md` | **Generert** av `scripts/sync-brief.sh` — brødteksten uten frontmatter. Rediger aldri direkte |
-| `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/` | Kanonisk fase 1: `brief.md`, `addendum.md`, `.memlog.md` |
+| `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/` | Kanonisk fase 1: `brief.md`, `addendum.md`, `.memlog.md`, og faglærers `tilbakemelding-product-brief.md` |
 | `_bmad/` | BMAD-rammeverket. `config.toml` er installer-styrt og skal ikke redigeres |
 | `_bmad/custom/config.toml` | Fellesoppsett vi *skal* redigere, og som committes |
 | `.claude/skills/bmad-*` | 39 BMAD-skills |
-| `scripts/sync-brief.sh` | Genererer og verifiserer rot-kopien av briefen |
+| `.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/` | Kanonisk fase 2: `prd.md`, `.memlog.md`, gjennomgangsfiler |
+| `PRD.md` | **Generert** av `scripts/sync-brief.sh`, på samme måte som briefen. Rediger aldri direkte |
+| `scripts/sync-brief.sh` | Genererer og verifiserer rot-kopiene av briefen og PRD-en |
 | `scripts/scan-cohort.sh` | Ser hva resten av kullet har levert, og hvor |
-| `prompting/` | Promptarkiv for refleksjonsrapporten (40 % av karakteren) |
+| `prompting/` | Promptarkiv, én fil per økt under `fase-N-*/`: bevis på KI-styring i del 1, og råmateriale til refleksjonsrapporten |
 | `wiki/` | All prosjektdokumentasjon. Start i `wiki/index.md` |
 | `.idea/` | **Gitignorert.** Oppgavetekst, PDF-er, mal, eksempelbrief — kun lokalt |
 
@@ -62,7 +64,7 @@ ikke har frontmatter.
 ./scripts/sync-brief.sh
 ```
 
-Kjør den som siste steg før enhver commit som rører briefen. Scriptet stripper
+Kjør den som siste steg før enhver commit som rører briefen eller PRD-en. `PRD.md` følger samme mønster. Scriptet stripper
 frontmatteren, skriver `product-brief.md`, og feiler hvis brødteksten har kommet ut av
 synk eller frontmatteren har sneket seg inn igjen. En kopi som har kommet ut av synk er
 verre enn ingen kopi.
@@ -107,20 +109,29 @@ Emneansvarliges egne repo (`IBE160/beergame`, `IBE160-2026/beergame`) veier tyng
 
 | Del | Vekt |
 |-----|-----:|
-| Prosjektkode og funksjonalitet | 30 % |
-| **Refleksjonsrapport** | **40 %** |
-| Muntlig eksamen | 30 %, **må bestås** |
+| **Prosjektkode og funksjonalitet** (del 1, gruppevis) | **70 %** |
+| Refleksjonsrapport (del 2, gruppevis) | 30 % |
 
-Rapporten teller altså mer enn koden. Den krever lagrede prompter («Husk å lagre promptene
-deres! Inkluder ALLE stegene dere gjorde»), som ikke kan rekonstrueres i etterkant — derfor
-finnes `prompting/`. Legg prompter dit underveis, ikke i desember.
-Se [[refleksjonsrapport]] og [[ibe160]].
+**Ingen muntlig eksamen.** Kilde: infosiden i Canvas og faglærers tilbakemelding 2026-10-06.
+Tallene 30/40/30 som sto her før var fjorårets, og ble hentet fra `IBE160/beergame/.grading/`.
+Lærdommen er den samme som med `proposal.md`: **fjorårets materiale viser format, ikke årets regler.**
+
+Del 1 vurderes etter sju kriterier: prosess og KI-styring 30 %, funksjonalitet og omfang 20 %,
+testing 15 %, design 10 %, arkitektur 10 %, README og kjørbarhet 10 %, ryddighet 5 %.
+Se [[sensorveiledning-del-1]] **før hver fase**. Tre konsekvenser som lett glemmes:
+
+- **Appen må kunne kjøres av sensor uten våre nøkler eller betalte kontoer.** Hele flyten skal
+  virke uten modellnøkkel.
+- **Commit-historikken er bevis på prosess.** Commit i mindre biter og jevnt over tid.
+- *«Dokumentasjon må vise hvordan KI ble brukt, og hvordan studentene har kvalitetssikret koden.»*
+  Legg prompter i `prompting/` underveis. Se [[refleksjonsrapport]] og [[ibe160]].
 
 ## Status
 
-- [x] **Uke 42 — `proposal.md`** (2626 ord, følger `case-description-template.md` + rubrikkens tekniske seksjoner). Se [[proposal]]
-- [x] **Fase 1 — `product-brief.md`** (Toppsvar, 1628 ord, `status: final`)
-- [ ] Fase 2 — `PRD.md` (skill: `bmad-prd`)
+- [x] **Arbeidskrav — product brief** levert 2026-09-14 (frist 20. sept.). Godkjent med justeringer 2026-10-06
+- [x] **Brief revidert** etter tilbakemeldingen 2026-10-12: trinn 1/2, testbare kriterier, poeng og dobbeltsvar avklart
+- [x] `proposal.md` (fjorårets format, ikke krevd i år). Se [[proposal]]
+- [ ] Fase 2 — `PRD.md` (skill: `bmad-prd`): utkast 2026-10-12, venter på at gruppa bekrefter antakelsene ← **nå**
 - [ ] Fase 3 — `solution-architecture.md`, `ux-design-specification.md`, `frontend-prompt.md`
 - [ ] Fase 4 — implementering
 - [ ] Refleksjonsrapport

@@ -5,15 +5,16 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 
 ## Start her
 
-- [[ibe160]] — hva emnet krever, hva som teller ved sensur
+- [[ibe160]] — hva emnet krever, og vektingen: **kode 70 %, rapport 30 %, ingen muntlig**
+- [[sensorveiledning-del-1]] — de sju kriteriene koden vurderes etter. **Les før hver fase**
 - [[tidsplan]] — ukeplan, faser og frister **(neste: `PRD.md`)**
 - [[produktide]] — hva vi bygger: **Toppsvar**
 
 ## Leveranser
 
-- `proposal.md` — prosjektforslaget, ferdig 2026-09-14 (2626 ord). Vurderes mot en egen 100-poengs rubrikk, se [[proposal]]
-- `product-brief.md` — fase 1, ferdig 2026-09-14 (1628 ord). Kanonisk kopi i `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/`
-- `PRD.md` — fase 2, **neste**
+- `product-brief.md` — fase 1 og **arbeidskravet**. Levert 2026-09-14, godkjent med justeringer 2026-10-06, revidert 2026-10-12. Kanonisk kopi i `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/`, sammen med `tilbakemelding-product-brief.md` fra faglærer
+- `proposal.md` — fjorårets format, skrevet 2026-09-14. Ikke krevd i år, men grunnlag for arkitekturen. Se [[proposal]]
+- `PRD.md` — fase 2, **utkast 2026-10-12**. Kanonisk i `.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/`, generert til rota av `sync-brief.sh`. Venter på at gruppa bekrefter antakelsene
 
 ## BMAD
 
@@ -27,9 +28,15 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 - [[produktide]] — Family Feud med egne spørreskjema
 - [[beslutninger]] — beslutningslogg (hva, hvorfor, hva ble valgt bort)
 - [[prosjektforslag]] — de 8 forslagene fra emneansvarlig (vi valgte egen idé)
-- [[proposal]] — `proposal.md` og dens 100-poengs vurderingsrubrikk
-- [[refleksjonsrapport]] — **40 % av karakteren**, og hvorfor promptarkivet må startes nå
+- [[proposal]] — `proposal.md` og fjorårets 100-poengs rubrikk (ikke gjeldende i år)
+- [[refleksjonsrapport]] — 30 % av karakteren, gruppevis, og hvorfor promptarkivet fortsatt teller
 - [[kullet]] — hva de andre gruppene faktisk har levert, og hvordan man sjekker det
+
+## Logg
+
+- [[2026-09-13-oppstart-dokumentasjon]]
+- [[2026-09-14-bmad-og-product-brief]]
+- [[2026-10-12-tilbakemelding-og-prd]] — faglærers tilbakemelding, korrigert vekting, revidert brief, PRD-utkast
 
 ## Maler
 

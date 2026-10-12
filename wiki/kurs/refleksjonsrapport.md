@@ -1,10 +1,19 @@
-# Refleksjonsrapport — 40 % av karakteren
+# Refleksjonsrapport — 30 % av karakteren
 
-> Den største enkeltposten i vurderingen. Større enn koden (30 %).
+> **Korreksjon 2026-10-12:** for høsten 2026 er rapporten **30 %** og del 2 av mappen, og den
+> leveres **gruppevis**. Koden er 70 %. Tallet 40 % var fjorårets. Se [[ibe160]].
+> Infosiden beskriver innholdet slik: utviklingsprosessen, utfordringer og løsninger, en kritisk
+> vurdering av hvordan KI påvirket sluttresultatet, og argumentasjon for etiske og teknologiske
+> implikasjoner. Det passer med fjorårets mal under.
+>
 > Mal: `IBE160/beergame/.grading/reflection-report-template.md` (910 ord).
 > Frist: **5. desember**, sammen med repoet som zip. Se [[tidsplan]].
 
-## Hvorfor dette står her allerede i september
+## Hvorfor promptarkivet fortsatt er viktig
+
+Rapporten teller mindre enn vi trodde, men promptene teller nå i tillegg i del 1:
+*«Dokumentasjon må vise hvordan KI ble brukt, og hvordan studentene har kvalitetssikret koden»*,
+og «Prosess og KI-styring» er 30 % av del 1 (se [[sensorveiledning-del-1]]).
 
 To ting i malen kan ikke rekonstrueres i desember hvis de ikke samles inn underveis:
 
@@ -69,7 +78,7 @@ Malen selv sier 3 000–5 000 ord.
 
 ## Merk
 
-- Seksjon 7.4 er **individuell** — hver av oss skriver sin egen del.
+- Seksjon 7.4 var **individuell** i fjorårets mal. I år er rapporten gruppevis, så sjekk malen i Canvas før vi skriver den.
 - Emneansvarlig la fjorårets innleverte rapporter inn i gruppenes repo i etterkant som
   Canvas-eksport (`<4 siffer>_438085554_1.md`). Selve innleveringen skjedde altså i Canvas.
 - `SG-Closed-Group` lagde en `REFLECTION_REPORT_GUIDE.md` som kobler hver malseksjon til en

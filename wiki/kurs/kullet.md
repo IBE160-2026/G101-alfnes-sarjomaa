@@ -29,7 +29,9 @@ arkitektur, og en refleksjonsrapport. Det er fasiten på hva et ferdig prosjekt 
 
 `.grading/part-3.md` i `beergame` inneholder muntlig-karakteren til hver student. Snittet per
 gruppe er det nærmeste vi kommer en fasit på hvem som gjorde det bra — men merk at det måler
-den **individuelle muntlige** (30 %), ikke repoet.
+den **individuelle muntlige** fra fjoråret, ikke repoet. **I år finnes det ingen muntlig
+eksamen** (se [[ibe160]]), så snittet sier noe om hvem som forsto prosjektet sitt, ikke om
+hvordan årets vurdering vektes.
 
 | Repo | Commits | Muntlig-snitt | Hvorfor se på den |
 |------|--------:|--------------:|-------------------|
@@ -67,7 +69,7 @@ dokumentene og strukturen er det.
 
 ## Årets kull
 
-## To feller
+### To feller
 
 **1. GitHubs kodesøk er blindt for denne organisasjonen.**
 `gh search code --owner IBE160-2026 <hva som helst>` returnerer `total_count: 0` med exit 0.
@@ -82,7 +84,7 @@ Søker man etter «brief», «prd» eller «architecture» uten å filtrere bort
 skrevet alle tre dokumentene. G36 er det tydeligste eksempelet: full BMAD-installasjon,
 null planleggingsartefakter.
 
-## Aktivitet
+### Aktivitet
 
 **18 av 132 repo** hadde eget innhold. De resterende 114 er stillas: `README.md`,
 `.gitignore`, `.gitattributes`.
@@ -99,7 +101,7 @@ null planleggingsartefakter.
 | G02, G09, G19, G56, G129 | 3 | brief i rota, **ingen bmad** |
 | G18, G25 | 3 | ingenting ennå |
 
-## Hvor legger folk briefen?
+### Hvor legger folk briefen?
 
 | Mønster | Grupper |
 |---------|---------|

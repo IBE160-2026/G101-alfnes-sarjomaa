@@ -32,8 +32,8 @@ output_folder: "{project-root}/.docs"
 
 > **Avklart 2026-09-14: vi gjør begge deler.** Oppgaveteksten navngir `product-brief.md`,
 > men BMAD hardkoder filnavnet `brief.md` inne i kjøremappa — det finnes ingen innstilling
-> som endrer det. Kjøremappa er kanonisk og den eneste som redigeres; rotfila er en
-> byte-identisk kopi laget med `cp`.
+> som endrer det. Kjøremappa er kanonisk og den eneste som redigeres; rotfila
+> genereres av scriptet og har samme brødtekst, **uten** frontmatter (se under).
 >
 > ```bash
 > ./scripts/sync-brief.sh
@@ -129,6 +129,10 @@ proposal.md         2626 ord, prosjektforslaget - håndskrevet, egen 100-poengs 
                     dommerens feilmoduser, spilleflyt, anonymitet
     .memlog.md      37 oppføringer, append-only
 product-brief.md    generert av scripts/sync-brief.sh - samme brødtekst, UTEN frontmatter
+.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/
+    prd.md          PRD-utkast, 33 FR merket Stage 1/2 - KANONISK, med frontmatter
+    .memlog.md      beslutningslogg for PRD-kjøringen
+PRD.md              generert av scripts/sync-brief.sh - samme mønster som briefen
 ```
 
 Merk at `proposal.md` **ikke** er en BMAD-artefakt og ikke ligger i kjøremappa. Den er et

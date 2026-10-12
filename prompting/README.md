@@ -1,6 +1,8 @@
 # Promptarkiv
 
-Refleksjonsrapporten er **40 % av karakteren**, og malen sier eksplisitt:
+Promptene teller to steder: i del 1 (70 %), der *«dokumentasjon må vise hvordan KI ble brukt,
+og hvordan studentene har kvalitetssikret koden»*, og i refleksjonsrapporten (30 %), der
+fjorårets mal sier eksplisitt:
 
 > «Husk å lagre promptene deres! Inkluder ALLE stegene dere gjorde.»
 > — `reflection-report-template.md`, seksjon 2.4 Utviklingsfaser
