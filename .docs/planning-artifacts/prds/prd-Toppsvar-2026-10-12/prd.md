@@ -1,6 +1,6 @@
 ---
 title: Toppsvar PRD
-status: draft
+status: final
 created: 2026-10-12
 updated: 2026-10-13
 ---
@@ -11,7 +11,7 @@ updated: 2026-10-13
 
 This PRD turns the Toppsvar product brief into requirements that the UX, architecture and epics-and-stories phases can build from without returning to the brief. It is written for the two-person project group, the course staff who assess it, and the BMAD workflows downstream. It builds on `brief.md` and `addendum.md` in `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/` and on the instructor's feedback in `tilbakemelding-product-brief.md` beside them, and does not repeat their argument.
 
-Vocabulary is fixed in the Glossary (§3), and capitalised terms are used exactly as defined there. Features are grouped in §4 with globally numbered requirements (FR-n), each with testable consequences, and every requirement is tagged **Stage 1** or **Stage 2**. §9.1 traces the brief's success criteria to requirements and planned tests. Inferences not yet confirmed by the group are tagged `[ASSUMPTION]` inline and indexed in §11, split into behavioural decisions and numeric parameters. Technology choices are deliberately absent; they belong to the architecture phase, which must satisfy §5 and §6.
+Vocabulary is fixed in the Glossary (§3), and capitalised terms are used exactly as defined there. Features are grouped in §4 with globally numbered requirements (FR-n), each with testable consequences, and every requirement is tagged **Stage 1** or **Stage 2**. §9.1 traces the brief's success criteria to requirements and planned tests. Choices the group delegated on 2026-10-13 are stated as requirements, with their rationale in parentheses, and listed in §11. §10 lists what is deliberately deferred to UX and architecture, each with an owner.
 
 ## 1. Vision
 
@@ -143,9 +143,9 @@ Deletion (FR-3) is possible from every state. In Stage 2, a Game created from a 
 A person can create a Host account with an email address and a password, log in and log out. Participants never see a login.
 
 **Consequences (testable):**
-- Passwords shorter than 10 characters are refused, and passwords are stored only as a salted slow hash. [ASSUMPTION]
+- Passwords shorter than 10 characters are refused, and passwords are stored only as a salted slow hash.
 - A wrong email or password gives one message that does not reveal which of the two was wrong.
-- A session expires after 14 days without use. [ASSUMPTION]
+- A session expires after 14 days without use.
 - A request to see or change a Game by anyone other than its logged-in Host is refused with the same response as for a Game that does not exist.
 - No page reached through an Invite link offers or requires a login.
 
@@ -162,16 +162,17 @@ A Host can delete a Game in any state. Deletion removes its Questions, Invite li
 **Consequences (testable):**
 - After deletion, no stored row references the Game.
 - The Game's Invite links respond as unknown.
+- A Game is deleted automatically 30 days after it reaches *played*, and the Host is told so when play ends. A Game that never reaches *played* is deleted 90 days after its last change. (Answers are about people who did not consent, and the product keeps nothing it does not need.)
 
 ### 4.2 Questions
 
 **Description:** The Host writes the Questions a Game asks. Questions are free text and usually name a member of the group. Realises UJ-1.
 
 #### FR-4: Write and edit Questions — Stage 1
-A Host can add, edit, reorder and remove Questions while the Game is in *draft*. Questions lock when Collection opens. [ASSUMPTION: locking is simpler and fairer than allowing edits after Participants have answered.]
+A Host can add, edit, reorder and remove Questions while the Game is in *draft*. Questions lock when Collection opens. (Locking is simpler and fairer than allowing edits after Participants have answered.)
 
 **Consequences (testable):**
-- A Game holds at most 20 Questions, each 1 to 200 characters. [ASSUMPTION: the brief expects 8 to 15; 20 gives headroom.]
+- A Game holds at most 20 Questions, each 1 to 200 characters. (The brief expects 8 to 15; 20 gives headroom.)
 - An attempt to edit, add or remove a Question after Collection has opened is refused.
 
 ### 4.3 Invite links and Collection
@@ -185,15 +186,15 @@ A Host can create a chosen number of Invite links for a Game in *draft* or *coll
 - Creating Invite links for a Game with zero Questions is refused.
 - Each Token holds at least 128 bits from a cryptographically secure random source, and Tokens are unique across all Games.
 - The full Invite links are displayed once, at creation, in a list the Host can copy. They cannot be displayed again, because only a hash of each Token is stored.
-- A Game holds at most 50 Invite links, including revoked ones. [ASSUMPTION: the brief expects 10 to 30 Participants.]
+- A Game holds at most 50 Invite links, including revoked ones. (The brief expects 10 to 30 Participants.)
 
 #### FR-6: Answer through an Invite link — Stage 1
-A Participant who opens a valid Invite link sees every Question and can give one to five Answers per Question, as separate ranked fields. [ASSUMPTION: at least one Answer per Question and at most five. The form used at the housewarming party asked for "at least two", which is left to the Host's wording.]
+A Participant who opens a valid Invite link sees every Question and can give one to five Answers per Question, as separate ranked fields. (The form used at the housewarming party asked for "at least two", which is left to the Host's wording.)
 
 **Consequences (testable):**
 - Submitting saves the Answer set only when every Question has at least one Answer; otherwise the form shows which Questions are missing.
 - Answers are saved with their rank, and empty fields are ignored.
-- An Answer longer than 80 characters is refused with a message. [ASSUMPTION]
+- An Answer longer than 80 characters is refused with a message.
 - The answer form shows no name, email address, account indicator or other identity.
 
 #### FR-7: Change a submitted Answer set — Stage 1
@@ -207,20 +208,21 @@ A Participant who opens the same Invite link again sees their earlier Answers an
 While Collection is open, the Host sees how many Answer sets have been submitted out of the number of active Invite links.
 
 **Consequences (testable):**
-- The Host sees a count only, never which Invite links have been used. [ASSUMPTION: showing which Invite links were used reveals who has answered, and with few Answer sets that is close to revealing what they answered. See Open Question 3.]
+- The Host sees a count only, never which Invite links have been used. (Showing which Invite links were used reveals who has answered, and with few Answer sets that is close to revealing what they answered.)
+- Until three Answer sets are submitted, the count reads "fewer than 3" instead of an exact number, so a Host cannot learn who answered by watching it change right after messaging one person.
 
 #### FR-9: Revoke and replace an Invite link — Stage 1
 While Collection is open, a Host can revoke an Invite link by pasting it into the Game, and receives one replacement Invite link, displayed once.
 
 **Consequences (testable):**
 - A revoked Invite link responds as unknown.
-- Revoking deletes the revoked Invite link's Answer set, if it has one, so that one person cannot hold two Answer sets. The Host is told this before confirming, whether or not an Answer set existed. [ASSUMPTION: deleting avoids duplicates at the cost of losing a submission; the drop in the progress count can reveal that the person had answered, which reveals participation but not content.]
+- Revoking deletes the revoked Invite link's Answer set, if it has one, so that one person cannot hold two Answer sets. The Host is told this before confirming, whether or not an Answer set existed. (Deleting avoids duplicates at the cost of losing a submission; the drop in the progress count can reveal that the person had answered, which reveals participation but not content.)
 
 #### FR-10: Close Collection — Stage 1
 A Host can close Collection once at least three Answer sets are submitted. Closing is final, deletes every Token hash, and starts Grouping.
 
 **Consequences (testable):**
-- With fewer than three submitted Answer sets, closing is refused and the Host is told why; the Host can create more Invite links, wait, or delete the Game. [ASSUMPTION: below three, anonymity collapses because the Host can infer who wrote what.]
+- With fewer than three submitted Answer sets, closing is refused and the Host is told why; the Host can create more Invite links, wait, or delete the Game. (Below three, anonymity collapses because the Host can infer who wrote what.)
 - Answer sets that were started but not submitted are deleted at close.
 - After close, every Invite link of the Game shows that Collection is closed and accepts nothing. Closed status is determined by the Game identified in the URL, not by looking up the Token.
 - A submission that arrives after close is refused, even if the form was opened before.
@@ -234,7 +236,7 @@ The answering flow stores no identity about a Participant.
 
 **Consequences (testable):**
 - No stored table holds a name, email address, IP address, device fingerprint or account identifier for a Participant.
-- Logs written while handling an Invite link contain neither the Token nor Answer text. [ASSUMPTION]
+- Logs written while handling an Invite link contain neither the Token nor Answer text.
 
 #### FR-12: Nothing linkable in the Host's view — Stage 1
 At no time does any page, response or export available to the Host associate an Answer or Answer set with an Invite link, and the Host cannot read any Answer before Collection closes.
@@ -270,7 +272,7 @@ At Collection close, the Judge groups each Question's Answers by meaning, and th
 **Consequences (testable):**
 - Grouping runs exactly once per Game. Reopening Review never re-runs it.
 - Answers with the same Contributor key in one Group raise its Count by one, not two.
-- For the sizing Game of 30 Answer sets, 15 Questions and up to 5 Answers per Question, Grouping finishes within two minutes. [ASSUMPTION]
+- For the sizing Game of 30 Answer sets, 15 Questions and up to 5 Answers per Question, Grouping finishes within two minutes.
 - Each Stored ruling records the prompt version and model identifier.
 - In tests and in Demo mode, Grouping uses Stored rulings or mocks and makes no network call.
 
@@ -278,11 +280,11 @@ At Collection close, the Judge groups each Question's Answers by meaning, and th
 Groups within a Question rank by Count, highest first.
 
 **Consequences (testable):**
-- Ties in Count are broken by the number of rank-1 Answers in the Group, then alphabetically by label. [ASSUMPTION]
-- A Group's default label is its most frequent normalised Answer text, ties broken by the shortest text. [ASSUMPTION]
+- Ties in Count are broken by the number of rank-1 Answers in the Group, then alphabetically by label.
+- A Group's default label is its most frequent normalised Answer text, ties broken by the shortest text.
 
 #### FR-17: Manual Grouping fallback — Stage 1
-If no model key is configured, or the Judge fails or exceeds 30 seconds on a Question, that Question starts with one Group per distinct normalised Answer text. Normalised means compared case-insensitively, with surrounding whitespace trimmed, inner whitespace collapsed and trailing punctuation removed. [ASSUMPTION: 30 seconds per Question.]
+If no model key is configured, or the Judge fails or exceeds 30 seconds on a Question, that Question starts with one Group per distinct normalised Answer text. Normalised means compared case-insensitively, with surrounding whitespace trimmed, inner whitespace collapsed and trailing punctuation removed. (The 30-second limit keeps one slow Question from holding up the rest.)
 
 **Consequences (testable):**
 - With no model key, closing Collection succeeds and Review opens with the fallback Groups for every Question.
@@ -304,6 +306,7 @@ For each Question, a Host in Review sees every Group with its label, Count and A
 **Consequences (testable):**
 - Every Answer of the Question appears under exactly one Group.
 - Groups below the Board limit are listed and marked as not shown in play.
+- Stage 1 shows no confidence signal per Group. (The Host reads the raw Answers under each Group, which is the stronger signal; single-Answer Groups beyond the Board limit appear in the not-on-Board list.)
 
 #### FR-20: Correct the Grouping — Stage 1
 A Host can merge two or more Groups in one Question, move selected Answers to a new or another existing Group, rename a Group, and discard a Group from the Board.
@@ -311,7 +314,7 @@ A Host can merge two or more Groups in one Question, move selected Answers to a 
 **Consequences (testable):**
 - After a merge or move, each affected Group's Count is recalculated as distinct Contributor keys, not by adding Counts.
 - A merged Group keeps the label of the merged Group with the highest Count, ties broken by position in the ranking; the Host can rename it.
-- Labels are 1 to 40 characters. [ASSUMPTION: short enough to read on a TV from across a room.]
+- Labels are 1 to 40 characters. (Short enough to read on a TV from across a room.)
 - A discarded Group does not appear in play, and its Answers stay visible in Review under a discarded heading. (Discard is Stage 1 so that a hurtful Group never has to reach a shared screen; see §6.3.)
 - Any change to a Question clears its reviewed mark.
 
@@ -319,7 +322,7 @@ A Host can merge two or more Groups in one Question, move selected Answers to a 
 A Host can mark each Question reviewed, and confirm the Board once every Question is marked. A confirmed Board is locked.
 
 **Consequences (testable):**
-- The Board shows at most eight Groups per Question: the highest-ranked Groups that are not discarded. [ASSUMPTION: a TV-show board holds about eight.]
+- The Board shows at most eight Groups per Question: the highest-ranked Groups that are not discarded. (A TV-show board holds about eight.)
 - Confirming moves the Game to *ready*. After confirmation, every Review operation is refused.
 
 #### FR-22: Reorder Groups — Stage 2
@@ -333,7 +336,7 @@ A Host can override the order of Groups on the Board.
 **Description:** Play runs from one shared screen, such as a TV or projector connected to the Host's laptop. Teams answer out loud, and the Host clicks the Group each Guess hits, or marks a miss. No Participant device is involved. Play state is saved, so a reloaded or reopened play view continues where it left off. Realises UJ-4.
 
 #### FR-23: Set up Teams — Stage 1
-A Host can start play on a Game in *ready* by naming two to four Teams. [ASSUMPTION: two to four covers a party; more makes the shared screen hard to read.]
+A Host can start play on a Game in *ready* by naming two to four Teams. (Two to four covers a party; more makes the shared screen hard to read.)
 
 **Consequences (testable):**
 - Play cannot start on a Game that is not *ready*, except a Game created from a Question set (FR-33).
@@ -343,7 +346,7 @@ A Host can start play on a Game in *ready* by naming two to four Teams. [ASSUMPT
 The shared screen shows one Question at a time, with its Groups hidden and the number of Groups visible, the current Team and every Team's Score.
 
 **Consequences (testable):**
-- The play view fills a 1920×1080 browser window, and Group labels and Scores render at no less than 48 px. [ASSUMPTION: legible from about 3 metres; checked manually against this bound.]
+- The play view fills a 1920×1080 browser window, and Group labels and Scores render at no less than 48 px. (Legible from about 3 metres; checked manually against this bound.)
 - The play view never shows raw Answers or discarded Groups.
 
 #### FR-25: Mark a match or a miss — Stage 1
@@ -355,14 +358,14 @@ For the current Team, the Host clicks the Group a Guess matches, which makes a s
 - Clicking a Group that is already revealed is refused.
 
 #### FR-26: Undo — Stage 1
-The Host can undo the most recent Reveal, scored or unscored. [ASSUMPTION: a misclick should not ruin a round.]
+The Host can undo the most recent Reveal, scored or unscored. (A misclick should not ruin a round.)
 
 **Consequences (testable):**
 - Undo hides the Group again and, for a scored Reveal, subtracts its Count from the Team that received it.
 - Undo is available only for the most recent Reveal on the current Question.
 
 #### FR-27: Turns and moving on — Stage 1
-The Host passes the turn to the next Team and moves to the next Question manually, and can make unscored Reveals of the remaining Groups before moving on. [ASSUMPTION: manual turns, and a Question ending when the Host moves on, replace strikes, steals and round-end rules until Stage 2. See Open Question 5.]
+The Host passes the turn to the next Team and moves to the next Question manually, and can make unscored Reveals of the remaining Groups before moving on. (Manual turns, and a Question ending when the Host moves on, replace strikes, steals and round-end rules until Stage 2.)
 
 **Consequences (testable):**
 - An unscored Reveal changes no Score.
@@ -375,10 +378,10 @@ The Host types a Guess, the Judge proposes which Group it matches, and the Host 
 **Consequences (testable):**
 - Nothing is revealed until the Host confirms.
 - Without a model key, play works exactly as in FR-25.
-- Typed Guesses are deleted when the Game reaches *played*. [ASSUMPTION]
+- Typed Guesses are deleted when the Game reaches *played*.
 
 #### FR-29: Additional scoring rules — Stage 2
-A Host can switch on strikes and steals for a Game. [NOTE FOR PM: the rules are not decided and do not need to be until Stage 1 is stable.]
+A Host can switch on strikes and steals for a Game. (The rules are decided when Stage 2 starts; see §10, item 4.)
 
 ### 4.8 Running without a model key, and evaluating the Judge
 
@@ -416,16 +419,17 @@ A Host can create a Game from a Question set. The Game skips Collection, Groupin
 **Consequences (testable):**
 - The Game's Board equals the dataset's clusters and Counts for those Questions, capped as in FR-21.
 - The source dataset is credited on the play screen and in the README.
+- Questions and Group labels are translated into Norwegian with Counts unchanged, and the credit states that the material is translated and adapted, as CC-BY-4.0 requires.
 
 ## 5. Cross-Cutting Non-Functional Requirements
 
-- **NFR-1 Local runnability.** A fresh clone runs locally by following the README, with no paid account, no hosted service owned by the group and no model key. Setup takes at most three commands after the listed prerequisites. [ASSUMPTION] Any technology recorded earlier, such as the stack proposed in `proposal.md`, must satisfy this; where it relies on a hosted service, architecture must provide a local substitute.
+- **NFR-1 Local runnability.** A fresh clone runs locally by following the README, with no paid account, no hosted service owned by the group and no model key. Setup takes at most three commands after the listed prerequisites. Any technology recorded earlier, such as the stack proposed in `proposal.md`, must satisfy this; where it relies on a hosted service, architecture must provide a local substitute.
 - **NFR-2 Deployability.** The same build can also be deployed to a publicly reachable host, so that Participants' phones can reach Invite links during pilot use (SM-6, SM-7). Local and deployed runs differ only in configuration. The deployment target is an architecture decision, and the examiner path never depends on it.
 - **NFR-3 Tests without network.** The full automated test suite passes with no network access. Unit tests cover Score, ranking, Count recalculation and Token generation. Judge calls use Stored rulings or mocks by default, and live calls are opt-in.
 - **NFR-4 Devices.** The answer form works on a current mobile browser at 360 px width. Review targets a laptop screen. The play view targets a 1920×1080 screen.
 - **NFR-5 Responsiveness.** Every Host action in Review and play shows its result within one second, excluding Grouping itself.
 - **NFR-6 Accessibility.** Text and controls meet WCAG 2.1 AA contrast. The answer form is fully usable by keyboard and screen reader.
-- **NFR-7 Language.** The interface is in Norwegian (bokmål). [ASSUMPTION: the target groups are Norwegian. See Open Question 1.]
+- **NFR-7 Language.** The interface is in Norwegian (bokmål). (The target groups are Norwegian. The Stage 2 Question set is translated; see FR-33.)
 - **NFR-8 Secrets.** No key or password is committed. Configuration is read from an untracked environment file, and a committed example file lists every variable.
 
 ## 6. Constraints and Guardrails
@@ -433,7 +437,7 @@ A Host can create a Game from a Question set. The Game skips Collection, Groupin
 ### 6.1 Privacy and repository data
 
 - Answers are often about named people who did not consent to being asked about. The product keeps nothing it does not need: no Participant identity (FR-11), nothing linkable in the Host's view (FR-12) or in storage after close (FR-13), and full deletion on request (FR-3).
-- A Game and its data are kept until the Host deletes it. [ASSUMPTION: see Open Question 2.]
+- A Game and its data live at most 30 days after play, or 90 days if never played, and the Host can delete them earlier (FR-3).
 - Real Answers from the housewarming party never enter the repository, including test fixtures. They stay in the gitignored `.idea/` folder; evaluation on them runs locally, and only aggregate scores are reported.
 - Committed test fixtures and demo data are invented. Committed ProtoQA data is the crowdsourced portion only, with attribution. Paths are an architecture decision.
 - The product must not raise response rates by showing the Host who has not answered (see FR-8). That would trade anonymity for participation.
@@ -445,7 +449,7 @@ A Host can create a Game from a Question set. The Game skips Collection, Groupin
 
 ### 6.3 Content
 
-- The product does not moderate Questions or Answers. The Host is responsible for what they ask about their own group, and can keep any Group off the shared screen by discarding it (FR-20). [ASSUMPTION]
+- The product does not moderate Questions or Answers. The Host is responsible for what they ask about their own group, and can keep any Group off the shared screen by discarding it (FR-20).
 - Only the crowdsourced portion of ProtoQA is shown to users. Its large training portion was scraped from fan sites of the television show and is not used.
 - The product name, interface and branding must not imitate the television show the format resembles.
 
@@ -455,7 +459,7 @@ A Host can create a Game from a Question set. The Game skips Collection, Groupin
 
 ### 6.5 Delivery
 
-- Two developers, one semester, following the course schedule: UX and architecture in weeks 44–45, implementation in weeks 46–47, the reflection report in weeks 48–49, and hand-in of the repository and report on 5 December. [ASSUMPTION: the group may start implementation earlier, since planning is a week ahead.]
+- Two developers, one semester, following the course schedule: UX and architecture in weeks 44–45, implementation in weeks 46–47, the reflection report in weeks 48–49, and hand-in of the repository and report on 5 December. (The group may start implementation earlier, since planning is a week ahead.)
 - **Stage 1 freeze:** at the end of week 47, only fixes, tests and the README change. Time for test, fixes and README is reserved inside week 47, not after it.
 - **Stage 2 go/no-go:** Stage 2 work starts only once SM-1 passes in full on the main branch. Within Stage 2, FR-33 comes first (see §8.2).
 
@@ -489,7 +493,7 @@ A Host can create a Game from a Question set. The Game skips Collection, Groupin
 
 ### 8.2 Stage 2: only after SM-1 passes
 
-- Ready-made Question sets from ProtoQA (FR-33). [NOTE FOR PM: this was the brief's original promise of "play tonight". It is deferred because the host-written mode is the core value, and it is the first Stage 2 item to take.]
+- Ready-made Question sets from ProtoQA (FR-33). (This was the brief's original promise of "play tonight". It is deferred because the host-written mode is the core value, and it is the first Stage 2 item to take.)
 - Reorder in Review (FR-22)
 - Assisted Guess matching by the Judge (FR-28)
 - Strikes and steals (FR-29)
@@ -499,7 +503,7 @@ A Host can create a Game from a Question set. The Game skips Collection, Groupin
 **Primary**
 
 - **SM-1: Stage 1 acceptance.** Every testable consequence of Stage 1 is covered by an automated test, or, where it cannot be automated (FR-24 legibility, parts of NFR-6), by a manual checklist committed with the code. The suite passes without network access. Validates all Stage 1 FRs.
-- **SM-2: Grouping agrees with human clusters.** On ProtoQA's crowdsourced evaluation questions, the Judge's Grouping reaches a B-cubed F1 of at least 0.70 against the hand-made clusters, with precision and recall reported separately. B-cubed scores each Answer by the share of its Group that shares its cluster (precision) and the share of its cluster that shares its Group (recall), so neither grouping everything nor grouping nothing scores well. This operationalises the brief's "seven of every ten answers". [ASSUMPTION] Results are only comparable at the same prompt version and model. Validates FR-15 and FR-32.
+- **SM-2: Grouping agrees with human clusters.** On ProtoQA's crowdsourced evaluation questions, the Judge's Grouping reaches a B-cubed F1 of at least 0.70 against the hand-made clusters, with precision and recall reported separately. B-cubed scores each Answer by the share of its Group that shares its cluster (precision) and the share of its cluster that shares its Group (recall), so neither grouping everything nor grouping nothing scores well. This operationalises the brief's "seven of every ten answers". Results are only comparable at the same prompt version and model. Validates FR-15 and FR-32.
 - **SM-3: Anonymity audit.** A reviewer given Host access, the list of Invite links and a database dump taken after close cannot attribute any Answer to an Invite link, or join one person's Answers across Questions. Validates FR-11 to FR-13. The pre-close window is out of scope for this audit and documented instead (§1.1).
 
 **Secondary**
@@ -529,33 +533,33 @@ A Host can create a Game from a Question set. The Game skips Collection, Groupin
 | Host review with merge, split and rename before play | FR-19 to FR-21 | Component and end-to-end tests of Review |
 | Pilot goals | Whole Stage 1 | Pilot with outside Hosts (SM-6, SM-7) |
 
-## 10. Open Questions
+## 10. Deferred Items
 
-Until an Open Question is decided, the requirement as written is the binding default, and tests are written against it.
+Every Open Question of the draft was decided on 2026-10-13 except these, which belong to a later phase or to someone outside the group. Until they are settled, the requirements as written bind.
 
-1. **Interface language and the Stage 2 Question set.** The interface is assumed to be Norwegian, but ProtoQA is in English. Will Stage 2 translate the Question set, ship it in English, or find a Norwegian source? This does not block Stage 1.
-2. **Automatic deletion.** Should Games be deleted automatically some time after they are played? This decides how long sensitive Answers live.
-3. **Anonymity with few Answer sets.** FR-10 sets a minimum of three, and FR-8 shows a count from the first submission. A possible tightening is to show the count only once it reaches three, since a Host who watches it rise right after messaging one person learns who answered.
-4. **Judge model and provider.** Decided in architecture, against cost (§6.2), Norwegian slang (SM-4) and §6.4.
-5. **Turn and round rules.** FR-27 leaves turns and the end of each Question to the Host. Does that feel fair in play, or does Stage 1 need a minimal rule, such as the turn passing on a miss, or a Question ending after a fixed number of misses?
-6. **Confidence and edge cases in Review.** Should the Host see a confidence signal per Group? How are Answers near the Judge's threshold surfaced? How should single-Answer Groups be shown when there are more than eight Groups?
-7. **ProtoQA provenance.** The licence permits reuse with attribution, but the trademark and provenance questions in the brief's addendum have not been checked with the course staff.
+1. **Judge model and provider.** Owner: architecture phase. Decide before Stage 1 implementation, against cost (§6.2), Norwegian slang (SM-4) and the single-Judge boundary (§6.4).
+2. **How Review surfaces Answers near the Judge's threshold.** Owner: UX phase, as part of the Review sketch. Stage 1 needs no signal beyond FR-19.
+3. **ProtoQA provenance and trademark.** Owner: the group, by asking the course staff. Settle before Stage 2 starts. Stage 1 uses ProtoQA only for the offline evaluation (FR-32), with the crowdsourced portion and attribution.
+4. **Strikes and steals (FR-29).** Owner: the group. Decide when Stage 2 starts.
 
-## 11. Assumptions Index
+## 11. Decisions Index
 
-**Behavioural decisions (confirm these first)**
+The draft's assumptions were decided on 2026-10-13, by delegation from the group, and are stated in the requirements above. This index lets downstream phases trace them.
+
+**Behaviour**
 
 - §4.2 FR-4 — Questions lock when Collection opens.
 - §4.3 FR-6 — One to five Answers per Question, at least one required.
-- §4.3 FR-8 — The Host sees a count of Answer sets, never which Invite links were used.
+- §4.3 FR-8 — The Host sees a count of Answer sets, never which Invite links were used, and only "fewer than 3" until three are submitted.
 - §4.3 FR-9 — Revoking deletes the old Invite link's Answer set.
 - §4.3 FR-10 — Closing requires at least three submitted Answer sets.
+- §4.1 FR-3, §6.1 — Games are deleted 30 days after play, or 90 days after their last change if never played.
 - §4.4 FR-11 — Logs contain neither the Token nor Answer text.
+- §4.6 FR-19 — No confidence signal in Stage 1 Review.
 - §4.7 FR-26 — The Host can undo the most recent Reveal.
 - §4.7 FR-27 — Turns and the end of each Question are manual in Stage 1.
 - §4.7 FR-28 — Typed Guesses are deleted when the Game is played (Stage 2).
-- §5 NFR-7 — The interface is in Norwegian (bokmål).
-- §6.1 — Games are kept until the Host deletes them.
+- §5 NFR-7, §4.9 FR-33 — The interface is in Norwegian (bokmål), and the Stage 2 Question set is translated.
 - §6.3 — No moderation; discard is the Host's tool.
 - §6.5 — Implementation may start before week 46.
 - §9 SM-2 — B-cubed F1 is the measure of the brief's "seven of every ten".
@@ -567,7 +571,7 @@ Until an Open Question is decided, the requirement as written is the binding def
 - §4.3 FR-5 — At most 50 Invite links per Game.
 - §4.3 FR-6 — Answers are at most 80 characters.
 - §4.5 FR-15 — Grouping of the sizing Game finishes within two minutes.
-- §4.5 FR-16 — Ties break by rank-1 Answers, then alphabetically; default label rule.
+- §4.5 FR-16 — Ties break by rank-1 Answers, then alphabetically; the default label rule.
 - §4.5 FR-17 — The Judge times out after 30 seconds per Question.
 - §4.6 FR-20 — Group labels are 1 to 40 characters.
 - §4.6 FR-21 — At most eight Groups per Question on the Board.
