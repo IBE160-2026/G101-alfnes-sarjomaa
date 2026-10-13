@@ -131,8 +131,8 @@ Se [[sensorveiledning-del-1]] **før hver fase**. Tre konsekvenser som lett glem
 - [x] **Arbeidskrav — product brief** levert 2026-09-14 (frist 20. sept.). Godkjent med justeringer 2026-10-06
 - [x] **Brief revidert** etter tilbakemeldingen 2026-10-12: trinn 1/2, testbare kriterier, poeng og dobbeltsvar avklart
 - [x] `proposal.md` (fjorårets format, ikke krevd i år). Se [[proposal]]
-- [ ] Fase 2 — `PRD.md` (skill: `bmad-prd`): utkast 2026-10-12, venter på at gruppa bekrefter antakelsene ← **nå**
-- [ ] Fase 3 — `solution-architecture.md`, `ux-design-specification.md`, `frontend-prompt.md`
+- [x] **Fase 2 — `PRD.md`** (skill: `bmad-prd`), `status: final` 2026-10-13. 33 FR-er merket Stage 1/2. Se [[beslutninger]]
+- [ ] Fase 3 — `bmad-ux` (skisser Review først) og `bmad-architecture` (modell, stack, demomodus) ← **nå**
 - [ ] Fase 4 — implementering
 - [ ] Refleksjonsrapport
 

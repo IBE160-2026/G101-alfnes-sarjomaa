@@ -22,6 +22,11 @@ Verktøy: Claude Code (Claude Opus 5.5) i repoet, med BMAD-skillsene `bmad-produ
    (Sendt underveis. Endringene ble delt i flere commits, siden faglærer påpekte at
    commit-historikken vurderes.)
 
+5. > du bestemmer alt sammen gå i autopilot til prd er ferdig
+
+   (2026-10-13. KI-en tok de gjenværende beslutningene, bekreftet antakelsene med fire
+   endringer og satte PRD-en til `status: final`. Begrunnelsene står i PRD §11 og memloggen.)
+
 ## Hva KI-en gjorde
 
 - Leste hele wikien (16 notater) og oppsummerte status, avvik og åpne punkter.

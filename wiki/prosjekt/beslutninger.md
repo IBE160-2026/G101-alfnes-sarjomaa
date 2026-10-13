@@ -5,6 +5,10 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 
 | Dato | Beslutning | Begrunnelse | Alternativ som ble valgt bort |
 |------|------------|-------------|-------------------------------|
+| 2026-10-13 | **PRD satt til `status: final`.** Alle antakelser er bekreftet (beslutningene delegert fra gruppa), med fire endringer: telleren viser «færre enn 3» til tre har svart, spill slettes 30 dager etter spilling (90 hvis de aldri spilles), spørsmålssettet i trinn 2 oversettes til norsk, og gjennomgangen har ingen tillitssignal i trinn 1 | Telleren lekket hvem som hadde svart når verten så den øke rett etter én melding. Svarene handler om personer som ikke har samtykket, og skal ikke leve lenger enn nødvendig. Målgruppa er norsk | Vise eksakt teller fra første svar; beholde spill til verten sletter dem; levere ProtoQA på engelsk |
+| 2026-10-13 | Discard flyttet til **trinn 1**, mot faglærers inndeling | Uten discard kan en sårende gruppe bare skjules ved å gi den nytt navn før den havner på en delt skjerm | Beholde discard i trinn 2 |
+| 2026-10-13 | Anonymiteten er strammet inn i PRD-en: verten kan ikke lese svar før lukking, og etter lukking har hvert svar bare en tilfeldig nøkkel per spørsmål | Reviewer gate viste at en svarsett-ID kunne koble én persons svar på tvers av spørsmål | Beholde svarsett-ID etter lukking |
+| 2026-10-13 | SM-2 måles som B-cubed F1 ≥ 0,70 mot ProtoQA | Utkastets mål kunne nås ved å ikke gruppere i det hele tatt | Renhetsmål (purity) |
 | 2026-10-12 | PRD-en ligger som briefen: kanonisk `prd.md` i BMAD-kjøremappa, og `PRD.md` i rota generert av `sync-brief.sh` | Tidsplanen navngir `PRD.md`, men BMAD skriver `prd.md` i en datert mappe. Samme løsning som for briefen, med samme script | Eget script per dokument; bare rotfil |
 | 2026-10-12 | **Hele flyten skal virke uten modellnøkkel**: manuell gruppering, verten velger selv hvilken gruppe en gjetning treffer, og en demomodus med ferdige data og lagrede dommer-svar | Sensor har ikke vår nøkkel, og «README og kjørbarhet» er 10 % av del 1. Faglærer ba eksplisitt om dette | Kreve nøkkel for å kjøre appen; mocke bare i tester |
 | 2026-10-12 | Grupperingen kjøres **én gang, når verten lukker innsamlingen**, og resultatet lagres | Dommeren er ikke-deterministisk, og brettet skal ikke endre seg under spillet. Addendum sa dette allerede i én seksjon og lot det stå åpent i en annen | Gruppering fortløpende ved hver innsending |
@@ -34,8 +38,9 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 
 | Spørsmål | Hvorfor det haster |
 |----------|--------------------|
-| Bekrefter begge gruppemedlemmer stacken, og hvilken Claude-modell skal dommeren bruke? | Proposal-en sier Claude Haiku 4.5, men Claude 5-familien er ute. Stacken må også kunne kjøres lokalt uten Supabase-konto eller nøkkel. Avgjøres i arkitekturfasen |
+| Stack og hvilken Claude-modell dommeren skal bruke? (Videresendt fra PRD §10 til arkitekturfasen) | Proposal-en sier Claude Haiku 4.5, men Claude 5-familien er ute. Stacken må også kunne kjøres lokalt uten Supabase-konto eller nøkkel. Avgjøres i arkitekturfasen |
 | Forventes CI/CD og deploy? | Pensum del 5 dekker GitHub Actions og produksjonssetting, men verken sensorveiledningen eller tilbakemeldingen krever det. CI med tester styrker likevel kvalitetssikring og kjørbarhet |
+| ProtoQA-proveniens og varemerke: er det greit for faglærer? (PRD §10, må avklares før trinn 2) | Datasettets store del er skrapet fra fansider. Vi bruker bare den crowdsourcede delen, men det er ikke klarert |
 | Finnes det en språkpolicy for leveransene? | Ingen i kursmaterialet. Vi valgte engelsk på BMAD-artefaktene, og faglærer kommenterte det ikke |
 
 ### Avklart

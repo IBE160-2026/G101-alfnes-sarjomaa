@@ -7,14 +7,15 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 
 - [[ibe160]] — hva emnet krever, og vektingen: **kode 70 %, rapport 30 %, ingen muntlig**
 - [[sensorveiledning-del-1]] — de sju kriteriene koden vurderes etter. **Les før hver fase**
-- [[tidsplan]] — ukeplan, faser og frister **(neste: `PRD.md`)**
+- [[tidsplan]] — ukeplan, faser og frister **(neste: UX og arkitektur)**
 - [[produktide]] — hva vi bygger: **Toppsvar**
 
 ## Leveranser
 
 - `product-brief.md` — fase 1 og **arbeidskravet**. Levert 2026-09-14, godkjent med justeringer 2026-10-06, revidert 2026-10-12. Kanonisk kopi i `.docs/planning-artifacts/briefs/brief-Toppsvar-2026-09-14/`, sammen med `tilbakemelding-product-brief.md` fra faglærer
 - `proposal.md` — fjorårets format, skrevet 2026-09-14. Ikke krevd i år, men grunnlag for arkitekturen. Se [[proposal]]
-- `PRD.md` — fase 2, **utkast 2026-10-12**. Kanonisk i `.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/`, generert til rota av `sync-brief.sh`. Venter på at gruppa bekrefter antakelsene
+- `PRD.md` — fase 2, **ferdig 2026-10-13** (`status: final`). Kanonisk i `.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/`, generert til rota av `sync-brief.sh`
+- Fase 3 — UX og arkitektur, **neste**
 
 ## BMAD
 

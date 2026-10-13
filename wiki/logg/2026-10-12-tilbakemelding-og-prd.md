@@ -31,6 +31,8 @@
 
 ## Neste
 
-1. Bekreft eller rett antakelsene og de åpne spørsmålene i PRD-en (§10–11), og sett `status: final`.
+1. ~~Bekreft antakelsene i PRD-en~~ — gjort 2026-10-13. Sondre delegerte alle beslutningene
+   («du bestemmer alt sammen»), og PRD-en ble satt til `status: final`. Beslutningene står i
+   PRD §11 og i [[beslutninger]].
 2. Fase 3: `bmad-ux` (skisser gjennomgangsflaten først) og `bmad-architecture`. Avgjør stack,
    modell og demomodus.

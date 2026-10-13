@@ -130,7 +130,8 @@ proposal.md         2626 ord, prosjektforslaget - håndskrevet, egen 100-poengs 
     .memlog.md      37 oppføringer, append-only
 product-brief.md    generert av scripts/sync-brief.sh - samme brødtekst, UTEN frontmatter
 .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/
-    prd.md          PRD-utkast, 33 FR merket Stage 1/2 - KANONISK, med frontmatter
+    prd.md          PRD, status: final, 33 FR merket Stage 1/2 - KANONISK, med frontmatter
+    reconcile-inputs.md, review-rubric.md   reviewer gate fra BMAD (prosessbevis)
     .memlog.md      beslutningslogg for PRD-kjøringen
 PRD.md              generert av scripts/sync-brief.sh - samme mønster som briefen
 ```

@@ -23,8 +23,8 @@
   justeringer 2026-10-06. Se [[ibe160]]
 - [x] `proposal.md` — skrevet 2026-09-14 (2626 ord). En ekstra leveranse i fjorårets format, ikke krevd i år. Se [[proposal]]
 - [x] Brief revidert etter tilbakemeldingen — 2026-10-12 (trinn 1/2, testbare kriterier, poeng og dobbeltsvar avklart)
-- [ ] `PRD.md` ← *utkast 2026-10-12, uke 42*. Venter på at gruppa bekrefter antakelsene i §10–11. Vi ligger én uke foran sliden
-- [ ] Uke 44–45 — `solution-architecture.md`, `ux-design-specification.md`, `frontend-prompt.md`
+- [x] `PRD.md` — **ferdig 2026-10-13** (`status: final`), uke 42. Én uke foran sliden
+- [ ] Uke 44–45 — `solution-architecture.md`, `ux-design-specification.md`, `frontend-prompt.md` ← *neste*
 - [ ] Uke 46–47 — implementering
 - [ ] Uke 48–49 — refleksjonsrapport + innlevering
 
