@@ -139,3 +139,7 @@ Se [[sensorveiledning-del-1]] **før hver fase**. Tre konsekvenser som lett glem
 Fase 1 er satt til `status: final`. Samme status brukes på `addendum.md`, og skal brukes
 på `PRD.md`, så vokabularet holdes konsistent (`draft` → `final`).
 Sluttinnlevering: **GitHub-repo som zip + refleksjonsrapport, 5. desember.**
+
+## Sesjonslogg
+
+Når en oppgave eller økt avsluttes, før sluttoppsummeringen, bruk `sesjonslogg`-skillen: dokumenter Oppgave + Plan + Resultat + åpne punkter i `.logs/<bruker>/`, og før åpne punkter i `.logs/<bruker>/issues.md`. Skillen committer loggfila lokalt; push gjør du selv. Gruppens egne regler for commit og språk gjelder foran dette.
