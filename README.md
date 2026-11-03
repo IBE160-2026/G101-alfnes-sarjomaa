@@ -9,7 +9,7 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 **Toppsvar** — et Family Feud-aktig festspill der verten lager sitt eget spørreskjema om sin
 egen gjeng. Deltakerne svarer anonymt i fritekst, en språkmodell grupperer svar som betyr det
 samme til rangerte topp-lister, verten retter opp grupperingen, og gjengen spiller live fra én
-delt skjerm. Et ferdig spørsmålssett følger med, så en gjeng kan spille med én gang uten å
+delt skjerm. I trinn 2 skal et ferdig spørsmålssett la en gjeng spille med én gang, uten å
 vente på at et skjema fylles ut.
 
 ## Medlemmer

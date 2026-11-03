@@ -2,7 +2,7 @@
 title: Toppsvar PRD
 status: final
 created: 2026-10-12
-updated: 2026-10-13
+updated: 2026-11-03
 ---
 
 # PRD: Toppsvar
@@ -102,7 +102,7 @@ The protagonists are invented. The housewarming party is the origin story and te
 - **Question** — An open free-text prompt the Host writes, usually about named members of the group.
 - **Invite link** — A personal URL the Host creates for one Participant. It identifies the Game and carries a Token. One Invite link maps to exactly one Answer set.
 - **Token** — The secret part of an Invite link. It is displayed once, when the Invite link is created, and is stored only as a one-way hash until Collection closes, when the hash is deleted.
-- **Answer set** — Everything one Invite link has submitted to one Game. It is submitted once it holds at least one Answer to every Question.
+- **Answer set** — Everything one Invite link has submitted to one Game. It is stored only once it holds at least one Answer to every Question; an unfinished form is never stored on the server.
 - **Answer** — One free-text entry from one Answer set to one Question, with a rank (1 = given first).
 - **Collection** — The period in which Invite links accept Answers. It opens when the first Invite links are created, ends when the Host closes it, and cannot reopen.
 - **Judge** — The language-model component that decides whether two Answers, or a Guess and a Group, mean the same thing: the technique known as LLM-as-a-judge. One Judge serves Grouping and Guess matching.
@@ -223,7 +223,7 @@ A Host can close Collection once at least three Answer sets are submitted. Closi
 
 **Consequences (testable):**
 - With fewer than three submitted Answer sets, closing is refused and the Host is told why; the Host can create more Invite links, wait, or delete the Game. (Below three, anonymity collapses because the Host can infer who wrote what.)
-- Answer sets that were started but not submitted are deleted at close.
+- Nothing partial exists at close: an unfinished form is never stored on the server (FR-6), so only submitted Answer sets are grouped.
 - After close, every Invite link of the Game shows that Collection is closed and accepts nothing. Closed status is determined by the Game identified in the URL, not by looking up the Token.
 - A submission that arrives after close is refused, even if the form was opened before.
 
@@ -541,6 +541,7 @@ Every Open Question of the draft was decided on 2026-10-13 except these, which b
 2. **How Review surfaces Answers near the Judge's threshold.** Owner: UX phase, as part of the Review sketch. Stage 1 needs no signal beyond FR-19.
 3. **ProtoQA provenance and trademark.** Owner: the group, by asking the course staff. Settle before Stage 2 starts. Stage 1 uses ProtoQA only for the offline evaluation (FR-32), with the crowdsourced portion and attribution.
 4. **Strikes and steals (FR-29).** Owner: the group. Decide when Stage 2 starts.
+5. **Unsent drafts on the Participant's device.** Owner: UX phase. Whether the answer form keeps an unsent draft locally in the browser. It must never reach the server before submission (FR-6).
 
 ## 11. Decisions Index
 
@@ -563,6 +564,13 @@ The draft's assumptions were decided on 2026-10-13, by delegation from the group
 - §6.3 — No moderation; discard is the Host's tool.
 - §6.5 — Implementation may start before week 46.
 - §9 SM-2 — B-cubed F1 is the measure of the brief's "seven of every ten".
+
+**Departures from the brief**
+
+Two requirements deliberately differ from the brief's Solution and Scope sections. The brief is left as delivered, so its revision history stays readable, and this PRD takes precedence.
+
+- §4.6 FR-20 — Discard is Stage 1, not Stage 2 as in the brief and the instructor's staging. Answers name people who did not consent, and without discard a hurtful Group could only be renamed before it reached a shared screen.
+- §4.7 FR-25 — In Stage 1 the Host does not type the Guess, as the brief describes, but clicks the Group it hits or marks a miss. A typed Guess is only useful once the Judge can match it, so typing arrives with assisted matching in Stage 2 (FR-28).
 
 **Numeric parameters**
 
