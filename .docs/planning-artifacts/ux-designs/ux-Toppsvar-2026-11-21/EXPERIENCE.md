@@ -32,7 +32,7 @@ sources:
 | `/spill` | Game list ("Mine spill") | Host | List own Games with StatusBadge; create a Game (FR-2) |
 | `/spill/[id]` | Game page | Host | State-driven hub: Questions, Invite links, progress, revoke, close, start play, delete (FR-3 to FR-10) |
 | `/spill/[id]/gjennomgang` | Review | Host | Correct the Grouping and confirm the Board (FR-19 to FR-21) |
-| `/spill/[id]/skjerm` | Team setup → play view → final Scores | Host, shown to the room | FR-23 to FR-27 |
+| `/spill/[id]/skjerm` | Team setup → play view → final Scores | Host, shown to the room | FR-23 to FR-27. For a *played* Game it shows the final Scores |
 | Invite link (shape owned by architecture) | Answer form | Participant | Answer, return, change (FR-6, FR-7) |
 
 **Navigation.** Host pages share a top bar: wordmark "Toppsvar" (links to `/spill`), "Mine spill", "Logg ut". Game pages show a breadcrumb `Mine spill › {Game title}`. There is no sidebar. The play view has no top bar; it is a full-window canvas with its own control bar. Participant pages have no navigation at all and no link to any Host page.
@@ -109,8 +109,8 @@ The board-limit divider "Brettgrense: maks 8 grupper vises i spillet" sits betwe
 
 | Region | Content | Rules |
 |---|---|---|
-| Fallback Notice | Which Questions fell back (FR-17) | `notice-warning`, shown above the layout until every fallback Question is marked reviewed. Omitted when no Question fell back. With no model key at all: "Ingen KI-nøkkel er satt opp, så alle spørsmålene starter med én gruppe per ulikt svar." |
-| Question rail | Count "K av N gjennomgått"; one row per Question: number, truncated text (full text in `title` attribute and accessible name), status words | Status words: "Gjennomgått" (`success`, with ✓), "Ikke gjennomgått", "Manuell" for fallback Questions. "Endret – marker på nytt" replaces "Gjennomgått" when a change clears the mark (FR-20). Current Question has `aria-current="page"`. |
+| Fallback Notice | Which Questions fell back (FR-17) | `notice-warning`, shown above the layout until every fallback Question is marked reviewed. Omitted when no Question fell back. Copy follows `fallback_reason` (AD-12): `NO_KEY` → "Ingen KI-nøkkel er satt opp, så alle spørsmålene starter med én gruppe per ulikt svar."; `NO_STORED_RULING` → "Det finnes ingen lagret avgjørelse for spørsmål {N}, så det starter med én gruppe per ulikt svar."; `TIMEOUT`, `ERROR`, `REFUSAL`, `INVALID_OUTPUT` → the "Dommeren rakk ikke …" wording of the wireframe. In Demo mode the `NO_STORED_RULING` wording is used for both, never the key sentence. |
+| Question rail | Count "K av N gjennomgått"; one row per Question: number, truncated text (full text in `title` attribute and accessible name), status words | Status words: "Gjennomgått" (`success`, with ✓), "Ikke gjennomgått", "Manuell" for fallback Questions. A change clears the mark, so the Question shows "Ikke gjennomgått" again (FR-20); there is no separate "changed" status. Current Question has `aria-current="page"`. |
 | Lås brettet | Primary button at the foot of the rail | `aria-disabled` with visible reason "Gjennomgå alle spørsmålene først (N igjen)." until all are marked; then opens ConfirmDialog. |
 | Question header | "Spørsmål 3 av 9", Question text in `{typography.heading}`, StatusBadge-style reviewed state | — |
 | *På brettet* | GroupCards ranked 1 to 8 in Board order (FR-16, FR-21) | Count shown as "1 person" / "N personer" (Count = distinct Contributor keys, FR-15). |
@@ -135,11 +135,11 @@ All operations are scoped to the current Question and confirmed by the server be
 | **Mark reviewed** (FR-21) | "Marker som gjennomgått" | Rail status updates; next unreviewed Question opens | "Spørsmål 3 er gjennomgått. Viser spørsmål 4." |
 | **Confirm Board** (FR-21) | "Lås brettet" → ConfirmDialog | Game moves to *ready*; redirect to the Game page | — (page change) |
 
-Every change to a Question clears its reviewed mark (FR-20), and the rail says so. There is **no general undo in Review**: each operation can be reversed by another (merge ↔ move to new Group; discard ↔ undo discard; rename ↔ rename).
+Every change to a Question clears its reviewed mark (FR-20), and the rail shows it as "Ikke gjennomgått" again. There is **no general undo in Review**: each operation can be reversed by another (merge ↔ move to new Group; discard ↔ undo discard; rename ↔ rename).
 
 **Answer chips.** Each Answer appears under exactly one Group (FR-19). Answers with the same normalised text (FR-17 definition) in one Group collapse into one chip showing the most common written form plus "· N svar"; ticking it selects all of them. Chips are sorted **alphabetically**, never by arrival or rank, so the display implies no order (FR-13). Answer sets, Contributor keys and ranks are never shown (FR-12).
 
-**Mark reviewed with no Group left on the Board.** `[ASSUMPTION]` If every Group of a Question is discarded, "Marker som gjennomgått" shows the inline error "Minst én gruppe må være på brettet før du kan markere spørsmålet." (see Open Questions).
+**Mark reviewed with no Group left on the Board.** Decided by AD-15 (`NO_GROUPS_ON_BOARD`). If every Group of a Question is discarded, "Marker som gjennomgått" shows the inline error "Minst én gruppe må være på brettet før du kan markere spørsmålet." (see Open Questions).
 
 ### PRD §10 item 2 — Answers near the Judge's threshold (decided)
 
@@ -185,23 +185,23 @@ Phone first, 360 px wide, `{spacing.gutter-mobile}` gutters, content max `{spaci
 
 ### Answer form rules
 
-- **Header:** wordmark "Toppsvar" and the Game title. No name, email, avatar, account indicator or login link anywhere (FR-1, FR-6, FR-11). Page `<title>`: "{Game title} – Toppsvar".
+- **Header:** wordmark "Toppsvar" and the Game title. No name, email, avatar, account indicator or login link anywhere (FR-1, FR-6, FR-11). Page `<title>`: the server shell is generic ("Toppsvar", AD-7); the client sets "{Game title} – Toppsvar" after `openInviteLink` returns.
 - **Anonymity notice** (FR-14), above the first Question, `notice-info`, exactly: *"Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet."*
 - **One AnswerFieldset per Question**, all on one scrolling page (8 to 15 Questions is a short scroll; paging would add states). Two fields shown: "Svar 1" and "Svar 2 (valgfritt)". "Legg til svar" adds a field up to five (FR-6), then disappears. Added fields 3 to 5 have a "Fjern" button (`aria-label="Fjern svar 3"`). Rank is field order; there is no reorder control in Stage 1.
 - **Inputs:** `maxlength="80"`, `autocomplete="off"`, `autocapitalize="sentences"`, `enterkeyhint="next"`. A counter "N/80" appears from 60 characters. A server refusal of an over-long Answer shows "Svaret kan ha maks 80 tegn." under the field.
 - **Progress line** above the submit button: "N av M spørsmål har svar". Not sticky, so it never covers a field when the phone keyboard is open.
 - **Submit** "Send inn svar" (first time) or "Lagre endringer" (returning). Validation runs on submit only, never while typing. Missing Questions → error summary (`notice-danger`) at the top, focus moved to it, one link per missing Question; each affected fieldset gets the inline error "Skriv minst ett svar." (FR-6).
-- **Confirmation** replaces the form: heading "Svarene dine er lagret.", body "Du kan endre dem via samme lenke helt til verten stenger innsamlingen." (FR-7), and a secondary button "Se eller endre svarene".
-- **Returning** through the same Invite link: the form is pre-filled with the saved Answer set and opens with `notice-info` "Du har allerede sendt inn. Endringer lagres først når du trykker «Lagre endringer»."
+- **Confirmation** replaces the form: heading "Svarene dine er lagret.", body "Du kan endre dem på denne enheten og i denne nettleseren helt til verten stenger innsamlingen." (FR-7), and a secondary button "Se eller endre svarene".
+- **Returning** through the same Invite link **on the submitting device and browser** (FR-7, AD-8): the form is pre-filled with the saved Answer set and opens with `notice-info` "Du har allerede sendt inn. Endringer lagres først når du trykker «Lagre endringer»." On any other device or browser the link opens an empty form, exactly like an unused link, and submitting there replaces the earlier Answer set. The first-visit form says so under the submit button: "Har du allerede sendt inn fra en annen enhet, erstatter dette de tidligere svarene."
 
 ### PRD §10 item 5 — Unsent drafts (decided)
 
 **Yes, the answer form keeps an unsent draft on the Participant's device, and only there.**
 
-- Stored in `localStorage` as the Participant types (debounced, about 500 ms), keyed per Invite link by a hash of the Token, never the raw Token. Nothing is sent to the server before "Send inn svar" (FR-6).
+- Stored in `localStorage` as the Participant types (debounced, about 500 ms), under one key per Invite link, `toppsvar:<gameId>:<first 16 chars of token>`, never the whole Token and with no hashing in the browser (`crypto.subtle` does not exist on plain `http://<LAN-IP>`). The same key also holds the edit secret (AD-8). Nothing is sent to the server before "Send inn svar" (FR-6).
 - Status line under the submit button: "Utkastet lagres bare på denne enheten til du sender inn."
 - On load, a local draft wins over the server copy and the page says: "Du har endringer som ikke er sendt inn." with a ghost button "Forkast endringene".
-- Cleared after a successful submit, and whenever the server answers "closed" or "unknown" for this Invite link.
+- The draft is cleared after a successful submit. The whole key, draft and edit secret, is cleared whenever the server answers "closed" or "unknown" for this Invite link.
 - Rationale: UJ-2 has Jonas on a bus, where a dropped tab or connection is the common failure; losing half a form is the realistic way a Participant gives up. The cost is that someone else using the same phone could read the draft before it is sent. That is the same exposure as the phone's browser history holding the Invite link, so it adds no new risk class. The README's anonymity section should mention it.
 
 ## Surface: Game page and other Host pages
@@ -239,23 +239,24 @@ Phone first, 360 px wide, `{spacing.gutter-mobile}` gutters, content max `{spaci
 
 | Page / panel | Rules |
 |---|---|
-| **Register / log in** (FR-1) | Email + password TextFields with real `<label>`s and `autocomplete="email"`, `"new-password"` / `"current-password"`. Password helper "Minst 10 tegn." Wrong credentials: one message, "Feil e-post eller passord." Expired session: redirect to `/logg-inn` with `notice-info` "Du ble logget ut etter 14 dager uten bruk. Logg inn igjen." |
+| **Register / log in** (FR-1) | `/registrer` shows a TextField "Registreringskode" only when the server requires `REGISTRATION_CODE` (AD-21); a wrong code: "Registreringskoden stemmer ikke." Email + password TextFields with real `<label>`s and `autocomplete="email"`, `"new-password"` / `"current-password"`. Password helper "Minst 10 tegn." Wrong credentials: one message, "Feil e-post eller passord." Expired session: redirect to `/logg-inn` with `notice-info` "Du ble logget ut etter 14 dager uten bruk. Logg inn igjen." |
 | **Game list** (FR-2) | Create row at the top: TextField "Navn på spillet" (1–80, counter from 60) + "Lag spill". Rows: title (link), StatusBadge, "Sist endret {dato}". Newest first. |
 | **Question editor** (FR-4, *draft*) | Ordered list of Questions, each a textarea (1–200, counter from 160) with "Flytt opp", "Flytt ned" and "Slett" buttons (no drag). Autosave on blur with inline status "Lagret" / "Fikk ikke lagret. Prøv igjen." `[ASSUMPTION]` "Legg til spørsmål" below the list with "N av 20 spørsmål"; hidden at 20. Empty Questions are not saved. |
-| **Create Invite links** (FR-5) | Number field "Antall lenker" (1 to the remaining of 50) + "Lag lenker". Zero Questions: `aria-disabled` with "Skriv minst ett spørsmål først." First creation in *draft* asks through ConfirmDialog: "Åpne innsamlingen? Spørsmålene låses når du lager de første lenkene, og kan ikke endres etterpå." |
+| **Create Invite links** (FR-5) | Number field "Antall lenker" (1 to the remaining of 50) + "Lag lenker". The panel shows "{issued} av maks 50 lenker brukt." from `progress.issued`. At the cap (`LINK_CAP_REACHED`, also on revoke): "Spillet har nådd maks 50 lenker." Zero Questions: `aria-disabled` with "Skriv minst ett spørsmål først." First creation in *draft* asks through ConfirmDialog: "Åpne innsamlingen? Spørsmålene låses når du lager de første lenkene, og kan ikke endres etterpå." |
 | **OnceLinkList** (FR-5, FR-9) | Shown once, right after creation. Heading "Kopier lenkene nå". Text: "Av hensyn til anonymiteten lagrer vi ikke lenkene, så de kan ikke vises igjen. Send én lenke til hver deltaker." "Kopier alle" + per-link "Kopier". Closed with "Jeg har kopiert lenkene"; leaving the page before that triggers the browser's leave-page warning. |
 | **ProgressCount** (FR-8) | "færre enn 3 av N svar mottatt" until three Answer sets exist, then "K av N svar mottatt". N counts active (not revoked) Invite links. Fixed sentence below: "Du ser bare antallet, aldri hvem som har svart." Refreshed on page load and every 30 s; never animated. |
-| **Revoke** (FR-9) | TextField "Lim inn lenken" + "Trekk tilbake og lag ny" → ConfirmDialog, same text every time: "Trekke tilbake lenken? Alt som er sendt inn via den, slettes. Du får én ny lenke, som vises bare én gang." Confirm → OnceLinkList with one link. A pasted link that is not an active link of this Game: "Denne lenken er ikke en aktiv lenke i dette spillet." |
+| **Revoke** (FR-9) | TextField "Lim inn lenken" + "Trekk tilbake og lag ny" → ConfirmDialog, same text every time: "Trekke tilbake lenken? Alt som er sendt inn via den, slettes. Du får én ny lenke, som vises bare én gang." Confirm → OnceLinkList with one link. A pasted link that is not an active link of this Game comes back as inline `LINK_UNKNOWN`: "Denne lenken er ikke en aktiv lenke i dette spillet." (never a 404) |
 | **Close Collection** (FR-10) | Below three: `aria-disabled`, reason as in the wireframe. From three: ConfirmDialog "Stenge innsamlingen? Dette kan ikke angres. Lenkene slutter å virke, og svarene grupperes." With no model key, the dialog adds: "Ingen KI-nøkkel er satt opp, så du grupperer for hånd i gjennomgangen." |
-| **Grouping** (FR-15) | Status panel: "Dommeren grupperer svarene … Det tar vanligvis under to minutter." `[ASSUMPTION]` If architecture reports it, "4 av 9 spørsmål ferdig"; otherwise indeterminate. Polls every 3 s and moves to *in review* on completion. |
+| **Grouping** (FR-15) | Status panel: "Dommeren grupperer svarene … Det tar vanligvis under to minutter." Progress "4 av 9 spørsmål ferdig", from `grouping.progress` (AD-12). Polls every 3 s and moves to *in review* on completion. |
 | **Start play** (*ready*) | "Brettet er låst. 9 spørsmål er klare." + "Start spillet" → `/spill/[id]/skjerm`. |
-| **Played** (FR-3, FR-27) | Final Scores table and `notice-info` "Spillet og alle svarene slettes automatisk {dato}." |
+| **Played** (FR-3, FR-27) | Final Scores table, a link "Vis sluttstilling" to `/spill/[id]/skjerm`, and `notice-info` "Spillet og alle svarene slettes automatisk {dato}." |
+| **Usage report** (FR-18) | Button "Last ned bruksrapport" on the Game page from *in review* onward (`GET /api/spill/[gameId]/rapport`, AD-17). Content-free counters only. |
 | **Delete** (FR-3) | `button-danger` "Slett spillet" → ConfirmDialog "Slette «{title}»? Spørsmål, lenker, svar, brett og poeng slettes for godt." Confirm "Slett for godt". Afterwards: `/spill` with `notice-success` "«{title}» er slettet." |
-| **Demo mode** (FR-31) | A thin `notice-info` band under the top bar on every Host page: "Demomodus: alt innhold er oppdiktet, og dommeren bruker lagrede avgjørelser." The login page shows the demo login and a button "Fyll inn demobrukeren". |
+| **Demo mode** (FR-31) | A thin `notice-info` band under the top bar on every Host page: "Demomodus: alt innhold er oppdiktet, og dommeren bruker lagrede avgjørelser." The login page shows the demo login and a button "Fyll inn demobrukeren"; login page and band read the demo credentials from one shared constant (AD-19). |
 
 ## Surface: Play view
 
-`/spill/[id]/skjerm`. **Team setup** first, on a light Host page: "Hvem spiller?", two TextFields prefilled "Lag 1" and "Lag 2", "Legg til lag" up to four, "Fjern" down to two (FR-23); `[ASSUMPTION]` names 1–20 characters. "Start spillet" switches to the play view, with the hint "Trykk F for fullskjerm."
+`/spill/[id]/skjerm`. **Team setup** first, on a light Host page: "Hvem spiller?", two TextFields prefilled "Lag 1" and "Lag 2", "Legg til lag" up to four, "Fjern" down to two (FR-23); names 1–20 characters (AD-16), over-long: "Navnet kan ha maks 20 tegn.". "Start spillet" switches to the play view, with the hint "Trykk F for fullskjerm."
 
 ### Wireframe — play view, 1920×1080, Question 3, two Groups revealed, Team 1's turn
 
@@ -360,15 +361,16 @@ Every surface has its loading, empty and error states defined here. Loading stat
 | Game page, any | Skeleton header + panel | — | Unknown Game **or another Host's Game**: one page, "Vi finner ikke dette spillet." + link to Mine spill (FR-1) · Expired session → log-in redirect |
 | — *draft* | — | No Questions: "Ingen spørsmål ennå. Skriv det første, gjerne om noen dere kjenner, for eksempel «Hva gjør Jonas når han har forsovet seg?»" | Autosave failure inline per Question · 20 reached: "Du har nådd maks 20 spørsmål." |
 | — *collecting* | — | 0 Answer sets: ProgressCount "færre enn 3 av N svar mottatt" (never 0) | Close below three: reason text (FR-10) · 50 links reached: "Spillet har nådd maks 50 lenker." · Bad pasted link (revoke) |
-| — *grouping* | Status panel (this *is* the loading state) | — | Judge failures do not show here; they surface as the fallback Notice in Review (FR-17) · Grouping crash: "Grupperingen stoppet. Last inn siden på nytt; spørsmål som ikke ble ferdige, får manuell gruppering." |
+| — *grouping* | Status panel (this *is* the loading state) | — | Judge failures do not show here; they surface as the fallback Notice in Review (FR-17) · Grouping slow or interrupted: "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt." (AD-12 resumes the Judge after the lease; no manual grouping is offered here) |
 | — *ready* / *playing* / *played* | — | — | — |
 | Review | Skeleton rail + three skeleton cards | No empty state exists by construction (≥3 Answer sets, each answering every Question). A Question with *Ikke på brettet* or *Forkastet* empty omits that section | Operation failure: `notice-danger` at top of the main pane, "Endringen ble ikke lagret. Prøv igjen.", screen unchanged · Board already confirmed (other tab): "Brettet er allerede låst." + link to the Game page · Game not in *in review*: redirect to Game page |
 | Team setup | — | — | Fewer than two Teams impossible (no Fjern below two) · Empty name: "Laget trenger et navn." · Game not *ready* (or *playing*, which resumes): redirect |
 | Play view | Stage background, "Henter spillet …" in `tv-team` | All Groups revealed: control bar hint "Alle svarene er avslørt." and "Neste spørsmål" emphasised | Save failure: stage-raised banner, `stage-ink`, "Fikk ikke lagret trekket. Prøv igjen." State unchanged; no red · Lost connection: same banner with "Mistet forbindelsen." |
 | Final Scores | — | — | — |
-| Answer form | Server-rendered; slow network: "Henter spørsmålene …" | — (a Game with zero Questions cannot have Invite links, FR-5) | Missing Answers: error summary + inline (FR-6) · Over 80: "Svaret kan ha maks 80 tegn." · Network: "Fikk ikke sendt svarene. Sjekk nettet og prøv igjen. Utkastet ditt ligger fortsatt på denne enheten." · Closed during editing: "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." (FR-10) |
-| Answer form — closed | — | — | Page: "Innsamlingen er stengt." + "Verten har stengt innsamlingen, så svar kan ikke lenger sendes inn eller endres." No form (FR-10, UJ-2) |
+| Answer form | Generic server shell, then the client loads through `openInviteLink`; slow network: "Henter spørsmålene …" | — (a Game with zero Questions cannot have Invite links, FR-5) | Missing Answers: error summary + inline (FR-6) · Over 80: "Svaret kan ha maks 80 tegn." · Network: "Fikk ikke sendt svarene. Sjekk nettet og prøv igjen. Utkastet ditt ligger fortsatt på denne enheten." · Closed during editing: "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." (FR-10) |
+| Answer form — closed | — | — | Also shown for a revoked link once Collection has closed (the Game state is checked first). Page: "Innsamlingen er stengt." + "Verten har stengt innsamlingen, så svar kan ikke lenger sendes inn eller endres." No form (FR-10, UJ-2) |
 | Answer form — unknown link | — | — | One page for malformed, revoked, deleted and never-existing links: "Vi finner ikke denne lenken." + "Den kan være skrevet feil eller ikke lenger gyldig. Be den som sendte deg den om en ny." (FR-3, FR-9) |
+| Any Host action | — | — | Stale view after another tab changed the state (`NOT_FOUND`, `ALREADY_REVEALED`, `WRONG_QUESTION`): refresh the view from the server instead of retrying; the saved state is shown |
 | Any page | — | — | 404: "Siden finnes ikke." · 500: "Noe gikk galt hos oss. Prøv igjen om litt." Both keep the top bar (Host) or the wordmark only (Participant) |
 
 ## Interaction Primitives
@@ -460,8 +462,8 @@ Failure path: one friend has lost his link. Maren pastes the old link into "Erst
 1. Jonas taps the link in a messaging app. The answer form opens: wordmark, "Hyttetur 2026", the two-sentence anonymity notice.
 2. He fills "Svar 1" and "Svar 2" for each Question. The bus goes into a tunnel and the tab reloads; his text is still there, because the draft lives on the phone.
 3. He clicks "Send inn svar". One Question was empty: the error summary takes focus and links him straight to it. He fills it in and submits again.
-4. **Climax:** "Svarene dine er lagret. Du kan endre dem via samme lenke helt til verten stenger innsamlingen." Nothing on the screen names him.
-5. The next morning he opens the same link: the form is pre-filled, with "Du har allerede sendt inn." He taps "Legg til svar" on one Question, adds a third Answer and taps "Lagre endringer".
+4. **Climax:** "Svarene dine er lagret. Du kan endre dem på denne enheten og i denne nettleseren helt til verten stenger innsamlingen." Nothing on the screen names him.
+5. The next morning he opens the same link on the same phone: the form is pre-filled, with "Du har allerede sendt inn." He taps "Legg til svar" on one Question, adds a third Answer and taps "Lagre endringer".
 6. After Maren closes Collection, the link shows "Innsamlingen er stengt."
 
 Failure path: had Maren revoked his link, it would show "Vi finner ikke denne lenken.", identical to a mistyped link.
@@ -506,14 +508,14 @@ Failure path: if the stored rulings were missing for a Question, that Question w
 ## Open Questions
 
 1. **Visual direction.** The palette (berry, forest stage, mint) and the display face (Bricolage Grotesque) were chosen in a headless run. They meet every constraint, but the group should confirm or swap them before implementation. Swapping is cheap while tokens are only names in a Tailwind theme.
-2. **A Question with no Group on the Board.** If the Host discards every Group of a Question, should marking it reviewed be blocked (this spine's assumption) or should play skip the Question? The PRD is silent.
+2. **A Question with no Group on the Board.** Decided: marking it reviewed is blocked, as AD-15 `NO_GROUPS_ON_BOARD` (the UX memlog resolved it the same way). The PRD is silent.
 3. **Host preview of the answer form.** Not in the PRD. Today a Host cannot see the form without creating an Invite link, which opens Collection and locks the Questions. A read-only preview in *draft* would reuse the AnswerFieldset with no submit and would help SM-6 (Host autonomy). Stage 1 nice-to-have or Stage 2?
 4. **Extended display.** Stage 1 assumes the TV mirrors the laptop, so the room sees the control bar. A two-window mode (controls on the laptop, clean board on the TV) is a Stage 2 candidate.
 
 ## Notes for Architecture
 
 - The Invite link's URL shape is architecture's choice. The UX needs the Game identifiable from the URL (FR-10 closed page) and benefits if the Token never reaches server logs (FR-11), e.g. by carrying it in the URL fragment and posting it in the request body.
-- The draft key needs a hash of the Token computed in the browser (Web Crypto SHA-256 is enough).
+- The browser keeps one `localStorage` key per link, `toppsvar:<gameId>:<first 16 chars of token>`, holding the draft and the edit secret. No hashing in the browser.
 - Grouping progress per Question is optional; the UX degrades to an indeterminate status.
 - Review and play actions must answer within one second (NFR-5), since the UI waits for the server before changing.
 - Demo mode should expose the demo credentials to the log-in page.

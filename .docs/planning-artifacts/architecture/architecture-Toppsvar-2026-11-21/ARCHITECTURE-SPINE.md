@@ -140,7 +140,7 @@ stateDiagram-v2
   - **Session.** Host entry points take `hostId` from `auth.requireHost()`, which each Host page and action calls. No proxy makes an auth decision.
   - **The Game.** The Game is resolved through `lockForMutation` for mutations, or `games.getOwned` for reads. Both throw `NOT_FOUND` whether the Game is missing or belongs to someone else.
   - **Child IDs.** Every other input ID (`questionId`, `groupId`, `answerId`, `boardSlotId`, `teamId`) and every pasted link is resolved by a query constrained to the owned `gameId`. The IDs in one Review operation must also share one `question_id`. Any miss is `NOT_FOUND`, and the whole operation is refused.
-  - **Rendering.** Pages turn `NOT_FOUND` into the bokmål 404.
+  - **Rendering.** Pages turn `NOT_FOUND` into the bokmål 404. Under `/svar` the segment has its own `not-found.tsx`, which renders the Participant's "unknown link" page instead, with no Host chrome.
 
 ### AD-6 — In-app auth: scrypt, hashed DB sessions, bounded cost [ADOPTED]
 
@@ -171,9 +171,9 @@ stateDiagram-v2
 - **Prevents:** half-finished Answer sets on the server; the Host reading Answers or per-link state before close, through Host pages or by opening a link they hold; more than one Answer set per link.
 - **Rule:**
   - **Storage.** `submission` has its primary key = foreign key `invite_link.token_hash`, with ON DELETE CASCADE. It stores `answers jsonb` and `edit_secret_hash`. The shape is `{ [questionId]: string[] }`: every Question present, 1 to 5 trimmed non-empty strings of at most 80 characters each, in field order, so `rank = index + 1`. The schema is in `src/lib/answer-set.ts` and is checked again inside `collection.submit` against the stored Question IDs.
-  - **Edit secret.** On the first submit, the browser generates a 32-byte edit secret and keeps it in `localStorage`, keyed by a hash of the token. `openInviteLink` returns the saved set only when `sha256(editSecret)` matches. Without it, the form is empty, exactly like an unused link, and a submit replaces the set and its secret. This narrows FR-7 to the submitting device (see Deferred).
-  - **Revoke** is refused with `LINK_CAP_REACHED` before anything changes if `game.invite_links_issued` is already 50. Otherwise it deletes the link by `(token_hash, game_id)`, which cascades to its submission, and returns one new link. The response is the same whether or not a set existed. Every link creation goes through `games.reserveInviteLinks`.
-  - **Host reads.** `collection.progress(gameId)` returns the active-link count and the submission count, with the submission count shown as "fewer than 3" below three. No Host-visible value, timestamps included, changes when a Participant submits.
+  - **Edit secret.** On the first submit, the browser generates a 32-byte edit secret and keeps it in `localStorage` under the single key `toppsvar:<gameId>:<first 16 chars of token>`, which also holds the unsent draft (EXPERIENCE). No hashing happens in the browser, because `crypto.subtle` is undefined on plain `http://<LAN-IP>`. The whole key is cleared when the server answers `closed` or `unknown`. `openInviteLink` returns the saved set only when `sha256(editSecret)` matches. Without it, the form is empty, exactly like an unused link, and a submit replaces the set and its secret. This narrows FR-7 to the submitting device (see Deferred).
+  - **Revoke** is refused with `LINK_CAP_REACHED` before anything changes if `game.invite_links_issued` is already 50. Otherwise it deletes the link by `(token_hash, game_id)`, which cascades to its submission, and returns one new link. A pasted link that matches no active link of the Game returns the inline `LINK_UNKNOWN`, not `NOT_FOUND`. The response is the same whether or not a set existed. Every link creation goes through `games.reserveInviteLinks`.
+  - **Host reads.** `collection.progress(gameId)` returns the active-link count, `issued` (`game.invite_links_issued`, for "N av maks 50 lenker brukt") and the submission count, with the submission count shown as "fewer than 3" below three. No Host-visible value, timestamps included, changes when a Participant submits.
 
 ### AD-9 — Closing Collection is the single anonymisation step
 
@@ -297,7 +297,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Rule:**
   - **Question order.** `question.position` is dense `1..n` and unique per Game. It is renumbered in the same transaction on every remove or reorder, and frozen after `draft`.
   - **Tables.**
-    - `team(id, game_id, name 1..40, position)`
+    - `team(id, game_id, name 1..20, position)`
     - `play_state(game_id, current_question_id, current_team_id)`
     - `reveal(id, game_id, board_slot_id unique, team_id nullable, seq)`, where a null `team_id` means an unscored reveal
   - **Reveal** takes only `{ boardSlotId, scored }`. The Team comes from `play_state` under the Game lock. A slot that is not on the current Question is refused with `WRONG_QUESTION`, and a slot that is already revealed with `ALREADY_REVEALED`.
@@ -316,7 +316,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Error codes.** `ErrorCode` is a closed union, with bokmål messages, in `src/lib/errors.ts`. A zod failure gives `INVALID_INPUT` with `fieldErrors`.
   - **Error boundary.** Entry points and `after()` tasks convert any error that is not a `DomainError` into `DomainError('INTERNAL')`, with no cause and no original message. `src/server/log.ts` receives only `{ module, op, code, sqlstate }`. Actions never throw to Next.
   - **Route Handlers** are limited to `GET /api/health` (no side effects), `GET /api/purge` (requires `CRON_SECRET`, AD-23) and `GET /api/spill/[gameId]/rapport` (the AD-18 export).
-  - **Polling.** Host pages poll with `router.refresh()` every 3 s while the Game is `grouping`. There are no websockets.
+  - **Polling.** Host pages poll with `router.refresh()` every 3 s while the Game is `grouping`, and every 30 s while it is `collecting` (ProgressCount). There are no websockets.
 
 ### AD-18 — Usage counters are content-free and written through one function
 
@@ -335,7 +335,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Rule:** `npm run demo` runs `src/cli/demo.ts` through `tsx`, with no shell syntax:
   1. Recreate `.data/demo`.
   2. Migrate.
-  3. Seed through module functions: an invented demo Host, whose credentials are printed and listed in the README, and one demo Game in `collecting` with invented Norwegian Questions and Answer sets.
+  3. Seed through module functions: an invented demo Host, whose credentials are one constant in `src/lib` (printed and listed in the README, and read by the login page and the Demo band when `DEMO_MODE=1`), and one demo Game in `collecting` with invented Norwegian Questions and Answer sets.
   4. Start `next dev` on `PORT` with `DATABASE_URL=pglite://.data/demo`, `JUDGE_PROVIDER=replay`, `DEMO_MODE=1` and a matching `APP_BASE_URL`.
 
   The rulings for the demo Answers are in `data/rulings/demo.json`, so close takes the normal Grouping path. Answers added before close become their own Groups. No tracked file holds text derived from `.idea/`, including fixtures, few-shot examples, tests, rulings and `prompting/`.
@@ -370,7 +370,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 | `ANTHROPIC_API_KEY` | empty | turns on the live Judge; optional |
 | `JUDGE_PROVIDER` | derived (AD-13) | `anthropic`, `replay` or `mock` |
 | `JUDGE_MODEL` | `claude-haiku-5-5` | model ID for the live provider |
-| `DEMO_MODE` | empty | `1` shows the demo login hint |
+| `DEMO_MODE` | empty | `1` shows the demo login hint and band, from the `src/lib` demo credentials constant (AD-19) |
 | `REGISTRATION_CODE` | empty | if set, registration requires it (pilot) |
 | `CRON_SECRET` | empty | if set, enables `/api/purge` (pilot) |
 
@@ -449,7 +449,7 @@ The pilot is Vercel Hobby (300 s per function with fluid compute), production fr
 | Domain names | PRD glossary terms used as written: `game`, `question`, `inviteLink`, `answerSet`, `answer`, `contributorKey`, `group` (table `answer_group`), `boardSlot`, `team`, `reveal`, `score`, `count`. |
 | DB naming | `snake_case`, singular. Primary key `id uuid default gen_random_uuid()`. Exceptions: `invite_link`, `session` and `submission` (keyed by `token_hash`); `game_counter` and `play_state` (keyed by `game_id`). Foreign keys are `<entity>_id`, `ON DELETE CASCADE` toward `game`. |
 | Files | Components are `PascalCase.tsx`, everything else `kebab-case.ts`. Each module is one folder, with `index.ts` as its public surface. |
-| Limits | Only in `src/lib/limits.ts`, with the values from PRD §11 plus: minimum 3 Answer sets, retention 30/90 days, Judge 30 s and concurrency 5, grouping lease 180 s, poll 3 s, Team name 40, password at most 256. |
+| Limits | Only in `src/lib/limits.ts`, with the values from PRD §11 plus: minimum 3 Answer sets, retention 30/90 days, Judge 30 s and concurrency 5, grouping lease 180 s, poll 3 s, collecting refresh 30 s, Team name 20, password at most 256. |
 | Time and IDs | UTC `timestamptz`, only on `host`, `session` and `game`. IDs are random UUID v4, never time-ordered. |
 | Logging | Only through `src/server/log.ts` (ESLint `no-console` elsewhere). It accepts `{ module, op, code, sqlstate }`, never request objects, arguments or `error.message`. |
 | Transactions | A multi-row change is one transaction, opened by the entry point. The Judge is never called inside one. |
@@ -481,6 +481,7 @@ Do not keep the Next starter's `@types/node ^20` (vitest 5 rejects it), its `nex
 | `eslint` / `eslint-config-next` / `typescript-eslint` | 9.39.5 / 16.4.6 / 8.73.0 |
 | `prettier` / `eslint-config-prettier` | 3.10.1 / 10.1.8 |
 | `tsx` / `server-only` | 4.23.15 / 0.0.1 |
+| `@fontsource-variable/bricolage-grotesque` (self-hosted display font) | 5.3.0 |
 | Pilot hosting | Vercel Hobby (Node runtime) + Neon free tier (EU) |
 
 ## Structural Seed
@@ -580,7 +581,7 @@ flowchart LR
 ## Deferred
 
 - **Cross-device editing of an Answer set** (FR-7 narrowed by AD-8). Confirmed by the group 2026-11-21: the PRD's FR-7 is amended to the submitting device, so AD-8 binds without reservation.
-- **Visual system, Review interaction, near-threshold display and unsent drafts.** These were decided in `DESIGN.md` and `EXPERIENCE.md`. Architecture constraints: no per-Group confidence signal in Stage 1, single-Answer Groups are ordinary Groups, and drafts stay in `localStorage`, keyed per link by a hash of the Token, and are never sent before submit.
+- **Visual system, Review interaction, near-threshold display and unsent drafts.** These were decided in `DESIGN.md` and `EXPERIENCE.md`. Architecture constraints: no per-Group confidence signal in Stage 1, single-Answer Groups are ordinary Groups, and drafts stay in `localStorage`, under the one per-link key `toppsvar:<gameId>:<first 16 chars of token>` (no hashing in the browser), and are never sent before submit.
 - **Judge prompt wording and the measured token and latency figures.** Tuned in the Judge story against `judge:eval`. The format, versions and the 0.70 bar are fixed in AD-13 and AD-14.
 - **Account recovery and email verification.** Not required by the PRD. Registration reveals whether an email is already taken, and that is accepted.
 - **Stage 2 data.** The Question-set import format and `game.kind` (FR-33), a manual Group order column on `answer_group` (FR-22), typed Guess storage and its deletion (FR-28), and strike and steal state (FR-29). These are decided when Stage 2 starts, inside AD-4, AD-13, AD-15 and AD-16.
