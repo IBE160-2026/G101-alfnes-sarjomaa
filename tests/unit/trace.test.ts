@@ -12,7 +12,7 @@ const STAGE_1_FRS = [
   31,
   32,
 ].map((n) => `FR-${n}`);
-const STORY_NFRS = ["NFR-1", "NFR-2", "NFR-3", "NFR-8"];
+const STORY_NFRS = ["NFR-1", "NFR-2", "NFR-3", "NFR-6", "NFR-7", "NFR-8"];
 
 const headings = new Set(
   readFileSync("tests/TRACE.md", "utf8")
