@@ -33,7 +33,7 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 - [[prosjektforslag]] — de 8 forslagene fra emneansvarlig (vi valgte egen idé)
 - [[proposal]] — `proposal.md` og fjorårets 100-poengs rubrikk (ikke gjeldende i år)
 - [[refleksjonsrapport]] — 30 % av karakteren, gruppevis, og hvorfor promptarkivet fortsatt teller
-- [[kullet]] — hva de andre gruppene faktisk har levert, og hvordan man sjekker det
+- [[kullet]] — hva de andre gruppene har levert. **Status 21. nov.: kullet er i implementering**, og faglærers `beergame` er strukturmalen
 
 ## Logg
 

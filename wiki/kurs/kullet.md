@@ -69,6 +69,57 @@ dokumentene og strukturen er det.
 
 ## Årets kull
 
+### Status 2026-11-21 — kullet er i implementering, vi er ikke
+
+Skannet 2026-11-21 med en subagent som gikk gjennom git-treet til alle 141 repo i
+`IBE160-2026`, med skill-mappene filtrert bort. Tallene for faglærers repo og G85 er
+etterprøvd for hånd. **Tallene viser at en fil finnes, ikke at den er god.**
+
+| Artefakt | Repo som har den (av 112 med eget innhold) |
+|----------|-------------------------------------------:|
+| Brief | 111 |
+| PRD | 81 |
+| UX (`DESIGN.md` / `EXPERIENCE.md`) | 62 |
+| Arkitektur (`ARCHITECTURE-SPINE.md`) | 54 |
+| Epics | 52 |
+| `sprint-status.yaml` | 37 |
+| App-kode | 50 |
+| Tester | 54 |
+| CI-workflow | 27 |
+
+28 repo har bare malen, og ett er tomt. Median antall commits er 28, 40 repo har over 100, og
+15 har over 300. **G101 hadde brief, proposal og PRD, men ikke UX, arkitektur eller kode.** Vi
+var altså blant de første med PRD, men er nå bak rundt halve kullet.
+
+**Faglærers `beergame`** (654 commits) er referansen for struktur og omfang:
+
+- Mappestruktur: `.docs/planning-artifacts/{briefs,prds,ux-designs,architecture,epics}/<type>-beergame-<dato>/`,
+  og `.docs/implementation-artifacts/` med `sprint-status.yaml` og én `spec-N-M-*.md` per
+  story. **Vi følger samme mønster.**
+- `GOAL.md` i rota er briefen til den autonome `/goal`-kjøringen.
+- 15 epics. Per 21. nov. er 108 av 199 stories ferdige, og epic 1–6 er merket ferdig.
+  Kunngjøringen 18. nov. sa «3 av 12», så den er utdatert eller telte annerledes.
+- Stacken er FastAPI + Next.js 16 + Tailwind 4, med Postgres via Docker Compose. Vitest og
+  Playwright, og CI med fem jobber. Den kjøres med `docker compose up --build` **uten nøkler**:
+  LLM-kall går til en lokal mock, og fire demokontoer seedes.
+
+**De som har kommet lengst** (målt på sprint-status, app-kode, tester og CI):
+
+| Gruppe | Stack | Status | Verdt å merke seg |
+|--------|-------|--------|-------------------|
+| G85 | Next.js 16 i rota | 34/34 stories, eneste helt ferdige | `?demo=`-modus med falsk LLM, uten nøkkel. CI og Vercel |
+| G68 | Flask | 30/31 stories | Testmodus uten API-nøkkel |
+| G04 | FastAPI + Vite/React, Postgres | 28/28 stories (3/6 epics) | Vercel og Neon-previews |
+| G18 | Vite/React | 24/24 stories | `npm run dev:demo` kjører offline. Fire CI-workflows |
+| G74 | Flask | 95/116 stories, 2 684 commits | Demodata og demoskript |
+
+Mønsteret hos de beste er det samme som i vår PRD: **en demo- eller mockmodus som kjører uten
+nøkkel**, CI med tester, og eventuelt Vercel. Det bekrefter FR-30 og FR-31.
+
+Navnekonvensjon i kullet: `DESIGN.md` + `EXPERIENCE.md` (60), `ARCHITECTURE-SPINE.md` (46),
+`epics.md` (43) og `sprint-status.yaml`. `_bmad-output/` er vanligere enn `.docs/`, men
+faglærer bruker `.docs/`, som vi.
+
 ### To feller
 
 **1. GitHubs kodesøk er blindt for denne organisasjonen.**
