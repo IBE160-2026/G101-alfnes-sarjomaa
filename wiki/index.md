@@ -10,6 +10,7 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 - [[tidsplan]] — ukeplan, faser og frister **(nå: UX og arkitektur, og vi ligger etter kullet)**
 - [[kunngjoringer]] — hva Canvas-kunngjøringene betyr for oss: publisering er ikke krav, Vercel, kullets tempo
 - [[produktide]] — hva vi bygger: **Toppsvar**
+- [[plan-fase-3-og-4]] — **planen fra PRD til innlevert app**: fase 3, epics, frys 1. des.
 
 ## Leveranser
 
