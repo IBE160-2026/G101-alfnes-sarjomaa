@@ -1,0 +1,98 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 11-22-2026 00:10
+last_updated: 11-22-2026 00:10
+project: Toppsvar
+project_key: NOKEY
+tracking_system: file-system
+story_location: .docs/implementation-artifacts
+development_status:
+  epic-1: backlog
+  1-1-running-skeleton-with-database-test-harnesses-and-ci: backlog
+  1-2-visual-foundation-host-chrome-and-landing-page: backlog
+  1-3-host-registration-login-logout-and-sessions: backlog
+  1-4-create-and-list-games-with-a-state-driven-game-page: backlog
+  1-5-delete-a-game-and-purge-expired-games: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-write-reorder-and-remove-questions-while-in-draft: backlog
+  2-2-create-invite-links-and-open-collection: backlog
+  2-3-invite-link-page-open-closed-and-unknown: backlog
+  2-4-answer-form-and-first-submission: backlog
+  2-5-return-on-the-same-device-change-answers-and-keep-unsent-dra: backlog
+  2-6-collection-progress-on-the-game-page: backlog
+  2-7-revoke-and-replace-a-lost-invite-link: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-close-collection-as-the-single-anonymisation-step: backlog
+  3-2-anonymity-test-schema-and-data-after-close: backlog
+  3-3-anonymity-tests-the-host-s-view-during-collection-and-log-hy: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-judge-boundary-with-replay-and-mock-providers: backlog
+  4-2-grouping-runs-once-at-close-with-per-question-fallback: backlog
+  4-3-usage-counters-and-the-usage-report: backlog
+  4-4-live-judge-through-the-openrouter-provider-prompt-and-ruling: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-review-screen-with-ranked-groups-counts-and-raw-answers: backlog
+  5-2-merge-groups: backlog
+  5-3-move-answers-to-another-group-or-a-new-group: backlog
+  5-4-rename-discard-and-restore-groups: backlog
+  5-5-mark-questions-reviewed-and-lock-the-board: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-name-the-teams-and-start-play: backlog
+  6-2-show-the-board-on-the-shared-screen-and-make-scored-reveals: backlog
+  6-3-misses-undo-turns-and-unscored-reveals: backlog
+  6-4-next-question-final-scores-and-the-played-game: backlog
+  6-5-a-full-round-without-a-model-key-end-to-end: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-demo-mode-with-one-command: backlog
+  7-2-judge-evaluation-against-protoqa: backlog
+  7-3-traceability-manual-checklists-and-the-sm-1-gate: backlog
+  7-4-readme-hand-in-zip-and-fresh-clone-check: backlog
+  7-5-pilot-deployment-first-to-cut: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-play-a-ready-made-question-set: backlog
+  8-2-reorder-groups-in-review: backlog
+  8-3-assisted-guess-matching: backlog
+  8-4-strikes-and-steals: backlog
+  epic-8-retrospective: optional
