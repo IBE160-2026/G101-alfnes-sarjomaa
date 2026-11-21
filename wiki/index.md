@@ -6,8 +6,9 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 ## Start her
 
 - [[ibe160]] — hva emnet krever, og vektingen: **kode 70 %, rapport 30 %, ingen muntlig**
-- [[sensorveiledning-del-1]] — de sju kriteriene koden vurderes etter. **Les før hver fase**
-- [[tidsplan]] — ukeplan, faser og frister **(neste: UX og arkitektur)**
+- [[sensorveiledning-del-1]] — de sju kriteriene, hvordan sensor går fram, og varseltegnene (hele dokumentet fra Canvas). **Les før hver fase**
+- [[tidsplan]] — ukeplan, faser og frister **(nå: UX og arkitektur, og vi ligger etter kullet)**
+- [[kunngjoringer]] — hva Canvas-kunngjøringene betyr for oss: publisering er ikke krav, Vercel, kullets tempo
 - [[produktide]] — hva vi bygger: **Toppsvar**
 
 ## Leveranser

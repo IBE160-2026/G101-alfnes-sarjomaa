@@ -7,6 +7,9 @@
 > implikasjoner. Det passer med fjorårets mal under.
 >
 > Mal: `IBE160/beergame/.grading/reflection-report-template.md` (910 ord).
+> Årets mal ligger i Canvas under Moduler → Prosjektoppgaven → Refleksjonsrapport, som
+> `reflection-report-template.md` (6,1 kB). Fjorårets fil er 6 246 byte, så de er trolig
+> identiske. Canvas har ingen forhåndsvisning, så det er ikke sjekket ord for ord (2026-11-21).
 > Frist: **5. desember**, sammen med repoet som zip. Se [[tidsplan]].
 
 ## Hvorfor promptarkivet fortsatt er viktig
