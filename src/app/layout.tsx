@@ -1,5 +1,7 @@
+import "@fontsource-variable/bricolage-grotesque";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { RouteFocus } from "@/components/RouteFocus";
 import "./globals.css";
 
 export const metadata: Metadata = { title: "Toppsvar" };
@@ -9,7 +11,10 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="nb">
-      <body>{children}</body>
+      <body>
+        <RouteFocus />
+        {children}
+      </body>
     </html>
   );
 }
