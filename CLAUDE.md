@@ -48,6 +48,29 @@ så standardbiblioteket, så en installert avhengighet, og bare til slutt ny kod
 Kopiene oppdateres med `cp -RL ~/.claude/skills/ponytail* .claude/skills/` (de globale er
 symlenker), og endringen committes som en egen commit.
 
+## Design
+
+Designkontrakten er `DESIGN.md` og `EXPERIENCE.md` i
+`.docs/planning-artifacts/ux-designs/ux-Toppsvar-2026-11-21/`. De vinner over alt annet,
+også over designskillene. To skills brukes på **alt UI-arbeid**, fra første skjerm i epic 1:
+
+- **`impeccable`** er hovedskillen. Toppsvar er en app, så det er skillens *Operate*-modus som
+  gjelder: presisjon og tilbakeholdenhet, ikke markedsføringsuttrykk. Les
+  `reference/craft-floor.md` rett før hver UI-endring. Kjør `critique`/`audit` på hver epic
+  med UI før PR, og `harden` for tomme, lastende og feilende tilstander. Den kjører i
+  «Launcher unavailable»-modus (se `VENDORED.md`). Pek den på designkontrakten over når den ber
+  om `PRODUCT.md`/`DESIGN.md`.
+- **`design-taste-frontend`** (taste-skill) er laget for markedsføringssider. Vi bruker bare
+  tekst- og typografidelene: `references/copy*.md` for mikrotekst uten KI-preg, og
+  `library/type.json`/`palettes.json` som sjekk. **Husreglene om hero, bilder og «én seksjon
+  per skjerm» gjelder ikke** for svarskjema, gjennomgang eller TV-visning.
+- En prompt til en subagent som bygger UI, skal si at den bruker `impeccable` sammen med
+  `ponytail`. Designskillene legger aldri til funksjoner som ikke står i PRD-en, og
+  tilgjengelighet (WCAG 2.1 AA, NFR-6) kuttes aldri.
+
+Skillene er vendret uten skript og hooks, fordi de lastet ned og kjørte en binær eller
+Node-skript automatisk etter hver redigering. Se `VENDORED.md` i hver mappe før de oppdateres.
+
 ## Språk
 
 | Hva | Språk |
@@ -70,6 +93,7 @@ norsk brødtekst — vi gjør det ikke. Valget skal holde for `PRD.md` også.
 | `_bmad/custom/config.toml` | Fellesoppsett vi *skal* redigere, og som committes |
 | `.claude/skills/bmad-*` | 39 BMAD-skills |
 | `.claude/skills/ponytail*` | Ponytail-skills (MIT), vendret inn 2026-11-21. Se «Ponytail er alltid på» |
+| `.claude/skills/impeccable`, `.claude/skills/design-taste-frontend` | Designskills (Apache 2.0 / MIT), vendret inn 2026-11-21 uten skript og hooks. Se «Design» |
 | `.claude/skills/sesjonslogg` | Sesjonslogg-skillen, se nederst |
 | `.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/` | Kanonisk fase 2: `prd.md`, `.memlog.md`, gjennomgangsfiler |
 | `PRD.md` | **Generert** av `scripts/sync-brief.sh`, på samme måte som briefen. Rediger aldri direkte |
