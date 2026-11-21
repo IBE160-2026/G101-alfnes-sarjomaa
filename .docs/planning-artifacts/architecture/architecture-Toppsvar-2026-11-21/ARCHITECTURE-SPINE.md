@@ -7,7 +7,7 @@ paradigm: 'modular monolith, layered (routes -> server modules -> db) in one Nex
 scope: 'Toppsvar Stage 1, the whole system in one deployable Next.js app, with Stage 2 (FR-22, FR-28, FR-29, FR-33) kept possible'
 status: final
 created: '2026-11-21'
-updated: '2026-11-21'
+updated: '2026-11-22'
 binds: [FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, FR-7, FR-8, FR-9, FR-10, FR-11, FR-12, FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-23, FR-24, FR-25, FR-26, FR-27, FR-30, FR-31, FR-32, NFR-1, NFR-2, NFR-3, NFR-4, NFR-5, NFR-6, NFR-7, NFR-8]
 sources:
   - .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md
@@ -454,7 +454,7 @@ The pilot is Vercel Hobby (300 s per function with fluid compute), production fr
 | Transactions | A multi-row change is one transaction, opened by the entry point. The Judge is never called inside one. |
 | Assets | Fonts come from npm packages or `next/font/local`, never `next/font/google` or a CDN, so builds and tests work offline. Nothing names or imitates the TV show (PRD §6.3). |
 | Scripts | `dev`, `demo`, `build`, `start`, `lint`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `judge:eval`, `judge:record`. README, CI and Playwright use these names only. |
-| Style | ESLint flat config (`eslint-config-next`, `typescript-eslint`, `eslint-config-prettier`) and Prettier defaults, over `src`, `tests` and the root config files. Ignored: `_bmad .claude wiki .docs prompting scripts drizzle .idea .next .data`. No commented-out code. |
+| Style | ESLint flat config (`eslint-config-next`, `typescript-eslint`, `eslint-config-prettier`) and Prettier defaults, over `src`, `tests` and the root config files. Ignored: `_bmad .claude wiki .docs prompting scripts drizzle .idea .next .data .logs`. No commented-out code. |
 | Delivery | The README states the anonymity limits that AD-7 to AD-10, AD-13 and AD-24 name. One PR per epic. A departure from this spine amends it in the same PR. Details are in `delivery-notes.md`. |
 
 ## Stack
