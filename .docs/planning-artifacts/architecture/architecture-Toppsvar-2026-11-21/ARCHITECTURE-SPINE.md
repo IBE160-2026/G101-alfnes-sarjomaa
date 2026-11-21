@@ -297,7 +297,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Rule:**
   - **Question order.** `question.position` is dense `1..n` and unique per Game. It is renumbered in the same transaction on every remove or reorder, and frozen after `draft`.
   - **Tables.**
-    - `team(id, game_id, name 1..20, position)`
+    - `team(id, game_id, name 1..14, position)`
     - `play_state(game_id, current_question_id, current_team_id)`
     - `reveal(id, game_id, board_slot_id unique, team_id nullable, seq)`, where a null `team_id` means an unscored reveal
   - **Reveal** takes only `{ boardSlotId, scored }`. The Team comes from `play_state` under the Game lock. A slot that is not on the current Question is refused with `WRONG_QUESTION`, and a slot that is already revealed with `ALREADY_REVEALED`.
@@ -449,7 +449,7 @@ The pilot is Vercel Hobby (300 s per function with fluid compute), production fr
 | Domain names | PRD glossary terms used as written: `game`, `question`, `inviteLink`, `answerSet`, `answer`, `contributorKey`, `group` (table `answer_group`), `boardSlot`, `team`, `reveal`, `score`, `count`. |
 | DB naming | `snake_case`, singular. Primary key `id uuid default gen_random_uuid()`. Exceptions: `invite_link`, `session` and `submission` (keyed by `token_hash`); `game_counter` and `play_state` (keyed by `game_id`). Foreign keys are `<entity>_id`, `ON DELETE CASCADE` toward `game`. |
 | Files | Components are `PascalCase.tsx`, everything else `kebab-case.ts`. Each module is one folder, with `index.ts` as its public surface. |
-| Limits | Only in `src/lib/limits.ts`, with the values from PRD §11 plus: minimum 3 Answer sets, retention 30/90 days, Judge 30 s and concurrency 5, grouping lease 180 s, poll 3 s, collecting refresh 30 s, Team name 20, password at most 256. |
+| Limits | Only in `src/lib/limits.ts`, with the values from PRD §11 plus: minimum 3 Answer sets, retention 30/90 days, Judge 30 s and concurrency 5, grouping lease 180 s, poll 3 s, collecting refresh 30 s, Team name 14, password at most 256. |
 | Time and IDs | UTC `timestamptz`, only on `host`, `session` and `game`. IDs are random UUID v4, never time-ordered. |
 | Logging | Only through `src/server/log.ts` (ESLint `no-console` elsewhere). It accepts `{ module, op, code, sqlstate }`, never request objects, arguments or `error.message`. |
 | Transactions | A multi-row change is one transaction, opened by the entry point. The Judge is never called inside one. |

@@ -3,7 +3,7 @@ name: Toppsvar
 description: Party game where a Host turns anonymous Answers about the group into a ranked Board, reviews it, and plays it from one shared screen. Next.js + Tailwind CSS; tokens map 1:1 onto a Tailwind theme.
 status: final
 created: 2026-11-21
-updated: 2026-11-21
+updated: 2026-11-22
 sources:
   - ../../prds/prd-Toppsvar-2026-10-12/prd.md
   - ../../briefs/brief-Toppsvar-2026-09-14/brief.md
@@ -22,6 +22,7 @@ colors:
   primary-soft: '#F5E7F0'
   on-primary: '#FFFFFF'
   focus-ring: '#1E1A22'
+  focus-inverse: '#FFFFFF'
   success: '#1D6B45'
   success-soft: '#E2F1E8'
   warning: '#7A4E00'
@@ -37,6 +38,7 @@ colors:
   stage-muted: '#A7BAB4'
   stage-accent: '#7FE0C2'
   stage-on-accent: '#10201E'
+  count-badge: '#10201E'
 typography:
   display:
     fontFamily: "'Bricolage Grotesque', system-ui, sans-serif"
@@ -94,6 +96,11 @@ typography:
     fontSize: 80px
     fontWeight: '800'
     lineHeight: '1'
+  tv-score-final:
+    fontFamily: "'Bricolage Grotesque', system-ui, sans-serif"
+    fontSize: 120px
+    fontWeight: '800'
+    lineHeight: '1'
   tv-team:
     fontFamily: "'Bricolage Grotesque', system-ui, sans-serif"
     fontSize: 48px
@@ -144,6 +151,12 @@ components:
     foreground: '{colors.ink}'
     radius: '{rounded.md}'
     minHeight: '{spacing.control-min}'
+  button-secondary-danger:
+    background: '{colors.surface}'
+    foreground: '{colors.danger}'
+    border: '1px solid {colors.danger}'
+    radius: '{rounded.md}'
+    minHeight: '{spacing.control-min}'
   button-danger:
     background: '{colors.danger}'
     foreground: '{colors.on-primary}'
@@ -160,9 +173,9 @@ components:
   focus:
     outline: '3px solid {colors.focus-ring}'
     outlineOffset: 2px
-  focus-stage:
-    outline: '3px solid {colors.stage-accent}'
-    outlineOffset: 3px
+  focus-inverse:
+    outline: '3px solid {colors.focus-inverse}'
+    outlineOffset: 2px
   notice-info:
     background: '{colors.primary-soft}'
     foreground: '{colors.ink}'
@@ -220,11 +233,16 @@ components:
     foreground: '{colors.stage-ink}'
     radius: '{rounded.md}'
     typography: '{typography.tv-label}'
+  board-tile-hidden-unscored-mode:
+    background: '{colors.stage-tile}'
+    border: '2px dashed {colors.stage-line}'
+  board-tile-pending:
+    border: '2px solid {colors.stage-ink}'
   board-tile-revealed:
     background: '{colors.stage-ink}'
     foreground: '{colors.ink}'
-    countBackground: '{colors.primary}'
-    countForeground: '{colors.on-primary}'
+    countBackground: '{colors.count-badge}'
+    countForeground: '{colors.stage-ink}'
     radius: '{rounded.md}'
   board-tile-unscored:
     background: '{colors.stage-raised}'
@@ -237,19 +255,22 @@ components:
     foreground: '{colors.stage-ink}'
     radius: '{rounded.md}'
   team-score-active:
-    background: '{colors.stage-raised}'
-    border: '6px solid {colors.stage-accent}'
-    badgeBackground: '{colors.stage-accent}'
-    badgeForeground: '{colors.stage-on-accent}'
+    background: '{colors.stage-accent}'
+    foreground: '{colors.stage-on-accent}'
+    labelTypography: '{typography.tv-team}'
   control-bar:
     background: '{colors.stage-raised}'
     foreground: '{colors.stage-muted}'
+    typography: '{typography.tv-control}'
+  control-bar-error:
+    background: '{colors.stage-raised}'
+    foreground: '{colors.stage-ink}'
     typography: '{typography.tv-control}'
 ---
 
 # Toppsvar — Design Spine
 
-> Visual identity contract. `EXPERIENCE.md` owns behavior, states and flows; it references tokens here as `{path.to.token}`. Both spines win on conflict with [the key-screen mock](mockups/key-screens.html).
+> Visual identity contract. `EXPERIENCE.md` owns behavior, states and flows; it references tokens here as `{path.to.token}`. Both spines win on conflict with [the key-screen mock](mockups/key-screens.html). The mock predates the 2026-11-21 impeccable critique (`reviews/impeccable-critique-2026-11-21.md`) and is not updated: where it differs, the spines win.
 
 ## Brand & Style
 
@@ -272,13 +293,14 @@ Two families: **light** for Host pages and the answer form, **stage** for the pl
 | `paper` | `#FAF7F2` | Page background, light surfaces | Text |
 | `surface` | `#FFFFFF` | Cards, inputs, dialogs | — |
 | `surface-sunken` | `#F1ECE4` | Answer chips; the *Ikke på brettet* and *Forkastet* sections in Review | Primary content areas |
-| `ink` | `#1E1A22` | Body text, headings, focus ring, SelectionBar | — |
+| `ink` | `#1E1A22` | Body text, headings, focus ring on light surfaces, SelectionBar | — |
 | `ink-muted` | `#5A5363` | Helper text, counters, metadata | Anything the user must read to act |
 | `line` | `#E2DBD0` | Decorative dividers and card borders | Input or control borders (fails 3:1) |
 | `line-strong` | `#857D8C` | Input and checkbox borders, secondary button border | Text |
-| `primary` | `#7B2D5E` (berry) | Primary buttons, links, selected state, Count badge on a revealed tile | Error or warning meaning |
+| `primary` | `#7B2D5E` (berry) | Primary buttons, links, selected state | Error or warning meaning; anything on the stage |
 | `primary-hover` | `#5F2148` | Hover and pressed state of `primary` | — |
 | `primary-soft` | `#F5E7F0` | Selected Group card and chip, info notice | — |
+| `focus-inverse` | `#FFFFFF` | Focus ring on dark surfaces: the SelectionBar and the play view | Light surfaces |
 | `success` / `success-soft` | `#1D6B45` / `#E2F1E8` | *Gjennomgått* marks, "Lagret" status, success notice | Decoration |
 | `warning` / `warning-soft` | `#7A4E00` / `#FCEFD2` | Fallback notice, displayed-once link panel, "cannot be undone" hints | Errors |
 | `danger` / `danger-soft` | `#A8231A` / `#FBE9E7` | Validation errors, delete actions | A miss in play (a miss is not an error) |
@@ -288,7 +310,8 @@ Two families: **light** for Host pages and the answer form, **stage** for the pl
 | `stage-line` | `#739690` | Hidden tile border (needed: tile fill alone is 1.5:1 against `stage`) | Text |
 | `stage-ink` | `#F6F1E7` (cream) | Text on stage; revealed tile fill | — |
 | `stage-muted` | `#A7BAB4` | Control bar text, "uten poeng" marker | Labels or Scores |
-| `stage-accent` | `#7FE0C2` (mint) | Active Team marker, focus ring on stage, Score change | Revealed tiles, decoration |
+| `stage-accent` | `#7FE0C2` (mint) | Active Team card fill, Score change | Revealed tiles, decoration |
+| `count-badge` | `#10201E` (forest) | Count badge on a revealed tile, with `stage-ink` digits | Anything else |
 
 ### Verified contrast (WCAG 2.1 AA)
 
@@ -305,12 +328,19 @@ Two families: **light** for Host pages and the answer form, **stage** for the pl
 | `stage-accent` on `stage` / `stage-raised` | 10.7 / 8.9 | 3.0 UI |
 | `stage-line` on `stage` / `stage-tile` | 5.2 / 3.4 | 3.0 UI boundary |
 | `ink` on `stage-ink` (revealed tile) · `primary` on `stage-ink` | 15.2 · 7.8 | 4.5 text |
+| `focus-inverse` on `ink` (SelectionBar) / on `stage` | 17.1 / 16.8 | 3.0 UI |
+| `stage-on-accent` on `stage-accent` (active Team card, all text) | 10.7 | 4.5 text |
+| `stage-ink` on `count-badge` (Count digits) · `count-badge` on `stage-ink` (badge edge against the cream tile) | 15.0 · 15.0 | 4.5 text · 3.0 UI |
+| `stage-ink` on `stage-raised` ("Bom" panel, control-bar banner) | 12.4 | 4.5 text |
+| `stage-ink` on `stage-tile` (pending tile border) | 9.8 | 3.0 UI |
+| `stage-line` on `stage` (dashed hidden tile while "uten poeng" is on) | 5.2 | 3.0 UI |
+| `danger` on `surface` (`button-secondary-danger` text and border) | 7.2 | 4.5 text · 3.0 UI |
 
-State is never carried by color alone: every colored status also has a word ("Gjennomgått", "Manuell", "uten poeng", "Sin tur").
+State is never carried by color alone: every colored status also has a word ("Gjennomgått", "Manuell", "uten poeng", "Svarer nå").
 
 ## Typography
 
-Two families. **Bricolage Grotesque** (display, headings, everything on the TV) gives the product its party voice and has wide, open letterforms that hold up at distance. **The system UI stack** handles body text, forms and controls, so the answer form loads instantly on any phone. Both cover æ, ø and å.
+Two families. **Bricolage Grotesque** (display, headings, everything on the TV) gives the product its party voice and has wide, open letterforms that hold up at distance. **The system UI stack** handles body text, forms and controls, so the answer form loads instantly on any phone. Both cover æ, ø and å. Font kept after the 2026-11-21 critique, which noted Bricolage Grotesque as a common display face; the group's choice stays Open Question 1 in `EXPERIENCE.md`.
 
 The display face is **self-hosted from npm** (e.g. `@fontsource-variable/bricolage-grotesque`), never loaded from a CDN at build or run time, so the app builds, tests and runs offline (NFR-1, NFR-3). If the font fails, the fallback is `system-ui`, and all sizes still hold.
 
@@ -318,14 +348,14 @@ The display face is **self-hosted from npm** (e.g. `@fontsource-variable/bricola
 |---|---|---|
 | Display | `{typography.display}` 32 px | Page titles ("Mine spill", Game title), the ProgressCount figure |
 | Heading | `{typography.heading}` 24 px | Section headings, the current Question in Review |
-| Title | `{typography.title}` 18 px | Group labels in Review, button text, Question legends on the form |
+| Title | `{typography.title}` 18 px | Group labels in Review, Review section headings (`<h3>`), button text, Question legends on the form |
 | Body | `{typography.body}` 16 px | Everything else, including **every input** (16 px stops iOS from zooming on focus) |
 | Body small | `{typography.body-sm}` 14 px | Helper text, character counters |
 | Label | `{typography.label}` 14 px | Field labels, StatusBadge |
 
 Nothing on a laptop or phone is smaller than 14 px.
 
-**TV ramp** (play view at 1920×1080, read from about 3 m). Everything the room reads is at least 48 px (FR-24): `{typography.tv-question}` 56 px, stepping down to `{typography.tv-question-long}` 48 px for Questions over 120 characters; `{typography.tv-label}` and `{typography.tv-count}` 48 px; `{typography.tv-team}` 48 px; `{typography.tv-score}` 80 px. Counts and Scores use `font-variant-numeric: tabular-nums` so digits do not jump. The only text below 48 px is the host-only control bar, `{typography.tv-control}` at 24 px in `stage-muted`, kept deliberately quiet so the room looks at the list.
+**TV ramp** (play view at 1920×1080, read from about 3 m). Everything the room reads is at least 48 px (FR-24): `{typography.tv-question}` 56 px, stepping down to `{typography.tv-question-long}` 48 px for Questions over 80 characters; `{typography.tv-label}` and `{typography.tv-count}` 48 px; `{typography.tv-team}` 48 px; `{typography.tv-score}` 80 px; `{typography.tv-score-final}` 120 px on the final Scores. Counts and Scores use `font-variant-numeric: tabular-nums` so digits do not jump. The only text below 48 px is the host-only control bar, `{typography.tv-control}` at 24 px in `stage-muted`, kept deliberately quiet so the room looks at the list.
 
 ## Layout & Spacing
 
@@ -337,7 +367,7 @@ Spacing uses Tailwind's default 4 px scale unchanged; the frontmatter repeats th
 | Host pages (laptop) | content max `{spacing.host-max}` 1280 px | `{spacing.gutter-host}` 32 px | Game list and Game page: one column, max 800 px. Review: 288 px Question rail + flexible main pane |
 | Play view (TV) | fixed 1920×1080 canvas, scaled to fit the window | `{spacing.gutter-tv}` 64 px | Main column 1312 px (Question + top list) · Team column 448 px · gap 32 px |
 
-**Play view vertical budget (1080 px):** 64 top gutter · Question block up to 176 px (three lines at 48 px) · 24 gap · top list of up to 8 rows at 80 px with 8 px gaps (≈ 696 px) · 24 gap · control bar 64 px · remainder as bottom gutter. With fewer than 8 Groups, rows stay 80 px high and top-aligned, so the number of rows itself shows how many Groups there are.
+**Play view vertical budget (1080 px):** 48 top gutter · Question block budgeted at four lines of 48 px (221 px) · 24 gap · top list of up to 8 rows (696 px) · 24 gap · control bar 64 px · remainder as bottom gutter = 1077 px. "Spørsmål N av M" sits at the top of the Team column in `tv-team` / `stage-muted`, not in the main column. Row height is `clamp(80px, (696px − 8px × (n − 1)) / n, 104px)` with 8 px gaps: 104 px for six Groups or fewer, 80 px for eight. Rows are top-aligned and the row count still equals the Group count. A row whose revealed label wraps grows to 112 px (see BoardTile). Worst case, a 200-character Question with 8 Groups, fits 1080 px with the control bar visible.
 
 Touch and click targets are at least `{spacing.control-min}` 44×44 px on every surface.
 
@@ -377,7 +407,7 @@ The whole Stage 1 set is thirteen components. Anything not listed is a plain Tai
 
 | Component | Visual spec |
 |---|---|
-| **Button** | Variants `button-primary`, `button-secondary`, `button-ghost`, `button-danger`. Min height 44 px, padding `{spacing.4}` horizontal. One primary per view region. Loading: label changes to the in-progress verb ("Sender …"), a 16 px spinner left of it, width locked. `aria-disabled` buttons keep their colors at 60 % opacity, with the reason shown as `body-sm` text directly below. |
+| **Button** | Variants `button-primary`, `button-secondary`, `button-secondary-danger`, `button-ghost`, `button-danger`. `button-secondary-danger` is a secondary button with `danger` text and a 1 px `danger` border, used for "Slett spillet" on the Game page; filled `button-danger` appears only inside a ConfirmDialog ("Slett for godt"). Min height 44 px, padding `{spacing.4}` horizontal. One primary per view region. Loading: label changes to the in-progress verb ("Sender …"), a 16 px spinner left of it, width locked. `aria-disabled` buttons keep their colors at 60 % opacity, with the reason shown as `body-sm` text directly below. |
 | **TextField** | `text-field`. Label above (`label`), helper or counter below (`body-sm`, `ink-muted`). Invalid: 2 px `danger` border, error text in `danger` below the field with a leading "Feil:" for screen readers (visually hidden). Character counter right-aligned. |
 | **AnswerFieldset** | A `surface` card, `{rounded.md}`, padding `{spacing.4}`. Legend: "Spørsmål 3 av 9" in `label` + Question text in `title`. Up to five TextFields stacked with `{spacing.3}` gap; "Legg til svar" as `button-ghost` with a plus sign. Error: card border becomes 2 px `danger`, error text at the top of the card. |
 | **Notice** | `notice-info`, `notice-success`, `notice-warning`, `notice-danger`. Full width of its container, padding `{spacing.4}`, a bold first phrase, then body text. No icons required; if an icon is used it is decorative (`aria-hidden`). |
@@ -385,21 +415,22 @@ The whole Stage 1 set is thirteen components. Anything not listed is a plain Tai
 | **ProgressCount** | The figure ("færre enn 3" or "7") in `display`, "av 11 svar mottatt" in `body` beside it. No progress bar: a bar animating as answers arrive invites the timing inference FR-8 guards against. |
 | **OnceLinkList** | `once-link-list`: 2 px `warning` border. Heading "Kopier lenkene nå", warning Notice text, a monospace list (system monospace, 14 px) of links each with a `button-secondary` "Kopier", and one `button-primary` "Kopier alle". |
 | **ConfirmDialog** | `confirm-dialog` on native `<dialog>`, max 480 px wide, padding `{spacing.6}`. Title in `heading`, consequence text in `body`, actions right-aligned: cancel as `button-secondary`, confirm as `button-primary` or `button-danger` for destructive actions. |
-| **GroupCard** | `group-card`, padding `{spacing.4}`. Header row: checkbox · rank ("1.") in `title` · label in `title` · Count ("4 personer") in `label` right-aligned · overflow menu (`button-ghost`, "Mer for «…»"). Body: AnswerChips wrapped with `{spacing.2}` gap. Selected: `group-card-selected`. Discarded cards sit in the *Forkastet* section on `surface-sunken` with the label struck through. |
+| **GroupCard** | `group-card`, padding `{spacing.4}`. Header row: checkbox · rank ("1.") in `title` · label in `title` · Count ("4 personer") in `label` right-aligned · overflow menu (`button-ghost`, "Mer for «…»"). Body: AnswerChips wrapped with `{spacing.2}` gap. Selected: `group-card-selected`. Cards in *Ikke på brettet* sit on `surface-sunken` with an extra `1px dashed {colors.line-strong}` border. Discarded cards sit in the *Forkastet* section on `surface-sunken` with the label struck through. **Compact single-Answer row:** a Group with one chip whose text equals its label renders as one 52 px row (checkbox · rank · label · Count · menu) with no chip row; if renamed, the raw Answer follows the label in `body-sm` `ink-muted`. This is presentation only: it is still an ordinary Group (AD-15), and "Flytt" or "Ny gruppe" on it equals selecting the Group. |
 | **AnswerChip** | `answer-chip`: checkbox + raw Answer text in `body`; collapsed duplicates show "· 3 svar" in `ink-muted`. Selected: `answer-chip-selected`. Min height 44 px. |
-| **SelectionBar** | `selection-bar`, sticky to the bottom of the Review main pane, `shadow-lg`. Left: selection summary in `title`. Right: actions as `button-secondary` restyled on dark (surface fill, ink text). |
-| **BoardTile** | Three looks. **Hidden** `board-tile-hidden`: rank number in `tv-label` at left, rest of the row empty. **Revealed** `board-tile-revealed`: rank, label in `tv-label`, Count in `tv-count` inside a `primary` badge at right. **Unscored** `board-tile-unscored`: dashed border, label in `stage-ink`, Count in `stage-muted`, and "uten poeng" in 24 px beside it. Row height 80 px. |
-| **TeamScore** | `team-score` block per Team, stacked in the Team column: Team name in `tv-team`, Score in `tv-score`. Active Team: `team-score-active` with a 6 px mint left border and a mint "Sin tur" badge in 24 px above the name. |
+| **SelectionBar** | `selection-bar`, sticky to the bottom of the Review main pane, `shadow-lg`. Left: selection summary in `title`. Right: actions as `button-secondary` restyled on dark (surface fill, ink text). Focus on this dark surface uses `{components.focus-inverse}`. An operation error shows inside the bar above its actions in `danger-soft` fill / `danger` text. |
+| **BoardTile** | Three looks. **Hidden** `board-tile-hidden`: rank number in `tv-label` at left (rank slot 56 px), rest of the row empty; while "Vis resten uten poeng" is on, the border turns `2px dashed {colors.stage-line}` (`board-tile-hidden-unscored-mode`), previewing the unscored look; while a click waits for the server the border is `2px solid {colors.stage-ink}` (`board-tile-pending`). **Revealed** `board-tile-revealed`: rank, label in `tv-label`, Count in `tv-count` in `stage-ink` digits inside a `count-badge` pill at right (`min-width: 96px`). **Unscored** `board-tile-unscored`: dashed border, label in `stage-ink`, Count in `stage-muted`, and "uten poeng" in 24 px beside it. Row height follows the clamp in Layout & Spacing. **A revealed label is never truncated:** if it does not fit one line it wraps to two at line-height 1.05 and the row grows to 112 px. |
+| **TeamScore** | `team-score` block per Team, stacked in the Team column: Team name in `tv-team`, Score in `tv-score`. Team names are 1 to 14 characters so four Teams fit the 400 px content width. Active Team: `team-score-active`, a card filled `stage-accent` with all text in `stage-on-accent`, and the words "Svarer nå" in `tv-team` (48 px) above the name; no badge, no side border. On "Sluttstilling" every Team uses `tv-score-final` 120 px, Teams are centred vertically, and the winner takes the `team-score-active` look with "Vinner" in place of "Svarer nå". |
 
-The play view's **control bar** (`control-bar`) is part of the play view layout, not a reusable component: a row of `tv-control` text buttons on `stage-raised`, each showing its keyboard shortcut in brackets ("Angre [Z]").
+The play view's **control bar** (`control-bar`) is part of the play view layout, not a reusable component: a row of `tv-control` text buttons on `stage-raised`, each showing its keyboard shortcut in brackets ("Angre [Z]"). While "Vis resten uten poeng" is on, its item reads "Avslører uten poeng [U]" in `stage-ink` at weight 700. A save-failure or lost-connection banner (`control-bar-error`, 64 px, `stage-ink`, weight 700) replaces the control-bar row and never overlays the list.
 
 ## Do's and Don'ts
 
 | Do | Don't |
 |---|---|
 | Keep the light surfaces quiet so Questions and Answers carry the fun | Add illustrations, mascots, confetti or gradients |
-| Use one accent per surface: berry on light, mint on stage | Use mint on light surfaces or berry as a stage background |
-| Size everything the room reads at 48 px or more | Put anything the room must read in the 24 px control-bar style |
+| Use one accent per surface: berry on light, mint on stage (the Count badge is forest, not berry) | Use mint on light surfaces or berry anywhere on the stage |
+| Size everything the room reads at 48 px or more, including whose turn it is | Put anything the room must read in the 24 px control-bar style |
+| Use `focus-inverse` for focus on `ink` and stage surfaces (it replaces the former mint stage ring) | Leave an ink focus ring on an ink background |
 | Show state with a word plus color | Rely on color, icons or position alone |
 | Use `danger` only for errors and destructive actions | Show a miss in red, or with an X |
 | Self-host fonts from npm | Load fonts or icons from a CDN |
