@@ -12,12 +12,12 @@ This companion holds what the course's examiner and the README need, and what th
 
 ## Grouping cost and time (PRD §6.2)
 
-Assumptions: `claude-haiku-5-5` at USD 0.10 per million input tokens and USD 0.50 per million output tokens (prompts under 100K tokens); one partition call per Question over distinct normalised Answers; about 14 tokens per item including JSON overhead; a prompt of about 700 tokens; about 2 output tokens per item for the assignment array, plus low-effort thinking. The token figures are estimates and the Judge story measures them.
+Assumptions: `deepseek/deepseek-v4.1-flash` on OpenRouter at USD 0.05 per million input tokens and USD 0.20 per million output tokens (changed from `claude-haiku-5-5` on 2026-11-22; the group has an OpenRouter key); one partition call per Question over distinct normalised Answers; about 14 tokens per item including JSON overhead; a prompt of about 700 tokens; about 2 output tokens per item for the assignment array, with reasoning not requested. The token figures are estimates and the Judge story measures them.
 
 | Game | Items per Question (max) | Judge calls | Tokens per call (in / out) | Cost | Wall time |
 | --- | --- | --- | --- | --- | --- |
-| Sizing: 30 Answer sets, 15 Questions, up to 5 Answers | 150 | 15 (at most 30 with retries) | about 2.8K / 1.2K | about USD 0.013 (worst case about 0.03) | expected about 30 s; at most 3 waves × 30 s = 90 s |
-| Largest: 50 Invite links, 20 Questions, 5 Answers | 250 | 20 (at most 40) | about 4.2K / 1.5K | about USD 0.03 (worst case about 0.06) | expected about 40 s; at most 4 waves × 30 s = 120 s |
+| Sizing: 30 Answer sets, 15 Questions, up to 5 Answers | 150 | 15 (at most 30 with retries) | about 2.8K / 1.2K | about USD 0.006 (worst case about 0.012) | expected about 30 s; at most 3 waves × 30 s = 90 s |
+| Largest: 50 Invite links, 20 Questions, 5 Answers | 250 | 20 (at most 40) | about 4.2K / 1.5K | about USD 0.01 (worst case about 0.02) | expected about 40 s; at most 4 waves × 30 s = 120 s |
 | Naive all-pairs, for comparison | n(n−1)/2 per Question | 167,625 (sizing) / 622,500 (largest) | — | — | not feasible |
 
 The sizing Game's worst case is inside FR-15's two minutes. The largest Game's worst case is inside the 300 s Vercel Hobby limit. The ProtoQA evaluation set has at most 88 distinct raw answers per question, so `judge:eval` does not exercise the 150 to 250 item case. The Judge story should time one synthetic 250-item Question.
@@ -29,7 +29,7 @@ The README covers the sensorveiledning checklist:
 - **What and for whom:** what the app does and who it is for, with a screenshot in `docs-assets/`.
 - **Prerequisites:** Node.js 22.13 or newer (tested on 22 and 26) and git. No database to install.
 - **Install and start:** the three commands `git clone`, `npm install`, `npm run demo`, plus the printed demo login.
-- **Environment:** the variable table from AD-21, which says that the app runs without any key and that `ANTHROPIC_API_KEY` switches on the live Judge. `.env.example` is the template.
+- **Environment:** the variable table from AD-21, which says that the app runs without any key and that `OPENROUTER_API_KEY` switches on the live Judge. `.env.example` is the template.
 - **Tests:** `npm test`, and `npx playwright install chromium` once followed by `npm run test:e2e`. Also `npm run judge:eval`.
 - **Structure and links:** the folder overview, with links to `.docs/` (brief, PRD, UX, this architecture), `wiki/` and `prompting/`.
 - **Stage 2:** what Stage 2 left out and why, and every Stage 1 cut, with the reason.
@@ -52,7 +52,7 @@ The README covers the sensorveiledning checklist:
 | REST route handlers per resource | Server Actions; three Route Handlers (health, purge, report) | AD-17 |
 | `SubmissionToken`, and `submission_token_hash` on Answers | `invite_link` and `submission` until close; Answers carry only a random Contributor key, cleared at confirmation | AD-8 to AD-10 |
 | Stored `member_count` and `Team.score` | Count and Score derived when read; frozen in `board_slot` at confirmation | AD-11, AD-15 |
-| Next.js 15, Claude Haiku 4.5 | Next.js 16.4, `claude-haiku-5-5` | Stack, AD-13 |
+| Next.js 15, Claude Haiku 4.5 | Next.js 16.4, `deepseek/deepseek-v4.1-flash` via OpenRouter | Stack, AD-13 |
 | Preset tables in the main schema | Stage 2, through `board_slot` | AD-15 |
 | shadcn/ui, drag-and-drop Review | UX: no UI library; list-based Review | `DESIGN.md`, `EXPERIENCE.md` |
 

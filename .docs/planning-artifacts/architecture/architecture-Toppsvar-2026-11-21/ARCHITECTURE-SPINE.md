@@ -49,7 +49,7 @@ flowchart TD
   UI --> LIB["src/lib"]
   MOD --> LIB
   JUDGE --> LIB
-  JUDGE --> SDK["@anthropic-ai/sdk (anthropic provider only)"]
+  JUDGE --> SDK["fetch to OpenRouter (openrouter provider only)"]
   DB --> DRV["drizzle-orm/pglite | drizzle-orm/postgres-js (dynamic import)"]
 ```
 
@@ -234,7 +234,7 @@ stateDiagram-v2
     - Both paths end in `finishIfComplete`, which locks, counts results and moves the Game to `in_review`.
     - If the Game has been deleted, the run stops quietly.
   - **Progress.** `grouping.progress(gameId)` returns Questions done out of the total, for the UX Grouping panel.
-  - **Cost.** For the sizing Game: 15 calls, about USD 0.013, at most 90 s. For the largest Game: 20 calls, about USD 0.03, at most 120 s. The arithmetic is in `delivery-notes.md`. No pair is judged twice.
+  - **Cost.** For the sizing Game: 15 calls, about USD 0.006, at most 90 s. For the largest Game: 20 calls, about USD 0.01, at most 120 s. The arithmetic is in `delivery-notes.md`. No pair is judged twice.
 
 ### AD-13 — One Judge boundary, three providers
 
@@ -244,7 +244,7 @@ stateDiagram-v2
 
 ```ts
 interface Judge {
-  readonly info: { provider: 'anthropic' | 'replay' | 'mock'; model: string; promptVersion: string };
+  readonly info: { provider: 'openrouter' | 'replay' | 'mock'; model: string; promptVersion: string };
   partition(
     input: { question: string; items: string[] },
     signal: AbortSignal,
@@ -254,22 +254,21 @@ interface Judge {
 
 Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface. No stub or comment for it ships in Stage 1.
 
-- **Selection.** `JUDGE_PROVIDER` picks the provider. Unset means `anthropic` when `ANTHROPIC_API_KEY` is set, otherwise `replay`.
+- **Selection.** `JUDGE_PROVIDER` picks the provider. Unset means `openrouter` when `OPENROUTER_API_KEY` is set, otherwise `replay`.
 - **Valid output.** `assignments.length === items.length`, every value an integer cluster number. Providers validate and canonicalise the output (numbering in first-occurrence order `0..k-1`). Invalid output throws `INVALID_OUTPUT`.
 - **replay** finds rulings in `data/rulings/*.json` by `normalize(question)`. It applies the stored clusters to the items those rulings cover, and numbers each uncovered item as its own cluster after them. If nothing is covered, that is a miss. A miss throws `NO_KEY` when no key is configured, otherwise `NO_STORED_RULING`.
-- **anthropic** uses a stored ruling only when its item set matches exactly (`source: 'stored'`). Otherwise it calls `@anthropic-ai/sdk` with these settings:
-  - `maxRetries: 0`
-  - model `JUDGE_MODEL` (default `claude-haiku-5-5`)
-  - `output_config.effort: "low"`, and a JSON schema for `{ assignments: number[] }` in `output_config.format`
-  - a bounded `max_tokens` and no `temperature`
+- **openrouter** uses a stored ruling only when its item set matches exactly (`source: 'stored'`). Otherwise it POSTs with the built-in `fetch` (no SDK) to `https://openrouter.ai/api/v1/chat/completions` with these settings:
+  - model `JUDGE_MODEL` (default `deepseek/deepseek-v4.1-flash`, a pinned ID, never a `~…-latest` alias, so Stored rulings name the model that made them)
+  - `response_format: { type: "json_schema", json_schema: { strict: true, schema } }` for `{ assignments: number[] }`, `temperature: 0` and a bounded `max_tokens`
+  - `provider: { require_parameters: true, data_collection: "deny" }`, so the request is routed only to providers that honour the schema and do not store or train on the Answers
   - one retry on invalid output, 429 or 5xx, inside the signal
-  - an aborted signal throws `TIMEOUT`, and `stop_reason: "refusal"` throws `REFUSAL`
+  - an aborted signal throws `TIMEOUT`, and `finish_reason: "content_filter"` throws `REFUSAL`
 
   Only the Question text and the items are sent.
 - **mock** is deterministic. It uses a map the test supplies, or one cluster per item. It is used only by Vitest.
 - **Prompt.** The prompt and `PROMPT_VERSION` live only in `src/server/judge/prompt.ts`, with no real-person text. Any change to the prompt bumps the version.
-- **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. If it falls short, raise the effort or change `JUDGE_MODEL`.
-- **Imports.** Nothing outside `src/server/judge` imports the SDK or a provider.
+- **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. If it falls short, change `JUDGE_MODEL` (any OpenRouter model with `structured_outputs`) and re-record.
+- **Imports.** Nothing outside `src/server/judge` imports a provider or calls the model endpoint.
 
 ### AD-14 — Stored ruling format
 
@@ -367,9 +366,9 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 | `DATABASE_URL` | `pglite://.data/local` | DB driver and location (AD-2) |
 | `PORT` | `3000` | local dev and demo port |
 | `APP_BASE_URL` | `http://localhost:${PORT}` | origin for Invite links; https enables `Secure` cookies |
-| `ANTHROPIC_API_KEY` | empty | turns on the live Judge; optional |
-| `JUDGE_PROVIDER` | derived (AD-13) | `anthropic`, `replay` or `mock` |
-| `JUDGE_MODEL` | `claude-haiku-5-5` | model ID for the live provider |
+| `OPENROUTER_API_KEY` | empty | turns on the live Judge; optional |
+| `JUDGE_PROVIDER` | derived (AD-13) | `openrouter`, `replay` or `mock` |
+| `JUDGE_MODEL` | `deepseek/deepseek-v4.1-flash` | OpenRouter model ID for the live provider |
 | `DEMO_MODE` | empty | `1` shows the demo login hint and band, from the `src/lib` demo credentials constant (AD-19) |
 | `REGISTRATION_CODE` | empty | if set, registration requires it (pilot) |
 | `CRON_SECRET` | empty | if set, enables `/api/purge` (pilot) |
@@ -398,7 +397,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
     - capture of the server's output, which fails on any Token or Answer text
   - **`tests/manual/`** holds `checklist.md` (FR-24 legibility, the rest of NFR-6, NFR-5 timing) and `anonymity-audit.md`, the SM-3 procedure for a dump after confirm.
   - **`tests/TRACE.md`** maps every Stage 1 FR consequence to a test or a manual item. Test titles carry FR IDs, and a unit test checks that every Stage 1 FR appears.
-  - **Guards.** Vitest sets `JUDGE_PROVIDER=mock`, clears `ANTHROPIC_API_KEY` and rejects requests to any host but localhost. Playwright sets `replay` and blocks requests to any host but localhost in the browser. The Next server is guarded by having no key.
+  - **Guards.** Vitest sets `JUDGE_PROVIDER=mock`, clears `OPENROUTER_API_KEY` and rejects requests to any host but localhost. Playwright sets `replay` and blocks requests to any host but localhost in the browser. The Next server is guarded by having no key.
   - **CI.** `.github/workflows/ci.yml` runs on `pull_request` and on push to `main`, on Node 22 and 26, with no key and `NEXT_TELEMETRY_DISABLED=1`. It runs only README scripts:
     - `npm ci`
     - lint, format check, typecheck
@@ -474,8 +473,7 @@ Do not keep the Next starter's `@types/node ^20` (vitest 5 rejects it), its `nex
 | `postgres` (postgres.js, deployed) | 4.1.1 |
 | `drizzle-orm` / `drizzle-kit` | 0.45.4 / 0.31.11 |
 | `zod` | 4.6.7 |
-| `@anthropic-ai/sdk` | 1.12.0 |
-| Judge model | `claude-haiku-5-5` |
+| Judge model | `deepseek/deepseek-v4.1-flash` via OpenRouter (USD 0.05 / 0.20 per million input / output tokens, `structured_outputs` supported; checked 2026-11-22) |
 | `vitest` | 5.1.1 |
 | `@playwright/test` / `@axe-core/playwright` | 1.65.1 / 4.14.0 |
 | `eslint` / `eslint-config-next` / `typescript-eslint` | 9.39.5 / 16.4.6 / 8.73.0 |
@@ -517,7 +515,7 @@ flowchart LR
     V["Vercel function, Node runtime"] --> HP["Neon Postgres, EU, pooled"]
     V --> FX2["data/rulings (traced into bundle)"]
     C["Vercel Cron daily"] --> V
-    V -. "only if ANTHROPIC_API_KEY" .-> A["Anthropic Messages API, claude-haiku-5-5"]
+    V -. "only if OPENROUTER_API_KEY" .-> A["OpenRouter chat completions, deepseek/deepseek-v4.1-flash"]
   end
   P["Participant phone"] -->|"/svar/gameId#token"| V
   H["Host laptop / TV"] --> V
@@ -536,7 +534,7 @@ flowchart LR
       env.ts  log.ts
       db/                   # schema.ts, client.ts, migrate.ts
       auth/ games/ questions/ grouping/ collection/ review/ play/
-      judge/                # index.ts, prompt.ts, providers/{anthropic,replay,mock}.ts
+      judge/                # index.ts, prompt.ts, providers/{openrouter,replay,mock}.ts
     lib/                    # normalize, ranking, game-state, answer-set, errors, bcubed, shuffle, token, limits
     cli/                    # demo.ts, judge-eval.ts, judge-record.ts
   drizzle/                  # generated SQL migrations (committed)

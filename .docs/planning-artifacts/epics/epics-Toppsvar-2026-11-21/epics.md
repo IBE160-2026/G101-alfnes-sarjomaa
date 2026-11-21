@@ -93,7 +93,7 @@ From `ARCHITECTURE-SPINE.md` (AD-n) and `delivery-notes.md`.
 - **AD-10 Answer table.** Exactly `id`, `question_id`, `contributor_key`, `rank`, `text`, `normalized_text`, `group_id`; no serial, identity, uuidv7, ULID or timestamps on `answer` and `answer_group`; Host DTOs never select `contributor_key` or `rank`; Review gets `count` and `rank1_count` as aggregates and Answers sorted by `normalized_text`, `text`; `clearContributorData` at confirm; `tests/integration/anonymity.test.ts` after close and after confirm.
 - **AD-11 Count, Score, ranking.** Count = SQL `count(distinct contributor_key)`; Score = SQL sum of `board_slot.count` over scored reveals; order and Board cut only via `rankGroups()` and `boardCut()` in `src/lib/ranking.ts` (Count, rank-1 count, `Intl.Collator('nb')` label, `groupId`); default label rule cut to 40 characters at a word boundary; effective label `custom_label ?? defaultLabel`; merge keeps the highest-ranked source's ID and freezes its label.
 - **AD-12 Grouping.** `src/lib/normalize.ts` with `NORMALIZE_VERSION`; items = distinct normalised texts sorted by code unit; one `judge.partition` per Question under a 30 s `AbortSignal`, at most 5 concurrent, never inside a transaction; any throw falls back with `fallback_reason` ∈ NO_KEY, NO_STORED_RULING, TIMEOUT, ERROR, REFUSAL, INVALID_OUTPUT; one transaction per Question writes Groups (`origin` judge or fallback), `answer.group_id`, `grouping_result` (unique per Question) and counters, skipping done Questions; `after(() => grouping.run(gameId))` from the close action, `resumeIfStale` with a lease from Host page loads, `finishIfComplete` to `in_review`; quiet stop if the Game was deleted; `grouping.progress`.
-- **AD-13 Judge.** `getJudge()`, `JudgeError(reason)` and the `Judge.partition` interface in `src/server/judge/index.ts`; `JUDGE_PROVIDER` (default anthropic with a key, else replay); output validated and canonicalised, else `INVALID_OUTPUT`; replay by `normalize(question)` with uncovered items as own clusters, miss throws NO_KEY or NO_STORED_RULING; anthropic uses an exact stored ruling first, else `@anthropic-ai/sdk` with `maxRetries: 0`, `JUDGE_MODEL`, effort low, JSON schema output, bounded `max_tokens`, one retry inside the signal, TIMEOUT and REFUSAL mapped; mock for Vitest only; prompt and `PROMPT_VERSION` only in `prompt.ts`; nothing outside `src/server/judge` imports the SDK; no Stage 2 `match` stub.
+- **AD-13 Judge.** `getJudge()`, `JudgeError(reason)` and the `Judge.partition` interface in `src/server/judge/index.ts`; `JUDGE_PROVIDER` (default openrouter with `OPENROUTER_API_KEY`, else replay); output validated and canonicalised, else `INVALID_OUTPUT`; replay by `normalize(question)` with uncovered items as own clusters, miss throws NO_KEY or NO_STORED_RULING; openrouter uses an exact stored ruling first, else built-in `fetch` to OpenRouter chat completions with `JUDGE_MODEL` (default `deepseek/deepseek-v4.1-flash`), strict JSON-schema `response_format`, `temperature: 0`, bounded `max_tokens`, `provider: { require_parameters: true, data_collection: "deny" }`, one retry inside the signal, TIMEOUT and REFUSAL mapped; mock for Vitest only; prompt and `PROMPT_VERSION` only in `prompt.ts`; nothing outside `src/server/judge` imports a provider or calls the model endpoint; no Stage 2 `match` stub.
 - **AD-14 Ruling format.** `{ kind: "partition", promptVersion, normalizeVersion, model, question, items, assignments }`; fixtures `data/rulings/demo.json` and `data/rulings/protoqa-dev.json`, written only by `npm run judge:record`; per Game the materialised Groups plus `grouping_result`.
 - **AD-15 Board snapshot.** Review edits only through `grouping` writers, each edit bumps `edit_count`, counters and clears reviewed; marking reviewed refused with `NO_GROUPS_ON_BOARD` when no non-discarded Group; `confirmBoard` writes `board_slot` from `boardCut(rankGroups())`, clears contributor data, moves to `ready`; play reads only `board_slot` via `review.getBoard`.
 - **AD-16 Play log.** Dense `question.position`, renumbered on remove or reorder, frozen after draft; `team(name 1..14, position)`, `play_state`, `reveal(board_slot_id unique, team_id nullable, seq)`; reveal takes `{ boardSlotId, scored }`, Team from `play_state`, `WRONG_QUESTION` and `ALREADY_REVEALED`; undo deletes the highest-seq reveal on the current Question; next Question by position, `finish` sets `played_at` and returns `deleteAfter`; play view rendered from saved state.
@@ -904,31 +904,31 @@ So that the group can measure whether the Judge helps (SM-5) without storing any
 **When** the Host clicks "Last ned bruksrapport"
 **Then** the report downloads; the button is absent in earlier states
 
-### Story 4.4: Live Judge through the Anthropic provider, prompt and ruling recorder
+### Story 4.4: Live Judge through the OpenRouter provider, prompt and ruling recorder
 
 As the group,
 I want the live Judge behind the same boundary, and a command that records its rulings,
 So that real Games get meaning-based Groups and Demo mode and evaluation can replay them.
 
-**Architecture:** AD-13, AD-14, AD-21 (`ANTHROPIC_API_KEY`, `JUDGE_MODEL`), PRD §6.2, delivery-notes cost table.
+**Architecture:** AD-13, AD-14, AD-21 (`OPENROUTER_API_KEY`, `JUDGE_MODEL`), PRD §6.2, delivery-notes cost table.
 
 **Acceptance Criteria:**
 
 **AC1 (FR-15, NFR-3 · unit)**
-**Given** the anthropic provider with a mocked SDK
+**Given** the openrouter provider with a mocked `fetch`
 **When** `partition` is called
-**Then** the request holds only the Question text and the items, with `maxRetries: 0`, model `JUDGE_MODEL` (default `claude-haiku-5-5`), `output_config.effort: "low"`, a JSON schema for `{ assignments: number[] }`, a bounded `max_tokens` and no `temperature`
-**And** invalid output, 429 or 5xx is retried once inside the signal, an aborted signal throws `TIMEOUT`, `stop_reason: "refusal"` throws `REFUSAL`, and `calls` counts the retry
+**Then** the request holds only the Question text and the items, to `https://openrouter.ai/api/v1/chat/completions` with model `JUDGE_MODEL` (default `deepseek/deepseek-v4.1-flash`), a strict JSON-schema `response_format` for `{ assignments: number[] }`, `temperature: 0`, a bounded `max_tokens` and `provider: { require_parameters: true, data_collection: "deny" }`
+**And** invalid output, 429 or 5xx is retried once inside the signal, an aborted signal throws `TIMEOUT`, `finish_reason: "content_filter"` throws `REFUSAL`, and `calls` counts the retry
 
 **AC2 (FR-15 · unit)**
 **Given** a stored ruling whose item set matches exactly
-**When** the anthropic provider is asked to partition those items
-**Then** it returns `source: 'stored'` without calling the SDK
+**When** the openrouter provider is asked to partition those items
+**Then** it returns `source: 'stored'` without calling `fetch`
 
 **AC3 (AD-13 · unit)**
 **Given** `JUDGE_PROVIDER` unset
-**When** `ANTHROPIC_API_KEY` is set, or not
-**Then** `getJudge()` returns the anthropic provider, or the replay provider
+**When** `OPENROUTER_API_KEY` is set, or not
+**Then** `getJudge()` returns the openrouter provider, or the replay provider
 
 **AC4 (FR-15 · integration)**
 **Given** `src/server/judge/prompt.ts` holding the prompt and `PROMPT_VERSION`, with no real person's text
@@ -1543,7 +1543,7 @@ The group delegated product decisions for this run, as it did for the PRD on 202
 6. **No component-test library.** The Stack lists none, so component behaviour is proven by Playwright e2e and axe, and logic by unit tests on `src/lib`.
 7. **Placement by first consumer.** Normalisation and shuffle in 3.1; ranking and default labels in 5.1; `question.reviewed` in 5.1 so 5.2 to 5.4 can clear it; `game_counter` in 4.3; `board_slot` in 5.5.
 8. **No dead buttons.** "Steng innsamlingen" arrives in 3.1, "Gå til gjennomgangen" in 5.1, "Start spillet" in 6.1, so no story ships a control whose target does not exist yet.
-9. **Replay before live Judge.** 4.1 builds replay and mock (unset `JUDGE_PROVIDER` means replay); 4.4 adds the anthropic provider and the key-based default from AD-13.
+9. **Replay before live Judge.** 4.1 builds replay and mock (unset `JUDGE_PROVIDER` means replay); 4.4 adds the openrouter provider and the key-based default from AD-13.
 10. **Host-created Groups.** A Group made by "Ny gruppe" is not counted as Judge-proposed, so SM-5 stays correct. AD-12 names only `judge` and `fallback` origins; if a third value is needed, 5.3 amends the spine.
 11. **TRACE.md from day one.** Created in 1.1 and filled by every story; its completeness test lands in 7.3, because it would fail earlier.
 12. **NFR-5 by manual timing.** Measured on the sizing Game in the checklist, not asserted in CI, to avoid flaky timing tests.
@@ -1551,5 +1551,5 @@ The group delegated product decisions for this run, as it did for the PRD on 202
 14. **Cuttable work at the end.** The CI Postgres job (7.3 AC5) and the pilot deployment (7.5) follow the delivery-notes cut order; the pilot is its own story because NFR-2 and SM-6 need it.
 15. **Stage 2.** One epic, acceptance criteria only, taken from the PRD consequences, FR-33 first. FR-29 "switch on" is read as off by default.
 16. **Left out on purpose.** EXPERIENCE.md Open Question 3 (Host preview of the answer form) and 4 (extended display) are not in the PRD, so no story builds them. Open Question 1 (palette) is built as specified.
-17. **Open risk: demo and evaluation rulings need a live key once.** AD-14 allows rulings only from `npm run judge:record`. Stories 7.1 and 7.2 depend on someone in the group having an Anthropic key for one recording run. If nobody has one, the spine must be amended before Epic 7.
+17. **Demo and evaluation rulings need a live key once (resolved 2026-11-22).** AD-14 allows rulings only from `npm run judge:record`. The group has an OpenRouter key: a group member runs the recording for Stories 7.1 and 7.2 with the key in an untracked `.env`; the AI developer never handles the key.
 18. 2026-11-21: synchronised with the impeccable critique (commit fc91eaf).
