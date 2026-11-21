@@ -1,0 +1,51 @@
+# Epic 1 Context: Host accounts and Games on a running, tested foundation
+
+<!-- Generated from planning artifacts. Regenerate with compile-epic-context if planning docs change. -->
+
+## Goal
+
+A Host can register, log in, create and list Games, open a Game page that follows the Game state machine, and delete a Game. Underneath sits the skeleton every later epic only adds to: the Next.js app with one database client for embedded and hosted Postgres, committed migrations, visual tokens, and lint, format, typecheck, unit, integration and e2e harnesses with CI. Later stories should add behaviour, not plumbing.
+
+## Stories
+
+- Story 1.1: Running skeleton with database, test harnesses and CI
+- Story 1.2: Visual foundation, Host chrome and landing page
+- Story 1.3: Host registration, login, logout and sessions
+- Story 1.4: Create and list Games, with a state-driven Game page
+- Story 1.5: Delete a Game and purge expired Games
+
+## Requirements & Constraints
+
+- Host accounts: email and password (10 to 256 characters). A wrong email and a wrong password give one identical message. Sessions die after 14 days unused. Another Host's Game gets exactly the response for a nonexistent Game. No Invite link page ever requires a login.
+- Games: title 1 to 80 characters, new Games start in *draft*, a Host never sees another Host's Games by list or URL.
+- Deletion works in every state and leaves no row referencing the Game. Auto-purge: 30 days after *played*, 90 days after the last Host change for never-played Games.
+- A fresh clone runs on Node 22.13+ with no paid account, hosted service or model key; the whole suite passes offline; no secret is committed (untracked env file plus a committed example listing every variable). The same build deploys publicly, differing only in configuration.
+- UI in Norwegian bokmål; WCAG 2.1 AA (axe: no serious or critical findings on every screen built).
+- Every story ends green on lint, format check, typecheck, `npm test` and `npm run test:e2e`, offline and without a key, with `npm run dev` still working. Test titles carry FR IDs and each story adds its rows to `tests/TRACE.md`.
+
+## Technical Decisions
+
+- **Stack (pin exactly):** Next.js 16.4.6 App Router, React 19.3.1, TypeScript 6.0.3, Tailwind 4.3.5, drizzle-orm 0.45.4 / drizzle-kit 0.31.11, PGlite 0.5.17, postgres.js 4.1.1, zod 4.6.7, Vitest 5.1.1, Playwright 1.65.1 + axe-core 4.14.0, ESLint 9 (not 10), Prettier 3, `@types/node` 22.x. Drop the starter's `@types/node ^20`, `next/font/google` layout and `lang="en"`. Node runtime only.
+- **Layers:** `src/app` and `src/components` call only module entry points, never the DB. Modules in `src/server/<module>/` call only earlier modules (auth, games, questions → grouping → collection, review → play); one module owns each table; every server file starts with `import 'server-only'`. Entry points open the transaction; exported writers take `tx: Tx` first and never open one. `src/lib` is pure. ESLint `no-restricted-imports` zones enforce this.
+- **DB client:** only `src/server/db/client.ts` picks the driver from `DATABASE_URL` (unset gives `pglite://.data/local`; `pglite://<dir>`; `pglite://:memory:`; `postgres(ql)://` via postgres.js with `prepare: false`). Dynamic driver import, singleton on `globalThis`, `serverExternalPackages: ['@electric-sql/pglite']`, `agentRules: false`; DB-reading routes await `connection()` so `next build` never opens the DB. If in-process PGlite fails under Next, fall back to `pglite-server` plus postgres.js by changing `client.ts` alone and amend the architecture spine.
+- **Schema:** only in `src/server/db/schema.ts`; `db:generate` writes committed SQL to `drizzle/`, never edited after merge; auto-applied for `pglite://` URLs; CI runs `drizzle-kit check`; core Postgres only. A story creates only the tables it needs (here `host`, `session`, `game`). Every table referencing `game` cascades on delete, asserted by a schema test.
+- **Config:** nine variables only (`DATABASE_URL`, `PORT`, `APP_BASE_URL`, `OPENROUTER_API_KEY`, `JUDGE_PROVIDER`, `JUDGE_MODEL`, `DEMO_MODE`, `REGISTRATION_CODE`, `CRON_SECRET`) via zod-validated `src/server/env.ts`; a test asserts `.env.example` keys equal `env.ts` keys.
+- **Auth:** `node:crypto` scrypt (N=2^17, r=8, p=1, 16-byte salt, params in the hash string), at most two concurrent runs, dummy hash for unknown emails, lockout doubling after five failures. Session is a 32-byte token in an `httpOnly`, `SameSite=Lax` cookie (`Secure` when `APP_BASE_URL` is https), 14-day Max-Age, DB stores only `sha256(token)`, `expires_at` extended at most hourly. `REGISTRATION_CODE`, when set, is required to register. `auth.requireHost()` on every Host page and action.
+- **Game access and state:** a Game resolves only via `games.lockForMutation` (mutations, row lock) or `games.getOwned` (reads); both throw `NOT_FOUND` for missing or foreign. States: draft, collecting, grouping, in_review, ready, playing, played. Transitions only through compare-and-set `games.transition(tx, gameId, from, to)` along that forward chain. The permitted-operations table lives in `src/lib/game-state.ts` and an integration test walks it. `updated_at` is touched only by Host calls.
+- **Actions and errors:** Server Actions with a sibling zod `schema.ts`, re-validated in module entry points; result `{ ok: true, data } | { ok: false, code, message, fieldErrors? }` except `redirect()` flows. Closed `ErrorCode` union with bokmål messages in `src/lib/errors.ts`; non-domain errors become `INTERNAL`. Logging only via `src/server/log.ts`, accepting only `{ module, op, code, sqlstate }`. Route Handlers: `GET /api/health` (no side effects) and `GET /api/purge` (disabled without `CRON_SECRET`, refused on a wrong one).
+- **Retention:** `games.purgeExpired()` is idempotent, runs at most hourly per process from Host requests and from `/api/purge`; failures never fail the triggering request.
+- **Conventions:** English code and DB names, bokmål UI text and URL segments (`/registrer`, `/logg-inn`, `/spill`); bokmål `not-found.tsx`, `error.tsx`, `global-error.tsx`; no i18n library. `snake_case` singular tables with UUID v4 keys; UTC timestamps only on `host`, `session`, `game`; limits only in `src/lib/limits.ts`; fonts from npm, never a CDN; fixed script names (`dev`, `build`, `lint`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, …).
+- **Tests and CI:** Vitest gives each integration file a fresh `pglite://:memory:` DB with real migrations, `JUDGE_PROVIDER=mock`, no key, non-localhost requests rejected. Playwright runs on `next build && next start` with a temporary PGlite directory and `JUDGE_PROVIDER=replay`, non-localhost blocked. Epic 1 creates `authz.test.ts`, `game-state.test.ts`, `env.test.ts`. CI runs on PR and push to `main`, Node 22 and 26, no key, running only README scripts.
+
+## UX & Interaction Patterns
+
+- Host chrome: top bar with wordmark linking `/spill`, "Mine spill", "Logg ut"; breadcrumb `Mine spill › {title}` on Game pages; no sidebar; skip link, landmarks, one `<h1>` per page, focus to `<h1>` after a client route change.
+- Every design token (color, type size, radius) is declared under Tailwind v4 `@theme` with the same names. Bricolage Grotesque (npm, self-hosted) for headings, system UI stack for body; nothing below 14 px, inputs 16 px; light surfaces only.
+- Shared components built here: Button (variants incl. `secondary-danger`; 44 px minimum; `aria-disabled` plus visible reason when not yet allowed; pending state with `aria-busy` ignores repeat clicks), TextField (visible label, `aria-describedby`, `aria-invalid`, validates on submit or blur), Notice (`role="status"`; `role="alert"` only for user-action errors; never auto-dismisses), StatusBadge (fixed state words, never interactive), ConfirmDialog (native `<dialog>`, focus starts on cancel, Esc cancels, focus returns to trigger).
+- The Game page is one route whose main panel follows Game state, so later epics add panels, not routes. "Slett spillet" sits at the bottom in every state as `secondary-danger`; filled `danger` appears only inside the delete dialog.
+- Voice: bokmål "du", no exclamation marks or emoji, errors say what happened then what to do; use the literal UX-spec strings. Loading appears only after 300 ms; each screen ships its own loading, empty and error states. Unknown or foreign Game shows one page, "Vi finner ikke dette spillet."; 404 and 500 pages keep the top bar.
+
+## Cross-Story Dependencies
+
+- Story 1.1 underlies all others (DB client, migrations, env, lint zones, harnesses, CI). Story 1.2 supplies tokens and layout for 1.3 to 1.5. Story 1.3 supplies Button, TextField, Notice, `auth.requireHost`, `ErrorCode` and the action result shape reused by 1.4 and 1.5. Story 1.4 introduces `game`, the state machine and `lockForMutation`, which 1.5's delete uses. Story 1.5 supplies ConfirmDialog and the cascade schema test that covers tables added by later epics.
+- Later epics: each new Host action adds a foreign-ID case to `authz.test.ts`; each state-dependent operation adds its row to `game-state.ts` plus a `WRONG_STATE` case; each table referencing `game` cascades. Epic 2 adds panels to the Game page and needs `/svar` free of auth. Epic 6 adds the "deleted on" notice at *played*. Epic 7 proves the offline, no-key and README requirements end to end.
