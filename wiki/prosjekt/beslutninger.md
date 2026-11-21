@@ -5,6 +5,7 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 
 | Dato | Beslutning | Begrunnelse | Alternativ som ble valgt bort |
 |------|------------|-------------|-------------------------------|
+| 2026-11-21 | **Én branch og én PR per epic.** KI-en committer lokalt per story, men pusher ikke. Dokumentasjon og wiki går fortsatt rett på `main` | Den fullstendige sensorveiledningen nevner «branches, pull requests, issues» under Prosess (30 %), og PR-kommentarer som spor av kodegjennomgang under Testing (15 %). Den regner også «nesten hele koden i én eller noen få commits rett før fristen» som et varseltegn | Fortsette bare på `main` uten commits fra KI (regelen fra 2026-09-13), som ville gitt én stor diff |
 | 2026-10-13 | **PRD satt til `status: final`.** Alle antakelser er bekreftet (beslutningene delegert fra gruppa), med fire endringer: telleren viser «færre enn 3» til tre har svart, spill slettes 30 dager etter spilling (90 hvis de aldri spilles), spørsmålssettet i trinn 2 oversettes til norsk, og gjennomgangen har ingen tillitssignal i trinn 1 | Telleren lekket hvem som hadde svart når verten så den øke rett etter én melding. Svarene handler om personer som ikke har samtykket, og skal ikke leve lenger enn nødvendig. Målgruppa er norsk | Vise eksakt teller fra første svar; beholde spill til verten sletter dem; levere ProtoQA på engelsk |
 | 2026-10-13 | Discard flyttet til **trinn 1**, mot faglærers inndeling | Uten discard kan en sårende gruppe bare skjules ved å gi den nytt navn før den havner på en delt skjerm | Beholde discard i trinn 2 |
 | 2026-10-13 | Anonymiteten er strammet inn i PRD-en: verten kan ikke lese svar før lukking, og etter lukking har hvert svar bare en tilfeldig nøkkel per spørsmål | Reviewer gate viste at en svarsett-ID kunne koble én persons svar på tvers av spørsmål | Beholde svarsett-ID etter lukking |
@@ -30,7 +31,7 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 | 2026-09-14 | BMAD-artefakter skrives på **engelsk**, resten av repoet på norsk | Matcher emneansvarliges eget eksempel `product-brief-beergame.md` | Engelske overskrifter + norsk brødtekst (G23-formen); alt på norsk |
 | 2026-09-14 | Innsamling er asynkron, spilling er live og samlokalisert | Følger av hvordan opphavsfesten faktisk foregikk, og sparer oss for live multiplayer-transport i et femukersprosjekt | Alt sanntid; alt asynkront |
 | 2026-09-14 | Reelle navn fra kildeskjemaet anonymiseres i alt som spores | Repoet er offentlig på kursorganisasjonen, og skjemaet spøker om navngitte privatpersoners drikking uten deres samtykke | Ta med skjemaet ordrett |
-| 2026-09-13 | Jobber kun på `main` — ingen feature branches | Liten gruppe, dokumenttunge leveranser; enklere historikk | Per-person feature branches (som referansegruppe G23 bruker) |
+| 2026-09-13 | ~~Jobber kun på `main` — ingen feature branches~~ *(delvis omgjort 2026-11-21)* | Liten gruppe, dokumenttunge leveranser; enklere historikk | Per-person feature branches (som referansegruppe G23 bruker) |
 | 2026-09-13 | Produktidé: Family Feud med egne spørreskjema | Bygger på en reell, testet brukeropplevelse (innflyttingsfest); tydelig smertepunkt i dagens manuelle Google Forms-flyt | — |
 | 2026-09-13 | Dokumentasjon i `./wiki` som Obsidian-lik vault | Lett å finne fram i, `[[wikilenker]]` binder notatene sammen, ingen verktøy-lås | Alt i README, eller `docs/`-mappe uten intern lenking |
 
@@ -39,7 +40,8 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 | Spørsmål | Hvorfor det haster |
 |----------|--------------------|
 | Stack og hvilken Claude-modell dommeren skal bruke? (Videresendt fra PRD §10 til arkitekturfasen) | Proposal-en sier Claude Haiku 4.5, men Claude 5-familien er ute. Stacken må også kunne kjøres lokalt uten Supabase-konto eller nøkkel. Avgjøres i arkitekturfasen |
-| Forventes CI/CD og deploy? | Pensum del 5 dekker GitHub Actions og produksjonssetting, men verken sensorveiledningen eller tilbakemeldingen krever det. CI med tester styrker likevel kvalitetssikring og kjørbarhet |
+| Forventes CI? | Pensum del 5 (kap. 20) dekker GitHub Actions, men verken sensorveiledningen eller tilbakemeldingen krever det. CI med tester styrker likevel kvalitetssikring og kjørbarhet. Deploy er avklart, se under |
+| Hvem i gruppa eier Vercel-prosjektet, hvis vi publiserer? | Bare én kan opprette det, og det havner på den personens konto. Se [[kunngjoringer]] |
 | ProtoQA-proveniens og varemerke: er det greit for faglærer? (PRD §10, må avklares før trinn 2) | Datasettets store del er skrapet fra fansider. Vi bruker bare den crowdsourcede delen, men det er ikke klarert |
 | Finnes det en språkpolicy for leveransene? | Ingen i kursmaterialet. Vi valgte engelsk på BMAD-artefaktene, og faglærer kommenterte det ikke |
 
@@ -47,6 +49,8 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 
 | Spørsmål | Svar |
 |----------|------|
+| ~~Forventes deploy?~~ | Nei. Kunngjøring 2026-11-19: lokal kjøring holder, men README må forklare hvordan, og hvilke API-nøkler som trengs. Vercel er koblet til repoet og gratis hvis vi vil. Se [[kunngjoringer]] |
+| ~~Skal `proposal.md` leveres?~~ | Nei, bare `product-brief.md` (kunngjøring 2026-09-17). Vår ligger der som ekstra. Se [[proposal]] |
 | ~~Har vi bedt om tilbakemelding på den egendefinerte idéen?~~ | Kom uoppfordret 2026-10-06: «Godt utgangspunkt med justeringer», Middels |
 | ~~Hvordan leveres uke 43 konkret?~~ | Arbeidskravet er briefen i GitHub-repoet, frist 20. sept. Se [[ibe160]] |
 | ~~Hvilke Family Feud-regler overlever til første versjon?~~ | Bare poeng etter antall svar. Se raden fra 2026-10-12 |

@@ -9,8 +9,13 @@ kanonisk kilde for hva som gjelder — les den før du gjetter.
 
 ## Arbeidsregler
 
-- **Ikke commit.** Legg igjen endringene ustagede; Sondre leser gjennom og committer selv.
-- **Jobb på `main`.** Ingen feature branches i dette repoet. Med mindre det er spesifisert.
+- **Commit i små biter, men ikke push.** Fra 2026-11-21 committer KI-en lokalt, én commit per
+  story eller per logisk steg, med norsk melding. Sondre leser gjennom og pusher selv. Bakgrunn:
+  sensorveiledningen regner «nesten hele koden i én eller noen få commits» som et varseltegn.
+- **Dokumentasjon på `main`, implementering på én branch per epic.** Hver epic (og
+  planleggingen i fase 3) får sin egen branch, som ender i én PR som et gruppemedlem merger.
+  Sensorveiledningen nevner «branches, pull requests, issues» under Prosess (30 %). Ingen andre
+  feature branches. Se [[sensorveiledning-del-1]].
 - **Bruk subagenter** for å holde hovedkonteksten ren. Ikke la orkestratoren lese mange
   små filer den ikke faktisk trenger — deleger lesing/søk og behold konklusjonen. Eller bruk også subagents til å få egne eksperter innen egne domener.
 - **Dokumentér i `./wiki`.** Obsidian-lik vault med `[[wikilenker]]`. Nye notater skal
