@@ -24,6 +24,30 @@ kanonisk kilde for hva som gjelder — les den før du gjetter.
   i `.idea/` navngir privatpersoner og er gitignorert. Reelle navn derfra skal **aldri**
   inn i en sporet fil — bruk anonymiserte plassholdere.
 
+## Ponytail er alltid på
+
+Ponytail-skillene ligger i repoet (`.claude/skills/ponytail*`), så de virker for hele gruppa
+uten global installasjon. **Hver kodeoppgave starter med `ponytail` på nivå `full`**, uten at
+noen trenger å be om det. Det gjelder også `bmad-build`, `bmad-build-auto` og subagenter som
+skriver kode. En prompt til en slik subagent skal derfor si eksplisitt at den først skal
+invokere `ponytail`. Den minste endringen som løser hele oppgaven vinner: gjenbruk kodebasen,
+så standardbiblioteket, så en installert avhengighet, og bare til slutt ny kode.
+
+- **Ponytail kutter aldri krav.** Alle FR-er og testbare konsekvenser i trinn 1 i PRD-en
+  regnes som «det brukeren ba om». Det samme gjelder anonymiteten (FR-11 til FR-13),
+  validering, feilhåndtering, sikkerhet, tilgjengelighet og testene sensor kjører. Ponytail
+  kutter ting ingen ba om, ikke ting PRD-en krever.
+- **Kjente snarveier** får en kommentar på formen `shortcut: <grensen>, <når den bør
+  oppgraderes>`. Kjør `ponytail-debt` før trinn 1 fryses (1. des.) og før innlevering.
+- **Review:** bruk `ponytail-review` på hver epic-branch før PR, i tillegg til
+  `bmad-code-review`. Begge resultatene oppsummeres i PR-beskrivelsen.
+- **Revisjon av hele repoet:** `ponytail-audit` før innlevering.
+- Skru av bare når noen sier «stop ponytail» eller «normal mode» i økten. Det gjelder bare
+  den økten.
+
+Kopiene oppdateres med `cp -RL ~/.claude/skills/ponytail* .claude/skills/` (de globale er
+symlenker), og endringen committes som en egen commit.
+
 ## Språk
 
 | Hva | Språk |
@@ -45,6 +69,8 @@ norsk brødtekst — vi gjør det ikke. Valget skal holde for `PRD.md` også.
 | `_bmad/` | BMAD-rammeverket. `config.toml` er installer-styrt og skal ikke redigeres |
 | `_bmad/custom/config.toml` | Fellesoppsett vi *skal* redigere, og som committes |
 | `.claude/skills/bmad-*` | 39 BMAD-skills |
+| `.claude/skills/ponytail*` | Ponytail-skills (MIT), vendret inn 2026-11-21. Se «Ponytail er alltid på» |
+| `.claude/skills/sesjonslogg` | Sesjonslogg-skillen, se nederst |
 | `.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/` | Kanonisk fase 2: `prd.md`, `.memlog.md`, gjennomgangsfiler |
 | `PRD.md` | **Generert** av `scripts/sync-brief.sh`, på samme måte som briefen. Rediger aldri direkte |
 | `scripts/sync-brief.sh` | Genererer og verifiserer rot-kopiene av briefen og PRD-en |

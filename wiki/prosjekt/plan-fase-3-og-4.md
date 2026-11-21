@@ -55,9 +55,10 @@ Epicene kommer fra steg 3.3. Forventet rekkefølge, ut fra avhengighetene i PRD-
 6. **Spill**: lag, brett, treff og bom, angre, turer, sluttresultat
 7. **Demomodus og levering**: demodata, README, ende-til-ende uten nøkkel, ny klon fra README
 
-Per story: `bmad-build`, med plan, implementering, tester og review, og én commit. Per epic:
-`bmad-code-review`, der funnene og rettingene skrives inn i PR-beskrivelsen. Det er sporet av
-kodegjennomgang sensor ser etter under Testing.
+Per story: `ponytail` (full) og så `bmad-build`, med plan, implementering, tester og review, og
+én commit. Per epic: `bmad-code-review` og `ponytail-review`, der funnene og rettingene skrives
+inn i PR-beskrivelsen. Det er sporet av kodegjennomgang sensor ser etter under Testing. Før
+frysen 1. des. kjøres `ponytail-debt`, og før innlevering `ponytail-audit`.
 
 ## Innspurt (1.–5. des.)
 

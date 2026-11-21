@@ -40,7 +40,9 @@ Se [`wiki/kurs/proposal.md`](wiki/kurs/proposal.md).
 
 Prosjektet følger **BMAD Method v6.12.0**: Product Brief → PRD → UX + Arkitektur →
 Epics & Stories → Implementering. Rammeverket ligger i `_bmad/` med 39 skills under
-`.claude/skills/`.
+`.claude/skills/`. Der ligger også `ponytail`-skillene, som alltid er på ved kodeoppgaver.
+De holder KI-generert kode til den minste endringen som løser oppgaven helt, uten å kutte
+krav, tester eller sikkerhet.
 
 Prompter arkiveres underveis i [`prompting/`](prompting/README.md) — refleksjonsrapporten
 krever eksplisitt at alle stegene dokumenteres, og det lar seg ikke rekonstruere i etterkant.

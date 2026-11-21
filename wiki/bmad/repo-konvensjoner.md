@@ -52,6 +52,8 @@ Begge referanserepo committer hele rammeverket, slik at gruppa deler identisk ve
 
 - `_bmad/` — configs + Python-scripts (`config_utils`, `memlog`, `render_skill`, `resolve_config`, `resolve_customization`)
 - `.claude/skills/` — 39 `bmad-*`-skills (product-brief, prd, architecture, ux, spec, create-epics-and-stories, sprint-planning, build, code-review, retrospective, brainstorming, …)
+- `.claude/skills/ponytail*` — seks ponytail-skills (MIT), vendret inn 2026-11-21 så hele gruppa har dem uten global installasjon. Alltid på ved kodeoppgaver. Se CLAUDE.md og [[beslutninger]]
+- `.claude/skills/sesjonslogg` — logger hver økt i `.logs/<bruker>/`
 
 Personlig config holdes utenfor. `.gitignore`-blokka vi allerede har i repoet er hentet herfra:
 
