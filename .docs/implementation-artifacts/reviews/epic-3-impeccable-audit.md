@@ -68,3 +68,23 @@ Fix: render one `<ConfirmDialog>`-less wrapper with a stable `Button` and swap o
 ## Not verified
 
 No render was run: focus order, the real contrast values, dialog layout at 320 px and at 200 % zoom, and the axe result on the closed pages (A5) need a browser pass.
+
+## Epic 3 review fixes (2026-11-22)
+
+Fixed in commit 0f3924b on `epic-3-lukking`. The full unit, integration and e2e suites pass.
+
+- **M1 (fixed).** `ConfirmDialog` has a `busy` prop:
+  - While it is set, `cancel` is prevented, and "Avbryt" is `aria-disabled` and ignores clicks.
+  - If Chrome closes the dialog anyway (a second Esc with no click in between), the `close` handler reopens it.
+  - A native modal `<dialog>` never closes on a backdrop click, so there was nothing to block there.
+  - The close, delete, open-collection and revoke dialogs all pass `busy={pending}`.
+  - `close.spec.ts` holds the close POST, presses a real Esc twice, force-clicks "Avbryt", and requires the dialog to stay open. Without `busy` the test failed once.
+- **M2 (fixed).** `getOwned` returns `leaseExpired`, computed as `grouping_lease_until < now()` in database time. The grouping panel keeps the Judge sentence and adds "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt." once the lease has run out. The `shortcut:` comment for Story 4.2 stays. An integration test covers both sides.
+- **S1 (fixed).** After a close, focus moves to the "Gruppering" heading, falling back to the `<h1>`. `close.spec.ts` asserts this.
+- **S2 (fixed).** When `canClose` flips while the panel stays mounted and focus has fallen to `<body>`, focus goes to the button that survived. `acted` is reset, so a later unmount does not move focus.
+- **S3 (fixed).** The offline path still refreshes, because a timed-out call may have committed. It no longer sets `acted`, and the dialog stays open with the network Notice.
+- **N1 (fixed).** Button hover colours use `hover:not-aria-disabled:`.
+- **N2 (skipped).** A warning Notice would add a `role="status"` region inside the dialog, which changes what is announced. The contract does not ask for one there.
+- **N3 (skipped).** Fixing it means restructuring `ConfirmDialog`'s `aria-describedby`, which is more than one line. The focused alert is also asserted by the e2e test.
+- **N4 (fixed).** The label is now "Stenger" with a no-break space before the ellipsis.
+- **N5 (skipped).** It is pre-existing and needs more than one line. It is left for the A5 axe pass.

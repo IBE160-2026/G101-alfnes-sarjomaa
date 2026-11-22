@@ -251,3 +251,19 @@ The spine (line 440) mentions "Neon's short history". The PRD §1.1 anonymity li
 14. **Build errors are hidden in `start.log` (focus question):** false. The shell redirect binds only to `npm run start`.
 15. **The non-owner VACUUM WARNING (edge-case-hunter):** a duplicate of finding 1 (same root cause, folded in there).
 16. **Leftover server processes (focus question):** false. Playwright kills each webServer's process group on teardown, and both commands run under its shell.
+
+## Epic 3 review fixes (2026-11-22)
+
+Fixed on `epic-3-lukking` in commits 650b108, 0f3924b, 2c46106 and c2b0877. `npm run test` (430 tests) and `npm run test:e2e` (86 tests) pass, with lint, format and typecheck clean.
+
+- **Finding 1 (fixed, option a plus detection).** `purgeExpired` now runs `vacuumCollectionTables` on every run, so a table skipped at close is rewritten within about an hour. The helper compares each table's `relfilenode` before and after the VACUUM. `VACUUM FULL` always writes a new file, so an unchanged one means the table was skipped, and the helper logs `{ module, op: "vacuum", code: "VACUUM_SKIPPED" }` and nothing else. This works on any driver, so option (c) and its `onnotice` hook were not needed. Close and purge are each tested with a real skip: the call runs under a role that may read and write the tables but does not own them. AD-9 in the spine is amended to match.
+- **Finding 2 (fixed).** The AC2 test records the `relfilenode` of both tables, their TOAST tables and every index before close, and requires every one to change. With `FULL` dropped it failed once (`invite_link` kept its file), and it passed again once `FULL` was restored. The bare size check is gone. A raw byte scan and a second open Game were not added, because the filenode check fails on a plain VACUUM whatever else the database holds.
+- **Finding 3 (fixed).** A new test reads the SQL that PGlite prepares during a submit, a revoke and a close, and requires a select from `game` that ends in ` for update`. It failed once with `.for("update")` removed. A `shortcut:` comment points to Story 7.3's real-Postgres CI job.
+- **Finding 4 (fixed).** The recorder in `fixtures.ts` now listens to the context's `request` event, so it also records requests that a page route forwards with `route.fetch()`.
+- **Finding 5 (fixed).** One close test makes the watched `shuffle` return a known reversal, and checks that `grouping.insertAnswers` receives exactly that array. It failed once with the rows sorted by rank. The weak `some(k < prev)` check and its wrong comment went with the redundant shuffle test (ponytail S1).
+- **Finding 6 (fixed).** The race test keeps the close promise and awaits `resolves.toBeUndefined()`.
+- **Finding 7 (fixed).** `vacuum.ts` now has a `shortcut:` comment about the ACCESS EXCLUSIVE rewrite.
+- **Finding 8 (fixed).** `E2E_DEV_URL` is now always set from `DEV_PORT`, so an outside value can no longer point Playwright at the wrong port.
+- **Finding 9 (fixed).** The README gives the `toppsvar-e2e-*` folder under the system temp directory as the place to find `dev.log`.
+- **Finding 10 (fixed).** When `canClose` flips while the panel stays mounted and focus has fallen to `<body>`, focus moves to the surviving button, and `acted` is reset. After a refused close, that button is the disabled trigger, so its description, the reason text, is read out.
+- **D1 and D2 (deferred, unchanged).** D1 is the untested `TOO_FEW_ANSWER_SETS`/`NOT_FOUND` refresh branches. D2 is the missing Neon history and WAL limit in the PRD and README, which belongs to the README story.

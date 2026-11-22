@@ -77,3 +77,17 @@ None.
 Verdict: Ship. Nothing blocks the merge. Do 4 in the PR text, and 1 to 3 if you want less test upkeep.
 Lean: about -230 lines possible (mostly duplicated tests in 1 to 3, plus 5 to 7).
 Not checked: I did not run the test suites or the e2e run, and I did not check the line counts of the truncated test bodies exactly, so the lean number is an estimate.
+
+## Epic 3 review fixes (2026-11-22)
+
+Fixed on `epic-3-lukking` in commits 650b108, 0f3924b, 2c46106 and c2b0877. Every AC and every TRACE.md row is still covered, and `tests/TRACE.md` is updated.
+
+- **1 (fixed).** The "no key's rows stay contiguous" test in `collection.test.ts` is deleted. In its place is a different property: close calls `shuffle` once with every row and inserts exactly what it returns (bmad finding 5). The unit test and the anonymity test still prove the algorithm and the stored order.
+- **2 (fixed, trimmed).** `host-anonymity.spec.ts` no longer checks that the output before and after a submit is identical, and the request-ID normaliser and sort that check needed are gone. `host-view.test.ts` keeps that claim. The e2e still does what AC2 asks and what only a browser shows: the response-body scan, the no-push window and the empty used-link form. It also keeps the `secrets.jsonl` check, which guards the recorder.
+- **3 (fixed).** "Submit committed before close" is deleted, because the main close test already submits every set before closing. "Unordered submit and close" is deleted too, because PGlite runs it in sequence. "Committed between lookup and lock" and "close waits for submit" stay, and a new test pins the `for update` lock (bmad finding 3).
+- **4 (skipped).** It belongs in the PR text.
+- **5 (not deleted).** Story 3.1 AC1 requires `NORMALIZE_VERSION` to be exported, and AD-12 records it in rulings and `grouping_result` in Epic 4. The comment now says that nothing stores it yet.
+- **6 (fixed).** The four copies now call one `focusHeading()` helper, exported from `RouteFocus.tsx`: `RouteFocus`, `InviteLinkView`, `AnswerForm` and `CloseCollection`. It is a plain function rather than a hook, because `AnswerForm` calls it from a click handler.
+- **7 (fixed).** `transition` builds its extra fields before the update.
+- **8 (no change).** The review's own verdict was to keep it.
+- **9 (fixed).** `vacuum.ts` now has a `shortcut:` comment about the ACCESS EXCLUSIVE rewrite.
