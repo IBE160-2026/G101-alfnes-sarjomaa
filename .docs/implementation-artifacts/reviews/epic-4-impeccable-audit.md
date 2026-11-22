@@ -116,3 +116,15 @@ The brand rule "trust is visible" and FR-11 to FR-13 suggest one `text-body-sm t
 2. S2 slow-state sentence as a warning Notice, with the contract amended in the same commit.
 3. S3 replace the shortcut comment with the debt-ledger form.
 4. N1 to N4 if time allows, N2 before release only if hosting is metered.
+
+## Epic 4 review fixes (2026-11-22)
+
+**S1, fixed in `3d67def`.** A new client component, `DownloadReport`, keeps the plain `<a href>` for no-JS. On click it fetches the report and saves the blob as `toppsvar-bruksrapport.json`. A non-2xx response shows the route's bokmål `message` (or a generic one) in a `danger` Notice, which has `role="alert"`, and the Game page stays put. A network failure shows the shared `NETWORK` message. A redirected response (expired session) navigates to the link, so the server sends the Host to `/logg-inn`. `close.spec.ts` covers a stubbed 404 (alert shown, URL unchanged) and the cleared cookie (lands on `/logg-inn`), on top of the existing download check. The no-JS error limit has a `shortcut:` comment.
+
+**S2, fixed in `3d67def`.** The slow-state text is now a `warning` Notice with `role="status"`: "**Grupperingen tar lengre tid enn vanlig.** Siden oppdateres av seg selv. Stopper grupperingen, fortsetter den der den slapp." Each part is true: the 3 s poll re-renders the page, and past the lease that render queues `resumeIfStale`, which skips Questions that are already done. The `EXPERIENCE.md` row was amended to match, and so were `epic-4-context.md` and TRACE. The node enters the DOM once per stall, so it is announced once. One thing to know: once the resume holds a fresh lease, the next poll hides the Notice again. That was the Story 4.2 behaviour and is unchanged.
+
+**S3, fixed in `3d67def`.** The *in review* panel now has `shortcut: no way forward from in review until Epic 5, add the primary "Gå til gjennomgangen" link here in Story 5.1.` The label matches `EXPERIENCE.md`.
+
+**N1, fixed in `3d67def`.** "Spørsmål" became "Spørsmål i alt". The integration and e2e assertions were updated.
+
+**N2 to N4, skipped.** They were outside the agreed scope (only N1 if it took one line).

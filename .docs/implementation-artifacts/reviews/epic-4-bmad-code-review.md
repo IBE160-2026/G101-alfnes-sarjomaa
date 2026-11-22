@@ -167,3 +167,19 @@
 14. **A single-item Question still makes a model call** (Blind Hunter). Low. It is rare, because it needs every Answer to normalise to the same text. Skipping the call adds a branch and a special-cased result.
 15. **`answer_group.id` has no database default** (Blind Hunter). Low. Spec 4.2 chose client `randomUUID()` ids, and no caller inserts without an id. A deviation from convention, with no named harm.
 16. **Report errors open as a raw JSON page** (Blind Hunter). Already rejected in the 4.3 log.
+
+## Epic 4 review fixes (2026-11-22)
+
+**Finding 1 (High), fixed in `12ae29a`.** The OpenRouter request now sends `reasoning: { effort: "none" }`. The field and value were checked against OpenRouter's reasoning-tokens documentation: on Chat Completions, `effort: "none"` disables reasoning, and a model whose `/models` entry has `reasoning.mandatory: true` rejects it with a 400. The `64 + 4n` formula is replaced by a flat `MAX_TOKENS = 2048`. The largest Question has 50 × 5 = 250 items, at most 4 tokens each (up to 3 digits and a comma) is 1,000 tokens, plus about 10 for the wrapper, so 2,048 leaves twice that. The cap is billed only for tokens produced. The empty-content path is now pinned by a reply cut off with `finish_reason: "length"`. The retry on invalid output stays, because AD-13 requires one retry. `PROMPT_VERSION` was not bumped: AD-13 ties the version to `SYSTEM`, `messages()` and the schema, and no rulings exist yet. Updated: `judge.test.ts`, `TRACE.md`, AD-13 (body, prompt, and the "not `reasoning.mandatory`" rule for `JUDGE_MODEL`), the AD-12 cost line, `delivery-notes.md` (assumptions, a table with 0.6K/1.0K output tokens, USD 0.004 and 0.008, and a hard ceiling under USD 0.03), and `epic-4-context.md`. The orchestrator still has to confirm `reasoning_tokens: 0` and `calls: 1` with a live `judge:smoke`. That run was not done here.
+
+**Finding 2 (Low), fixed in `a17fbd3`.** When `timedPartition` catches something that is not a `JudgeError`, it logs `{ module: "grouping", op: "partition", code: "INTERNAL" }` before it records `ERROR`. The plain-Error test checks that this is the only line written and that the message (a file path) is not in it.
+
+**Finding 3 (Low), fixed in `a17fbd3`.** The TOO_FEW `it.each`, Host B's `NOT_FOUND` loop and a new second close (`WRONG_STATE`) in `grouping.test.ts` each assert an empty `after()` queue. Removing the `result.ok` guard made 5 tests fail.
+
+**Finding 4 (Low), fixed in `a17fbd3`.** The README says that without a key the Judge uses stored rulings from `data/rulings/` (replay by default). A Question with no stored ruling falls back with `NO_KEY`, each distinct Answer becomes its own Group, and "Grupper foreslått 0" is expected while the folder is empty. `NO_KEY` is the right code: replay throws `NO_STORED_RULING` only when a key is set.
+
+**Finding 5 (Low), fixed in `a17fbd3`.** FR-3 and FR-12 in TRACE now have the Story 4.3 rows, and 4.3 is gone from their "Pending" lines.
+
+**D1, fixed in `12ae29a`.** AD-18 now says `judge_calls` counts requests on fallback since 4.4. AD-20 names `judge:record -- <input.json> <output.json>` and the two fixtures. The Scripts row lists `judge:smoke`. `epic-4-context.md` no longer describes the state before 4.4.
+
+**D2, still open.** The live 250-item timing needs a key, and this run was told not to make live calls.

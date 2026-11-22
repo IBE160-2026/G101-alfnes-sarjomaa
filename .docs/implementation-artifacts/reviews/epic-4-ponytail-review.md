@@ -65,3 +65,25 @@ Verdict: Ship. Findings 1 and 2 are worth doing before the PR, the rest are opti
 Lean: -250 lines possible (about 200 of tests, 50 of source).
 
 Not checked: the e2e specs and `tests/TRACE.md`, the drizzle snapshots, and the live OpenRouter path against a real key.
+
+## Epic 4 review fixes (2026-11-22)
+
+**1. Test code larger than the code it tests: fixed in `f560f26`.** Repeated scenarios were cut to one test per behaviour:
+- Replay with no ruling is now one `it.each` (`NO_KEY` and `NO_STORED_RULING`) that also checks the counters, which replaces the copy in `report.test.ts`.
+- The runner's DB failure is tested once, through the `game_counter` rename. That test now also checks the content-free `grouping`/`run` log line, so the `answer_group` rename copy is gone.
+- The "run after a finished run" test checks counters as well, which replaces the counters-only copy.
+- The wrong-length map case is gone, because `judge.test.ts` covers it and the runner already tests `INVALID_OUTPUT` as a `JudgeError`.
+- The "counters equal the sum" test is gone, because the exact-delta test proves the same thing.
+- The report's random-UUID 404 is gone, because `authz.test.ts` has it.
+
+The Vitest suite went from 573 to 567 tests, and `report.test.ts` and `grouping.test.ts` lost about 85 lines net. Every AC, every TRACE row (updated to point at the surviving test), and every anonymity, no-network and content-free-log assertion is kept. This is smaller than the suggested third: the remaining tests each pin a distinct behaviour or an AC row.
+
+**2. Two stored-ruling algorithms: skipped.** AD-13 says openrouter uses a stored ruling "only when its item set matches exactly", while replay maps partial coverage. Routing openrouter through the replay judge would answer a partly covered Question from stored clusters instead of making a live call. That changes behaviour the spine specifies, so the change was not made.
+
+**3. The smoke script patches `globalThis.fetch`: fixed in `2a7f7ea`.** `JudgeError` has an optional `status` (the last non-2xx HTTP status), set by openrouter. `judge:smoke` prints it, and the fetch patch is gone. One trade-off: the smoke script no longer prints the first 300 characters of the error body, so a wrong model and an unsupported parameter now look alike (both 400). A 401 still points at the key.
+
+**4. Retries that cannot help: unchanged.** The retry on 429 and 5xx stays. AD-13 requires one retry on invalid output, so that retry stays too.
+
+**5. `maxTokens` formula: fixed in `12ae29a`.** It is now a flat `MAX_TOKENS = 2048`, with the arithmetic in a comment, and reasoning is off.
+
+**6–8: skipped as agreed.** `info.provider`, one UPDATE per Group, and comment weight were left as they are.
