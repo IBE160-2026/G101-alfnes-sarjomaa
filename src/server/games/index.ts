@@ -225,10 +225,10 @@ export function purgeExpired(): Promise<{ deleted: number }> {
           ),
         ),
       )
-      .returning({ state: game.state });
-    // A collecting Game had links and Answer sets, as in deleteOwned (AD-9).
-    if (rows.some((r) => r.state === "collecting"))
-      await vacuumCollectionTables("games");
+      .returning({ id: game.id });
+    // Every run, not only after a collecting Game: it retries a close-time VACUUM that
+    // SKIP_LOCKED skipped (AD-9).
+    await vacuumCollectionTables("games");
     await auth.purgeExpiredSessions();
     return { deleted: rows.length };
   });

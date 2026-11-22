@@ -56,9 +56,22 @@ const appColumns = () =>
 
 const tokenOf = (link: string) => link.slice(link.indexOf("#") + 1);
 
+// The file behind invite_link and submission, their TOAST tables and every index of
+// either. VACUUM FULL writes each one anew; a plain VACUUM keeps them, and with them the
+// deleted rows' bytes.
+const filenodes = () =>
+  rows<{ name: string; node: string }>(
+    sql`with t(oid) as (select unnest(array['invite_link'::regclass, 'submission'::regclass]::oid[])),
+      rel(oid) as (select oid from t union select reltoastrelid from pg_class where oid in (select oid from t))
+      select relname::text as name, relfilenode::text as node from pg_class
+      where oid in (select oid from rel) or oid in (select indexrelid from pg_index where indrelid in (select oid from rel))
+      order by relname`,
+  );
+
 let gameId: string;
 let questionIds: string[];
 const secrets: string[] = [];
+let filesBefore: { name: string; node: string }[];
 
 // One Game closed through the real entry points: 5 links, 3 submitted sets, 1 unused
 // link, and 1 link that submitted and was then revoked (its replacement stays unused).
@@ -112,6 +125,7 @@ beforeAll(async () => {
   secrets.push(...secrets.map(sha256));
   expect(secrets).toHaveLength(20); // 6 Tokens + 4 edit secrets, and their hashes
 
+  filesBefore = await filenodes();
   const closed = await closeCollection({ gameId });
   if (!closed.ok) throw new Error(closed.code);
 });
@@ -196,13 +210,20 @@ describe("after close", () => {
     ).toEqual([]);
   });
 
-  it("FR-13 (AC2): invite_link and submission are empty and vacuumed, and no row of any table holds a captured secret's prefix or the revoked set", async () => {
+  it("FR-13 (AC2): invite_link and submission are empty and vacuumed with FULL (table, TOAST and indexes rewritten), and no row of any table holds a captured secret's prefix or the revoked set", async () => {
     expect(
       await rows(
-        sql`select (select count(*) from invite_link)::int as links, (select count(*) from submission)::int as sets,
-          pg_relation_size('invite_link')::int as link_bytes, pg_relation_size('submission')::int as set_bytes`,
+        sql`select (select count(*) from invite_link)::int as links, (select count(*) from submission)::int as sets`,
       ),
-    ).toEqual([{ links: 0, sets: 0, link_bytes: 0, set_bytes: 0 }]);
+    ).toEqual([{ links: 0, sets: 0 }]);
+    // Two tables, at least submission's TOAST table, and their primary keys.
+    expect(filesBefore.length).toBeGreaterThanOrEqual(5);
+    const filesAfter = await filenodes();
+    expect(filesAfter.map((f) => f.name)).toEqual(
+      filesBefore.map((f) => f.name),
+    );
+    for (const [i, { name, node }] of filesAfter.entries())
+      expect(node, name).not.toBe(filesBefore[i].node);
     const tables = await rows<{ schema: string; name: string }>(
       sql`select table_schema::text as schema, table_name::text as name from information_schema.tables
         where table_type = 'BASE TABLE' and table_schema not in ('pg_catalog', 'information_schema')`,

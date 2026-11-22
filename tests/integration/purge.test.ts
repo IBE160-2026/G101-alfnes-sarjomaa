@@ -131,8 +131,37 @@ describe("VACUUM after purge", () => {
     ]);
   });
 
-  it("FR-3, AD-9: purging an idle draft Game runs no VACUUM", async () => {
-    expect(await purgeWatched("draft")).toEqual([]);
+  it("FR-13, AD-9: every purge runs the VACUUM, so one skipped at close is retried, even when only a draft Game goes", async () => {
+    expect(await purgeWatched("draft")).toEqual([
+      "VACUUM (FULL, SKIP_LOCKED) submission, invite_link",
+    ]);
+  });
+
+  it("FR-13, AD-9: a purge VACUUM that skips the tables (run by a role that does not own them) logs one VACUUM_SKIPPED line", async () => {
+    const db = await getDb();
+    await db.execute(sql`create role vacuum_skip`);
+    // Not ALL, which includes MAINTAIN (the right to VACUUM) since Postgres 17.
+    await db.execute(
+      sql`grant select, insert, update, delete on all tables in schema public to vacuum_skip`,
+    );
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    let out;
+    try {
+      await db.execute(sql`set role vacuum_skip`);
+      await games.purgeExpired();
+    } finally {
+      await db.execute(sql`reset role`);
+      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      write.mockRestore();
+    }
+    expect(
+      out
+        .trimEnd()
+        .split("\n")
+        .map((l) => JSON.parse(l)),
+    ).toEqual([{ module: "games", op: "vacuum", code: "VACUUM_SKIPPED" }]);
   });
 });
 

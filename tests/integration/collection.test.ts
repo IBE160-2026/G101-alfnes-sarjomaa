@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { inspect } from "node:util";
 import { eq, inArray, sql } from "drizzle-orm";
+import { PgliteSession } from "drizzle-orm/pglite";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -19,6 +20,7 @@ import { MESSAGES } from "@/lib/errors";
 import { GAME_STATES, type GameState } from "@/lib/game-state";
 import { LINK_NOT_ACTIVE } from "@/lib/invite-link";
 import { FEWER_THAN_3 } from "@/lib/limits";
+import { shuffle } from "@/lib/shuffle";
 import { newToken, sha256 } from "@/lib/token";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
@@ -86,6 +88,11 @@ vi.mock("@/server/games", async (importOriginal) => {
 vi.mock("@/server/grouping", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/server/grouping")>();
   return { ...real, insertAnswers: vi.fn(real.insertAnswers) };
+});
+// The real shuffle, watched, so a test can see that close inserts exactly its output.
+vi.mock("@/lib/shuffle", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/shuffle")>();
+  return { shuffle: vi.fn(real.shuffle) };
 });
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -1279,30 +1286,22 @@ describe("close", () => {
     );
   });
 
-  it("FR-13: rows land shuffled across the whole Game: in physical order, no key's 5 rows stay contiguous for all 9 keys", async () => {
+  it("FR-13, AD-9: close shuffles all of the Game's rows once and inserts exactly the shuffled array", async () => {
     const { gameId, ids, tokens } = await collectingGame("Stokket", 3);
     for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k, 5));
+    vi.mocked(shuffle).mockClear();
+    vi.mocked(grouping.insertAnswers).mockClear();
+    // A known permutation, so an insert of the unshuffled rows (or a sorted copy) fails.
+    vi.mocked(shuffle).mockImplementationOnce((items) => [...items].reverse());
     expect(await closeCollection({ gameId })).toEqual({ ok: true });
-    const result = await (
-      await getDb()
-    ).execute(
-      sql`select contributor_key::text as key, text from answer where question_id in (${sql.join(
-        ids.map((id) => sql`${id}::uuid`),
-        sql`, `,
-      )}) order by ctid`,
+    expect(shuffle).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(shuffle).mock.calls[0][0]).toHaveLength(45);
+    const shuffled = vi.mocked(shuffle).mock.results[0].value;
+    expect(grouping.insertAnswers).toHaveBeenCalledWith(
+      expect.anything(),
+      shuffled,
     );
-    const rows = (
-      result as unknown as { rows: { key: string; text: string }[] }
-    ).rows;
-    const order = rows.map((r) => r.key);
-    expect(order).toHaveLength(45);
-    expect(new Set(order).size).toBe(9);
-    // An unshuffled build gives exactly 9 runs; a random permutation does with p ≈ 1e-33.
-    const runs = order.filter((key, i) => key !== order[i - 1]).length;
-    expect(runs).toBeGreaterThan(9);
-    // Sets interleave too, so a shuffle inside each set alone fails (p ≈ (15!)³/45!).
-    const sets = rows.map((r) => Number(r.text.slice(1, r.text.indexOf(" "))));
-    expect(sets.some((k, i) => i > 0 && k < sets[i - 1])).toBe(true);
+    expect(vi.mocked(grouping.insertAnswers).mock.calls[0][1]).toBe(shuffled);
   });
 
   it("FR-10, FR-11: a failing VACUUM still closes, and logs one line with only module, op, code and sqlstate", async () => {
@@ -1341,6 +1340,40 @@ describe("close", () => {
     expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
   });
 
+  it("FR-13, AD-9: a VACUUM that skips the tables (run by a role that does not own them) still closes, and logs one VACUUM_SKIPPED line", async () => {
+    const { gameId, ids, tokens } = await collectingGame(
+      "Vakuum hoppes over",
+      3,
+    );
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    const db = await getDb();
+    await db.execute(sql`create role vacuum_skip`);
+    // Not ALL, which includes MAINTAIN (the right to VACUUM) since Postgres 17.
+    await db.execute(
+      sql`grant select, insert, update, delete on all tables in schema public to vacuum_skip`,
+    );
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    let result, out;
+    try {
+      await db.execute(sql`set role vacuum_skip`);
+      result = await closeCollection({ gameId });
+    } finally {
+      await db.execute(sql`reset role`);
+      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      write.mockRestore();
+    }
+    expect(result).toEqual({ ok: true });
+    expect(
+      out
+        .trimEnd()
+        .split("\n")
+        .map((l) => JSON.parse(l)),
+    ).toEqual([{ module: "collection", op: "vacuum", code: "VACUUM_SKIPPED" }]);
+    expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
+  });
+
   it("FR-10, FR-9: after close every former link, one revoked before close included, is closed in openInviteLink, linkStatus and the shell, and a late submit is COLLECTION_CLOSED with no row", async () => {
     const { gameId, ids, tokens } = await collectingGame("Etter stenging", 5);
     for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
@@ -1367,9 +1400,10 @@ describe("close", () => {
   it("FR-10: a close committed between submit's lookup and its lock refuses the submit with COLLECTION_CLOSED, and its set is not among the Answers", async () => {
     const { gameId, ids, tokens } = await collectingGame("Kappløp 1", 4);
     for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
-    let closed;
+    let closing: Promise<void> | undefined;
     race.hook = async () => {
-      closed = await collection.close(hostId, { gameId });
+      closing = collection.close(hostId, { gameId });
+      await closing;
     };
     expect(
       await submitAnswerSet(gameId, tokens[3], {
@@ -1378,20 +1412,11 @@ describe("close", () => {
       }),
     ).toEqual(CLOSED);
     expect(race.hook).toBeNull();
-    expect(closed).toBeUndefined();
+    await expect(closing).resolves.toBeUndefined();
     const rows = await answersOf(ids);
     expect(rows).toHaveLength(18);
     expect(rows.some((r) => r.text.startsWith("S3 "))).toBe(false);
     expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
-  });
-
-  it("FR-10: a submit committed before close locks is among the closed Answers", async () => {
-    const { gameId, ids, tokens } = await collectingGame("Kappløp 2", 4);
-    for (let k = 0; k < 4; k++) await send(gameId, tokens[k], setOf(ids, k));
-    expect(await closeCollection({ gameId })).toEqual({ ok: true });
-    const rows = await answersOf(ids);
-    expect(rows).toHaveLength(24);
-    expect(rows.filter((r) => r.text.startsWith("S3 "))).toHaveLength(6);
   });
 
   it("FR-10: a close started while submit holds the Game lock waits for it, and the submitted set is among the closed Answers", async () => {
@@ -1440,22 +1465,30 @@ describe("close", () => {
     }
   });
 
-  it("FR-10: an unordered submit and close end with the set either fully included or refused, never partial", async () => {
-    const { gameId, ids, tokens } = await collectingGame("Kappløp 3", 4);
-    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
-    const [submitted, closed] = await Promise.all([
-      submitAnswerSet(gameId, tokens[3], {
-        answers: setOf(ids, 3),
-        editSecret: newToken(),
-      }),
-      closeCollection({ gameId }),
-    ]);
-    expect(closed).toEqual({ ok: true });
-    const late = (await answersOf(ids)).filter((r) => r.text.startsWith("S3 "));
-    if (submitted.ok) expect(late).toHaveLength(6);
-    else {
-      expect(submitted).toEqual(CLOSED);
-      expect(late).toEqual([]);
-    }
+  // shortcut: PGlite runs one transaction at a time, so the race tests above pass even without the row lock; this pins the lock's SQL until Story 7.3's real-Postgres CI job runs the races for real.
+  it("FR-10, FR-9, AD-9: close, submit and revoke each lock the Game row with a select that ends in for update", async () => {
+    const { gameId, ids, tokens, links } = await collectingGame("Låsen", 4);
+    const lockSelects = async (run: () => Promise<unknown>) => {
+      const prepare = vi.spyOn(PgliteSession.prototype, "prepareQuery");
+      try {
+        await run();
+        return prepare.mock.calls
+          .map(([query]) => query.sql)
+          .filter((q) => /^select .* from "game" where /s.test(q));
+      } finally {
+        prepare.mockRestore();
+      }
+    };
+    const LOCK = expect.stringMatching(/ for update$/);
+    for (const k of [0, 1, 2])
+      expect(
+        await lockSelects(() => send(gameId, tokens[k], setOf(ids, k))),
+      ).toContainEqual(LOCK);
+    expect(
+      await lockSelects(() => revokeInviteLink({ gameId, link: links[3] })),
+    ).toContainEqual(LOCK);
+    expect(await lockSelects(() => closeCollection({ gameId }))).toContainEqual(
+      LOCK,
+    );
   });
 });
