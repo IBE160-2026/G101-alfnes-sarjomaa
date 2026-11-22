@@ -13,6 +13,7 @@ import { QuestionEditor } from "@/components/QuestionEditor";
 import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
+import { REPORT_STATES } from "@/lib/game-state";
 import { FEWER_THAN_3 } from "@/lib/limits";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
@@ -218,6 +219,18 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <StatusBadge state={game.state} />
       </div>
       {panel}
+      {/* Secondary, never primary: each state keeps its one primary action (UX-DR16). No
+          `download` attribute, so a logged-out redirect is not saved as the file. */}
+      {REPORT_STATES.includes(game.state) && (
+        <p className="mt-10">
+          <a
+            href={`/api/spill/${game.id}/rapport`}
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-primary hover:bg-surface-sunken"
+          >
+            Last ned bruksrapport
+          </a>
+        </p>
+      )}
       {/* Every state (FR-3), outside the switch. */}
       <footer className="mt-16 border-t border-line pt-6">
         <DeleteGame gameId={game.id} title={game.title} />

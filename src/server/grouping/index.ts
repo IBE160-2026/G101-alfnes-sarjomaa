@@ -89,6 +89,7 @@ async function groupQuestion(
   items.forEach((item, i) => (members[assignments[i]] ??= []).push(item));
   // replay numbers uncovered singletons last, so they are the last `uncovered` clusters.
   const firstFallback = fellBack ? 0 : members.length - outcome.uncovered;
+  const judgeCalls = fellBack ? 0 : outcome.calls;
 
   await db.transaction(async (tx) => {
     await games.lockForMutation(tx, {
@@ -127,10 +128,16 @@ async function groupQuestion(
       normalizeVersion: NORMALIZE_VERSION,
       modelId: judge.info.model,
       // shortcut: a failed partition records 0 Judge calls, let JudgeError carry calls when Story 4.4's live provider can fail after spending some.
-      judgeCalls: fellBack ? 0 : outcome.calls,
+      judgeCalls,
       uncoveredItems: fellBack ? 0 : outcome.uncovered,
       fellBack,
       fallbackReason: fellBack ? outcome : null,
+    });
+    // In the same transaction as the result, so a rerun never counts a Question twice (AD-18).
+    await games.bumpCounters(tx, gameId, {
+      judgeGroupsProposed: firstFallback,
+      judgeCalls,
+      questionsFellBack: fellBack ? 1 : 0,
     });
     await games.extendGroupingLease(tx, gameId);
   });
@@ -244,6 +251,41 @@ export function summary(
       .innerJoin(question, eq(question.id, answerGroup.questionId))
       .where(and(eq(question.gameId, gameId), eq(answerGroup.origin, "judge")));
     return { ...row, groupsProposed: groups.n };
+  });
+}
+
+// The usage report's per-Question part (AD-18): no text, label, id, key or rank.
+// No owner check: the caller has already resolved the owned Game.
+export function usage(gameId: string) {
+  return withBoundary("grouping", "usage", async () => {
+    const db = await getDb();
+    const results = await db
+      .select({
+        id: question.id,
+        position: question.position,
+        source: groupingResult.source,
+        fellBack: groupingResult.fellBack,
+      })
+      .from(question)
+      .innerJoin(groupingResult, eq(groupingResult.questionId, question.id))
+      .where(eq(question.gameId, gameId))
+      .orderBy(question.position);
+    const groups = await db
+      .select({
+        questionId: answerGroup.questionId,
+        origin: answerGroup.origin,
+        editCount: answerGroup.editCount,
+      })
+      .from(answerGroup)
+      .innerJoin(question, eq(question.id, answerGroup.questionId))
+      .where(eq(question.gameId, gameId))
+      .orderBy(answerGroup.id);
+    return results.map(({ id, ...q }) => ({
+      ...q,
+      groups: groups
+        .filter((g) => g.questionId === id)
+        .map(({ origin, editCount }) => ({ origin, editCount })),
+    }));
   });
 }
 

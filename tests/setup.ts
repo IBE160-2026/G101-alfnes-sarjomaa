@@ -4,7 +4,7 @@ import { closeDb } from "@/server/db/client";
 import { afterTasks } from "./integration/next-mocks";
 
 // The real after() throws outside a request scope; here it queues the task, and a test
-// runs the queue with runAfterTasks().
+// runs the queue with runAfterTasks(). connection() throws there too, so it resolves.
 vi.mock("next/server", async (importOriginal) => {
   const { afterTasks } = await import("./integration/next-mocks");
   return {
@@ -12,6 +12,7 @@ vi.mock("next/server", async (importOriginal) => {
     after: (task: () => unknown) => {
       afterTasks.push(task);
     },
+    connection: async () => undefined,
   };
 });
 beforeEach(() => {

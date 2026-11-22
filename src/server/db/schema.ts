@@ -56,6 +56,23 @@ export const game = pgTable("game", {
   groupingLeaseUntil: timestamp("grouping_lease_until", utc),
 });
 
+// Content-free usage counters, one row per Game, created by the first bump (AD-18).
+// Written only by games.bumpCounters.
+export const gameCounter = pgTable("game_counter", {
+  gameId: uuid("game_id")
+    .primaryKey()
+    .references(() => game.id, { onDelete: "cascade" }),
+  judgeGroupsProposed: integer("judge_groups_proposed").notNull().default(0),
+  groupsMerged: integer("groups_merged").notNull().default(0),
+  answersMoved: integer("answers_moved").notNull().default(0),
+  groupsCreated: integer("groups_created").notNull().default(0),
+  groupsRenamed: integer("groups_renamed").notNull().default(0),
+  groupsDiscarded: integer("groups_discarded").notNull().default(0),
+  groupsRestored: integer("groups_restored").notNull().default(0),
+  judgeCalls: integer("judge_calls").notNull().default(0),
+  questionsFellBack: integer("questions_fell_back").notNull().default(0),
+});
+
 export const question = pgTable(
   "question",
   {
@@ -111,6 +128,8 @@ export const answerGroup = pgTable("answer_group", {
     .notNull()
     .references(() => question.id, { onDelete: "cascade" }),
   origin: groupOrigin("origin").notNull(),
+  // Review edits of this Group (Epic 5); the usage report reads it (AD-18).
+  editCount: integer("edit_count").notNull().default(0),
 });
 
 // One per Question once the Judge or the fallback has grouped it (AD-12, AD-14).

@@ -242,7 +242,7 @@ stateDiagram-v2
   - **Page.** The Game page in `grouping` reads `grouping.progress`, polls every `GROUPING_POLL_MS` (3 s), and calls `resumeIfStale` inside `after()` only when the lease has expired, so a page load never waits for Grouping. The close action and the page both `.catch(() => {})` the task, since the boundary has already logged it.
   - **Reads.** `grouping.summary(gameId)` gives the *in review* summary (Questions, Groups with `origin = judge`, fallen-back Questions), and `grouping.countsOf(questionId)` gives each Group's `count(distinct contributor_key)`.
   - **Foreign key.** `answer.group_id` references `answer_group` with `ON DELETE CASCADE`, like every other key under `game`.
-  - **Deferred.** `edit_count` is not added here: Review (Epic 5) increments it, and Story 4.3 adds the column with the report that reads it. `bumpCounters` also arrives with 4.3.
+  - **Deferred.** `edit_count` is not added here: Review (Epic 5) increments it, and Story 4.3 adds the column with the report that reads it. `bumpCounters` also arrives with 4.3. *Resolved in Story 4.3* (see AD-18).
 
 ### AD-13 — One Judge boundary, three providers
 
@@ -343,6 +343,13 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Writers.** Only `games.bumpCounters(tx, gameId, delta)` changes these counters, called by `grouping` and `review`.
   - **Export.** `rapport` returns these counters, each Question's `source` and `fell_back`, and the `origin` and `edit_count` of every Group.
   - **SM-5** is the share of `origin = judge` Groups that reach the Board with `edit_count = 0`, plus the median `edit_count` of the changed ones.
+- *Amended in Story 4.3:*
+  - **Lazy row.** `game_counter` is keyed by `game_id` (`ON DELETE CASCADE`) and has only the nine integer counters, each `not null default 0`. `bumpCounters` is one upsert that inserts the row with the delta or adds the delta to it, so `games.create` makes no row and `games.counters(gameId)` returns zeros for a Game that never bumped.
+  - **Grouping's bump.** In the Question's transaction, after the already-done skip: `judgeGroupsProposed` is that Question's `origin = judge` Groups, `judgeCalls` the stored `judge_calls` (0 on fallback until Story 4.4, the existing `shortcut:`), `questionsFellBack` 1 or 0. A failed bump rolls back the Question's Groups, `group_id`s and result. Host-made Groups (Story 5.3) must not use `origin = judge`, or they would count as proposed.
+  - **`edit_count`.** `answer_group.edit_count integer not null default 0`; Review increments it.
+  - **States.** `REPORT_STATES` (`in_review`, `ready`, `playing`, `played`) in `src/lib/game-state.ts`, outside `PERMITTED`, which is the mutation table.
+  - **Route.** `GET /api/spill/[gameId]/rapport` composes `auth.requireHost`, `games.getOwned`, the state check, `games.counters` and `grouping.usage` like the Game page does, since `grouping` imports `games`. Body: `{ counters: { judgeGroupsProposed, groupsMerged, answersMoved, groupsCreated, groupsRenamed, groupsDiscarded, groupsRestored, judgeCalls, questionsFellBack }, questions: [{ position, source, fellBack, groups: [{ origin, editCount }] }] }`, Questions by `position`, Groups by id, as an attachment `toppsvar-bruksrapport.json` with `Cache-Control: no-store`. Failures are `{ code, message }`: `NOT_FOUND` 404 (missing, foreign and malformed alike), `WRONG_STATE` 409, anything else 500 `INTERNAL`; logged out redirects to `/logg-inn`. The Game page links to it as a `button-secondary`-styled `<a>` without `download`.
+  - **SM-5's "reach the Board" is not in the report yet.** No `board_slot` exists in 4.3, so the report cannot tell a Group on the Board from a discarded or cut one. The story that writes `board_slot` (5.5, `confirmBoard`) adds an on-Board flag per Group to the report, from `board_slot.group_id`, so a discarded or cut `origin = judge` Group with `edit_count = 0` is not read as accepted.
 
 ### AD-19 — Demo mode: invented fixtures, replay, one cross-platform command
 

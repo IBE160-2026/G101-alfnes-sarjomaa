@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import type { Browser, Page } from "@playwright/test";
 import { storageKey } from "@/lib/invite-link";
 import {
@@ -100,7 +101,7 @@ async function openCloseDialog(
   return dialog;
 }
 
-test("FR-10, FR-15 (AC6), UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reason below three sets, opens the confirm dialog from three, closes to Grupperer with 0 av 1 spørsmål ferdig, polls to the in review summary, and a form opened before close gets the late-submit sentence and loses its key", async ({
+test("FR-10, FR-15 (AC6), FR-18 (AC4), UX-DR8, UX-DR16: at 360 px Steng innsamlingen is aria-disabled with the reason below three sets, opens the confirm dialog from three, closes to Grupperer with 0 av 1 spørsmål ferdig, polls to the in review summary with Last ned bruksrapport downloading the report, and a form opened before close gets the late-submit sentence and loses its key", async ({
   page,
   browser,
   baseURL,
@@ -136,6 +137,8 @@ test("FR-10, FR-15 (AC6), UX-DR8: at 360 px Steng innsamlingen is aria-disabled 
 
   await page.reload();
   await expect(region.getByText("3 av 4 svar mottatt")).toBeVisible();
+  // The usage report starts at in review (UX-DR16).
+  await expect(page.getByText("Last ned bruksrapport")).toHaveCount(0);
   await expect(trigger).not.toHaveAttribute("aria-disabled");
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Stenge innsamlingen?" });
@@ -181,7 +184,41 @@ test("FR-10, FR-15 (AC6), UX-DR8: at 360 px Steng innsamlingen is aria-disabled 
   ).toBeFocused();
   await expect(page.getByText("Ingen KI-nøkkel")).toHaveCount(0);
   expect(await noHorizontalScroll(page)).toBe(true);
+  // As after close: the poll's re-render sets the head again, so wait for it before axe.
+  await expect(page).toHaveTitle("Hyttetur – Toppsvar");
   expect(await seriousViolations(page)).toEqual([]);
+
+  // FR-18 (AC4): the report downloads as a file with counters and origins, no Answer.
+  const report = page.getByRole("link", { name: "Last ned bruksrapport" });
+  await expect(report).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    report.click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("toppsvar-bruksrapport.json");
+  const text = await readFile(await download.path(), "utf8");
+  expect(text).not.toContain("Kari");
+  expect(JSON.parse(text)).toEqual({
+    counters: {
+      judgeGroupsProposed: 0,
+      groupsMerged: 0,
+      answersMoved: 0,
+      groupsCreated: 0,
+      groupsRenamed: 0,
+      groupsDiscarded: 0,
+      groupsRestored: 0,
+      judgeCalls: 0,
+      questionsFellBack: 1,
+    },
+    questions: [
+      {
+        position: 1,
+        source: "fallback",
+        fellBack: true,
+        groups: [{ origin: "fallback", editCount: 0 }],
+      },
+    ],
+  });
 
   await late.page.getByRole("button", { name: "Send inn svar" }).click();
   await expect(

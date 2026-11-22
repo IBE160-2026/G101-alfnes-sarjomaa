@@ -3,6 +3,7 @@ import {
   and,
   desc,
   eq,
+  getTableColumns,
   isNotNull,
   isNull,
   lt,
@@ -24,7 +25,7 @@ import {
 import * as auth from "@/server/auth";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Tx } from "@/server/db/client";
-import { game } from "@/server/db/schema";
+import { game, gameCounter } from "@/server/db/schema";
 import { vacuumCollectionTables } from "@/server/db/vacuum";
 
 export type GameSummary = {
@@ -218,6 +219,51 @@ export async function reserveInviteLinks(
     .returning({ issued: game.inviteLinksIssued });
   if (!row) throw new DomainError("LINK_CAP_REACHED");
   return row.issued;
+}
+
+export type Counters = Omit<typeof gameCounter.$inferSelect, "gameId">;
+
+// The only writer of game_counter (AD-18): one upsert, so the first bump creates the row.
+export async function bumpCounters(
+  tx: Tx,
+  gameId: string,
+  delta: Partial<Counters>,
+): Promise<void> {
+  const set = Object.fromEntries(
+    Object.entries(delta).map(([k, n]) => [
+      k,
+      sql`${gameCounter[k as keyof Counters]} + ${n}`,
+    ]),
+  );
+  await tx
+    .insert(gameCounter)
+    .values({ gameId, ...delta })
+    .onConflictDoUpdate({ target: gameCounter.gameId, set });
+}
+
+// No owner check: the caller has already resolved the owned Game. Zeros before any bump.
+export function counters(gameId: string): Promise<Counters> {
+  return withBoundary("games", "counters", async () => {
+    const db = await getDb();
+    const { gameId: key, ...columns } = getTableColumns(gameCounter);
+    const [row] = await db
+      .select(columns)
+      .from(gameCounter)
+      .where(eq(key, gameId));
+    return (
+      row ?? {
+        judgeGroupsProposed: 0,
+        groupsMerged: 0,
+        answersMoved: 0,
+        groupsCreated: 0,
+        groupsRenamed: 0,
+        groupsDiscarded: 0,
+        groupsRestored: 0,
+        judgeCalls: 0,
+        questionsFellBack: 0,
+      }
+    );
+  });
 }
 
 // Any state (AD-4). Children cascade from game, so one DELETE removes every row of it.
