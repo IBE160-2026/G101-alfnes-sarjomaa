@@ -47,6 +47,8 @@ export async function nextNavigation() {
     notFound: () => {
       throw new NotFoundError();
     },
+    // Client components rendered with renderToStaticMarkup have no app router mounted.
+    useRouter: () => ({ refresh: () => {} }),
     // The stand-ins count as Next control flow too, as the real ones do.
     unstable_rethrow: (error: unknown) => {
       if (error instanceof RedirectError || error instanceof NotFoundError)

@@ -9,7 +9,8 @@ import {
   type Operation,
 } from "@/lib/game-state";
 import { getDb, type Tx } from "@/server/db/client";
-import { game, host, question } from "@/server/db/schema";
+import * as collection from "@/server/collection";
+import { game, host, inviteLink, question } from "@/server/db/schema";
 import * as games from "@/server/games";
 import * as questions from "@/server/questions";
 
@@ -219,6 +220,39 @@ describe("questions in a non-draft Game", () => {
       ] as const)
         expect(await codeOf(op()), `${name} in ${state}`).toBe("WRONG_STATE");
       expect(await snapshot(), state).toEqual(before);
+    }
+  });
+});
+
+describe("Invite links after collecting", () => {
+  it("FR-5, AD-4: createInviteLinks is WRONG_STATE in every state after collecting, and nothing changes", async () => {
+    await setState("draft");
+    await questions.save(hostId, {
+      gameId,
+      questionId: randomUUID(),
+      text: "Hvem?",
+    });
+    const db = await getDb();
+    const links = () =>
+      db.select().from(inviteLink).where(eq(inviteLink.gameId, gameId));
+    const before = await links();
+    for (const state of GAME_STATES.filter(
+      (s) => s !== "draft" && s !== "collecting",
+    )) {
+      await setState(state);
+      const issued = (await row()).inviteLinksIssued;
+      expect(
+        await codeOf(
+          collection.createInviteLinks(hostId, { gameId, count: 1 }),
+        ),
+        state,
+      ).toBe("WRONG_STATE");
+      expect(await row(), state).toMatchObject({
+        state,
+        updatedAt: T0,
+        inviteLinksIssued: issued,
+      });
+      expect(await links(), state).toEqual(before);
     }
   });
 });

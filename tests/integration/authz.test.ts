@@ -3,6 +3,7 @@ import { asc, eq, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createInviteLinks,
   deleteGame,
   moveQuestion,
   removeQuestion,
@@ -14,7 +15,7 @@ import GamesPage from "@/app/spill/page";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
-import { game, question } from "@/server/db/schema";
+import { game, inviteLink, question } from "@/server/db/schema";
 import * as games from "@/server/games";
 import { cookieJar, NotFoundError, run } from "./next-mocks";
 
@@ -283,6 +284,29 @@ describe("Questions across Hosts", () => {
     expect(await questionsOf(gameOfA)).toEqual(beforeA);
     expect(await questionsOf(gameOfB)).toEqual(beforeB);
     expect((await gameRow(gameOfA)).updatedAt).toEqual(T0);
+  });
+});
+
+describe("Invite links across Hosts", () => {
+  it("FR-5, AD-5: B's createInviteLinks on A's Game, a random UUID and a malformed ID give one identical NOT_FOUND and leave A's state, issued count, rows and updated_at", async () => {
+    as("B");
+    const db = await getDb();
+    const linksOfA = () =>
+      db.select().from(inviteLink).where(eq(inviteLink.gameId, gameOfA));
+    const before = { game: await gameRow(gameOfA), links: await linksOfA() };
+    for (const gameId of [gameOfA, randomUUID(), "abc"])
+      expect(await createInviteLinks({ gameId, count: 1 }), gameId).toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    expect(await gameRow(gameOfA)).toEqual(before.game);
+    expect(await linksOfA()).toEqual(before.links);
+    expect(before.game).toMatchObject({
+      state: "draft",
+      inviteLinksIssued: 0,
+      updatedAt: T0,
+    });
   });
 });
 

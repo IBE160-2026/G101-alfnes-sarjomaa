@@ -11,12 +11,15 @@ export function ConfirmDialog({
   title,
   children,
   confirm,
+  beforeOpen,
 }: {
   triggerLabel: string;
   triggerVariant: ComponentProps<typeof Button>["variant"];
   title: string;
   children: ReactNode;
   confirm: ReactNode;
+  // false keeps the dialog closed, e.g. when a field next to the trigger is invalid.
+  beforeOpen?: () => boolean;
 }) {
   const id = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -24,6 +27,7 @@ export function ConfirmDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   function open() {
+    if (beforeOpen && !beforeOpen()) return;
     dialogRef.current?.showModal();
     cancelRef.current?.focus();
   }

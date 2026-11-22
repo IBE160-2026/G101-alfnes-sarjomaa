@@ -48,14 +48,19 @@ Write and edit Questions.
 - `tests/integration/game-state.test.ts`: in each of the six non-_draft_ states, `save` (new and existing id), `move` and `remove` are `WRONG_STATE` and the Question rows are unchanged (Story 2.1, AC2).
 - `tests/integration/authz.test.ts`: Host B's save, move and remove on A's Game, a random UUID and `"abc"` give one identical `NOT_FOUND`, leaving A's Questions and `updated_at`; A saving, moving or removing B's `questionId` inside A's own Game is `NOT_FOUND` and changes neither Game (Story 2.1, AD-5).
 - `tests/e2e/questions.spec.ts`: a new Game shows the full empty-state sentence, "Legg til spørsmål" and "0 av 20 spørsmål"; the click focuses "Spørsmål 1", typing and Tab show "Lagret" in `success`, and a reload keeps the text without the sentence; the counter is absent at 159 characters and reads "160 av 200 tegn" at 160; 201 characters show "Spørsmålet må ha 1–200 tegn." with `aria-invalid`; with three Questions, "Flytt ned" and "Flytt opp" reorder (checked after reload) with focus on the moved Question's button, or its other move button at the top; the first row has no "Flytt opp" and the last no "Flytt ned"; "Slett" removes (checked after reload) and focuses the textarea now at that index; an empty draft blurred is not saved; an aborted save POST shows "Fikk ikke lagret. Prøv igjen." and keeps the text; with the first save POST held, a second edit and Tab sends nothing until it settles, then the newer text is saved (checked after reload); after the Game is deleted from a second tab, a save refreshes the page to "Vi finner ikke dette spillet."; at 20 Questions "Legg til spørsmål" is gone and "Du har nådd maks 20 spørsmål." shows (Story 2.1, AC3).
-- Pending: Story 2.2.
+- `tests/integration/invite-links.test.ts`: the _collecting_ Game page rendered with `renderToStaticMarkup` lists the Question texts under "Spørsmål (låst)" and has no `textarea`, "Flytt opp", "Flytt ned" or "Legg til spørsmål" (Story 2.2, AC5).
+- `tests/e2e/invite-links.spec.ts`: after opening Collection the page shows "Spørsmål (låst)" with the Question and no textarea or buttons; a Question edited and blurred in tab A after tab B opened Collection refreshes tab A to "Samler inn" with the locked list holding the old text (Story 2.2, AC5; the Story 2.1 `WRONG_STATE` deferral).
 
 ## FR-5
 
 Create Invite links.
 
-- None yet.
-- Pending: Story 2.2.
+- `tests/unit/token.test.ts`: a Token matches `^[A-Za-z0-9_-]{43}$` and decodes to 32 bytes; 10 000 Tokens have no duplicate; `sha256("abc")` is the known hex vector (Story 2.2, AC1).
+- `tests/unit/errors.test.ts`: `QUESTIONS_REQUIRED` "Skriv minst ett spørsmål først." and `LINK_CAP_REACHED` "Spillet har nådd maks 50 lenker." (Story 2.2, AC2, AC3).
+- `tests/integration/invite-links.test.ts`, through the `createInviteLinks` action: the first batch of 3 in _draft_ returns 3 links `http://localhost:3000/svar/<gameId>#<43 chars>`, stores 3 rows whose `token_hash` is `sha256` of each returned Token, moves the Game to _collecting_, sets `invite_links_issued` to 3 and moves `updated_at` forward; `invite_link` has only `token_hash` and `game_id`; 2 more in _collecting_ give issued 5 without a transition; zero Questions is `QUESTIONS_REQUIRED` and nothing changes; at 48 issued, 3 more is `LINK_CAP_REACHED` with nothing created, 2 reach 50, then 1 more is `LINK_CAP_REACHED`; with 50 issued and every row deleted it is still `LINK_CAP_REACHED` (revoked links stay counted); count 0, 51, 1.5, `"3"` and missing are `INVALID_INPUT` with "Skriv et tall fra 1 til 50." and write nothing; a trigger that refuses the state update rolls back rows, issued, state and `updated_at` and returns `INTERNAL`; logged out it redirects to `/logg-inn` and writes nothing (Story 2.2, AC2, AC3).
+- `tests/integration/game-state.test.ts`: `createInviteLinks` is `WRONG_STATE` in each state after _collecting_, leaving state, issued, `updated_at` and rows unchanged (Story 2.2, AD-4).
+- `tests/integration/authz.test.ts`: Host B's `createInviteLinks` on A's Game, a random UUID and `"abc"` give one identical `NOT_FOUND`, leaving A's state, issued count, rows and `updated_at` (Story 2.2, AD-5).
+- `tests/e2e/invite-links.spec.ts`: with zero Questions "Lag lenker" is `aria-disabled` with "Skriv minst ett spørsmål først." as its description and a click opens nothing; with one Question and count 3 the dialog "Åpne innsamlingen?" carries the exact body, focuses "Avbryt", and Esc keeps "Utkast"; confirming focuses "Kopier lenkene nå", shows the notice and 3 links of the right shape next to the "Samler inn" badge and the heading "Flere lenker"; "Kopier" on link 2 reads "Kopiert" with "Lenke kopiert." and the link in the clipboard, and "Kopier" again after 2 s; "Kopier alle" puts the links joined by newlines in the clipboard; closing the page before "Jeg har kopiert lenkene" raises a `beforeunload` dialog; after it, focus returns to "Antall lenker", and a reload shows no link, Token or `/svar/` and "3 av maks 50 lenker brukt."; 2 more in _collecting_ need no dialog and give "5 av maks 50 lenker brukt."; count 0 is a field error with `aria-invalid`, focus on the field and no POST; 50 in one batch end at "Spillet har nådd maks 50 lenker." with no field and focus on that sentence; with `navigator.clipboard` undefined "Kopier" shows "Marker og kopier lenken selv." and selects exactly the link, and "Kopier alle" shows the same and selects every link without any "Kopier" button text; with 3 issued, 48 is a field error "Skriv et tall fra 1 til 47." with `aria-invalid`, focus on the field and no POST; when a second tab has meanwhile created 45 more, the stale tab asking for 5 gets the focused alert "Spillet har nådd maks 50 lenker." and refreshes to "48 av maks 50 lenker brukt."; an aborted create POST shows the focused network message in the dialog and no links (Story 2.2, AC4).
 
 ## FR-6
 
@@ -105,8 +110,9 @@ No identity in the answering flow.
 
 Nothing linkable in the Host's view.
 
-- None yet.
-- Pending: Stories 2.2, 2.5, 2.6, 3.3, 4.3, 5.1.
+- `tests/integration/invite-links.test.ts`: after creating links, no column of any public table (a `row_to_json` scan of every row) contains a returned Token, `invite_link` holds only `token_hash` and `game_id`, and the _collecting_ Game page contains no Token and no `/svar/` (Story 2.2, AC5).
+- `tests/e2e/invite-links.spec.ts`: after "Jeg har kopiert lenkene" and a reload the page holds no link, Token or `/svar/` (Story 2.2, AC4, AC5).
+- Pending: Stories 2.5, 2.6, 3.3, 4.3, 5.1.
 
 ## FR-13
 
@@ -262,6 +268,7 @@ Accessibility (WCAG 2.1 AA).
 - `tests/e2e/games.spec.ts`: axe finds no serious or critical violations on `/spill` empty, with Games and with a field error, on the Game page and on the Game not-found page; Tab reaches every interactive element on `/spill` with Games and on the Game page, each shows the focus ring, and every control in the header and main is at least 44 px high; "Navn på spillet" carries `aria-required="true"`; an invalid title sets `aria-invalid="true"` with the error as accessible description (Story 1.4).
 - `tests/e2e/delete.spec.ts`: axe finds no serious or critical violations with the delete dialog open and on `/spill` with the success notice; reached by keyboard, "Slett spillet", "Avbryt" and "Slett for godt" each show the focus ring and are at least 44 px high (Story 1.5).
 - `tests/e2e/questions.spec.ts`: three Questions are added with Enter on "Legg til spørsmål", typing and Tab, and one is moved with Space on "Flytt ned", focus following it; on the _draft_ Game page Tab then reaches every interactive element in DOM (reading) order, each shows the focus ring, every editor button is at least 44 px high and each textarea has a visible label "Spørsmål N"; axe finds no serious or critical violations with Questions present and with a field error shown (Story 2.1, AC4).
+- `tests/e2e/invite-links.spec.ts`: axe finds no serious or critical violations on the _draft_ Invite link panel, with the "Åpne innsamlingen?" dialog open, with the OnceLinkList shown and on the _collecting_ page; from the focused "Kopier lenkene nå", Tab reaches "Kopier alle", each "Kopier" and "Jeg har kopiert lenkene" in order, each with the focus ring and at least 44 px high (Story 2.2, NFR-6).
 - Pending: every story that builds a screen.
 
 ## NFR-7

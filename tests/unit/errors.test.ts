@@ -10,6 +10,11 @@ describe("errors", () => {
     );
   });
 
+  it("FR-5: QUESTIONS_REQUIRED and LINK_CAP_REACHED have their exact bokmål messages", () => {
+    expect(MESSAGES.QUESTIONS_REQUIRED).toBe("Skriv minst ett spørsmål først.");
+    expect(MESSAGES.LINK_CAP_REACHED).toBe("Spillet har nådd maks 50 lenker.");
+  });
+
   it("AD-17: toFailure gives the action result shape for a DomainError", () => {
     expect(
       toFailure(

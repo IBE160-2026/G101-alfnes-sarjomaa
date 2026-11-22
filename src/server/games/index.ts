@@ -1,9 +1,10 @@
 import "server-only";
-import { and, desc, eq, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { DomainError, validate } from "@/lib/errors";
 import { createGameSchema } from "@/lib/game";
 import { canTransition, PERMITTED, type GameState } from "@/lib/game-state";
 import {
+  INVITE_LINKS_MAX,
   PURGE_INTERVAL_MS,
   RETENTION_IDLE_MS,
   RETENTION_PLAYED_MS,
@@ -62,12 +63,15 @@ export function listOwned(hostId: string): Promise<GameSummary[]> {
 }
 
 // Missing and foreign Games are the same NOT_FOUND (AD-5).
-export function getOwned(hostId: string, gameId: string): Promise<GameSummary> {
+export function getOwned(
+  hostId: string,
+  gameId: string,
+): Promise<GameSummary & { inviteLinksIssued: number }> {
   return withBoundary("games", "getOwned", async () => {
     assertGameId(gameId);
     const db = await getDb();
     const [row] = await db
-      .select(summary)
+      .select({ ...summary, inviteLinksIssued: game.inviteLinksIssued })
       .from(game)
       .where(and(eq(game.id, gameId), eq(game.hostId, hostId)));
     if (!row) throw new DomainError("NOT_FOUND");
@@ -126,6 +130,27 @@ export async function transition(
     .where(and(eq(game.id, gameId), eq(game.state, from)))
     .returning({ id: game.id });
   if (!row) throw new DomainError("WRONG_STATE");
+}
+
+// The one cap check (AD-8): every link creation reserves here, under the caller's lock.
+// Returns the new issued count; revoked links stay counted, since nothing decrements it.
+export async function reserveInviteLinks(
+  tx: Tx,
+  gameId: string,
+  count: number,
+): Promise<number> {
+  const [row] = await tx
+    .update(game)
+    .set({ inviteLinksIssued: sql`${game.inviteLinksIssued} + ${count}` })
+    .where(
+      and(
+        eq(game.id, gameId),
+        sql`${game.inviteLinksIssued} + ${count} <= ${INVITE_LINKS_MAX}`,
+      ),
+    )
+    .returning({ issued: game.inviteLinksIssued });
+  if (!row) throw new DomainError("LINK_CAP_REACHED");
+  return row.issued;
 }
 
 // Any state (AD-4). Children cascade from game, so one DELETE removes every row of it.

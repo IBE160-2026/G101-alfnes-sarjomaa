@@ -46,6 +46,8 @@ export const game = pgTable("game", {
   createdAt: timestamp("created_at", utc).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", utc).notNull().defaultNow(),
   playedAt: timestamp("played_at", utc),
+  // Every Invite link ever created, revoked ones included (the cap counts these).
+  inviteLinksIssued: integer("invite_links_issued").notNull().default(0),
 });
 
 export const question = pgTable(
@@ -60,3 +62,11 @@ export const question = pgTable(
   },
   (t) => [uniqueIndex("question_game_position_key").on(t.gameId, t.position)],
 );
+
+// Only the hash: no ordinal, label or timestamp, so no link is told apart (FR-12).
+export const inviteLink = pgTable("invite_link", {
+  tokenHash: text("token_hash").primaryKey(),
+  gameId: uuid("game_id")
+    .notNull()
+    .references(() => game.id, { onDelete: "cascade" }),
+});

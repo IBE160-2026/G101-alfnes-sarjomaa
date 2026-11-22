@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, count as countRows, eq, sql } from "drizzle-orm";
 import { DomainError, validate } from "@/lib/errors";
 import { PERMITTED } from "@/lib/game-state";
 import { QUESTIONS_MAX } from "@/lib/limits";
@@ -45,6 +45,15 @@ async function writeOrder(tx: Tx, gameId: string, ids: string[]) {
       .update(question)
       .set({ position: i + 1 })
       .where(and(eq(question.id, id), eq(question.gameId, gameId)));
+}
+
+// For collection: the caller already holds the Game's lock.
+export async function count(tx: Tx, gameId: string): Promise<number> {
+  const [row] = await tx
+    .select({ n: countRows() })
+    .from(question)
+    .where(eq(question.gameId, gameId));
+  return row.n;
 }
 
 export function list(hostId: string, gameId: string): Promise<Question[]> {

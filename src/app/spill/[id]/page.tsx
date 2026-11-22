@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, type ReactNode } from "react";
 import { DeleteGame } from "@/components/DeleteGame";
+import { InviteLinkPanel } from "@/components/InviteLinkPanel";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
@@ -43,24 +44,52 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
     throw error;
   }
 
-  // One route; later stories add their state's panel as a case here.
-  let panel = null;
-  switch (game.state) {
-    case "draft": {
-      const { hostId } = await auth.requireHost();
-      panel = (
-        <section aria-labelledby="sporsmal" className="mt-10">
-          <h2 id="sporsmal" className="text-heading">
-            Spørsmål
-          </h2>
-          <QuestionEditor
-            gameId={game.id}
-            questions={await questions.list(hostId, game.id)}
-          />
-        </section>
-      );
-      break;
-    }
+  // One route; later stories add their state's panel here. Sections are keyed so the
+  // Invite link panel (key "links") keeps its client state, the only copy of the new
+  // links, when the first batch refreshes the page from draft to collecting.
+  let panel: ReactNode[] = [];
+  if (game.state === "draft" || game.state === "collecting") {
+    const { hostId } = await auth.requireHost();
+    const list = await questions.list(hostId, game.id);
+    const draft = game.state === "draft";
+    const links = (
+      <section key="links" aria-labelledby="lenker" className="mt-10">
+        <h2 id="lenker" className="text-heading">
+          {draft ? "Lag invitasjonslenker" : "Flere lenker"}
+        </h2>
+        <InviteLinkPanel
+          gameId={game.id}
+          state={game.state}
+          issued={game.inviteLinksIssued}
+          questionCount={list.length}
+        />
+      </section>
+    );
+    panel = draft
+      ? [
+          <section key="questions" aria-labelledby="sporsmal" className="mt-10">
+            <h2 id="sporsmal" className="text-heading">
+              Spørsmål
+            </h2>
+            <QuestionEditor gameId={game.id} questions={list} />
+          </section>,
+          links,
+        ]
+      : [
+          links,
+          <section key="locked" aria-labelledby="sporsmal" className="mt-10">
+            <h2 id="sporsmal" className="text-heading">
+              Spørsmål (låst)
+            </h2>
+            <ol className="mt-4 flex list-decimal flex-col gap-2 pl-6">
+              {list.map((q) => (
+                <li key={q.id} className="break-words">
+                  {q.text}
+                </li>
+              ))}
+            </ol>
+          </section>,
+        ];
   }
 
   return (

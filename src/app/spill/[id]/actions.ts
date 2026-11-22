@@ -9,6 +9,7 @@ import {
 } from "@/app/spill/deleted-notice";
 import { toFailure, type ActionResult, type Failure } from "@/lib/errors";
 import * as auth from "@/server/auth";
+import * as collection from "@/server/collection";
 import * as games from "@/server/games";
 import * as questions from "@/server/questions";
 
@@ -63,4 +64,19 @@ export async function removeQuestion(
   input: unknown,
 ): Promise<ActionResult<null>> {
   return questionAction(questions.remove, input);
+}
+
+export async function createInviteLinks(
+  input: unknown,
+): Promise<ActionResult<{ links: string[] }>> {
+  try {
+    const { hostId } = await auth.requireHost();
+    const data = await collection.createInviteLinks(hostId, input);
+    // createInviteLinks validated the input, so gameId is a string here.
+    revalidatePath(`/spill/${(input as { gameId: string }).gameId}`);
+    return { ok: true, data };
+  } catch (error) {
+    unstable_rethrow(error); // the login redirect from requireHost
+    return toFailure(error);
+  }
 }

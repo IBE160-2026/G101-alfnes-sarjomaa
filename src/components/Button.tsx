@@ -59,7 +59,7 @@ export function Button({
       {...rest}
       aria-busy={pending || undefined}
       onClick={handleClick}
-      className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-md px-4 ${VARIANTS[variant]} ${className}`}
+      className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-md px-4 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 ${VARIANTS[variant]} ${className}`}
     >
       {/* Both labels share one grid cell, so the button keeps the wider one's width. */}
       <span className="grid">

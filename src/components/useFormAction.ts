@@ -4,7 +4,7 @@ import type { Failure } from "@/lib/errors";
 
 type State = Pick<Failure, "message" | "fieldErrors"> | null;
 
-const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
+export const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
 
 // Runs a form's Server Action. Success redirects, which rejects here with Next's
 // redirect error and must propagate; any other rejection means the request never
