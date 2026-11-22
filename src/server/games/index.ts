@@ -3,6 +3,11 @@ import { and, desc, eq, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { DomainError, validate } from "@/lib/errors";
 import { createGameSchema } from "@/lib/game";
 import { canTransition, PERMITTED, type GameState } from "@/lib/game-state";
+import {
+  PURGE_INTERVAL_MS,
+  RETENTION_IDLE_MS,
+  RETENTION_PLAYED_MS,
+} from "@/lib/limits";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Tx } from "@/server/db/client";
 import { game } from "@/server/db/schema";
@@ -69,8 +74,10 @@ export function getOwned(hostId: string, gameId: string): Promise<GameSummary> {
   });
 }
 
-// The only way a mutation reaches a Game row. Host calls pass hostId: they are
-// constrained to the owner and count as a Host change (updated_at, for the purge).
+// The only way a Host or Player mutation locks a Game row. create, transition (called
+// after this in the same transaction) and the bulk purgeExpired write without it.
+// Host calls pass hostId: they are constrained to the owner and count as a Host change
+// (updated_at, for the purge).
 export async function lockForMutation(
   tx: Tx,
   {
@@ -133,8 +140,6 @@ export function deleteOwned(
   });
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 // FR-3 retention: 30 days after played, 90 days after the last Host change otherwise.
 // shortcut: one unbatched DELETE with no index on played_at/updated_at, fine at pilot scale; batch it and add an index if Games reach tens of thousands.
 export function purgeExpired(): Promise<{ deleted: number }> {
@@ -147,11 +152,11 @@ export function purgeExpired(): Promise<{ deleted: number }> {
         or(
           and(
             isNotNull(game.playedAt),
-            lte(game.playedAt, new Date(now - 30 * DAY_MS)),
+            lte(game.playedAt, new Date(now - RETENTION_PLAYED_MS)),
           ),
           and(
             isNull(game.playedAt),
-            lte(game.updatedAt, new Date(now - 90 * DAY_MS)),
+            lte(game.updatedAt, new Date(now - RETENTION_IDLE_MS)),
           ),
         ),
       )
@@ -160,7 +165,6 @@ export function purgeExpired(): Promise<{ deleted: number }> {
   });
 }
 
-const HOUR_MS = 60 * 60 * 1000;
 const marker = globalThis as typeof globalThis & { __lastPurgeAt?: number };
 
 // At most hourly per process, from Host requests (AD-23). Never rejects.
@@ -168,7 +172,7 @@ export async function purgeIfDue(): Promise<void> {
   const now = Date.now();
   if (
     marker.__lastPurgeAt !== undefined &&
-    now - marker.__lastPurgeAt < HOUR_MS
+    now - marker.__lastPurgeAt < PURGE_INTERVAL_MS
   )
     return;
   marker.__lastPurgeAt = now; // before the await, so concurrent requests do not both run

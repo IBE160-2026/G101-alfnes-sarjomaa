@@ -203,6 +203,26 @@ describe("logIn", () => {
     });
   });
 
+  it("FR-1: the doubling lock stops at 24 hours", async () => {
+    const email = newEmail();
+    await run(register, { email, password: PASSWORD });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = new Date("2026-12-01T12:00:00Z").getTime();
+    vi.setSystemTime(t0);
+    // Uncapped, the 16th failure would lock for 2^11 minutes, about 34 hours.
+    await (
+      await getDb()
+    )
+      .update(host)
+      .set({ failedLogins: 15 })
+      .where(eq(sql`lower(${host.email})`, email));
+    await run(logIn, { email, password: "feil-passord-123" });
+    expect(await hostRow(email)).toMatchObject({
+      failedLogins: 16,
+      lockedUntil: new Date(t0 + DAY),
+    });
+  });
+
   it("FR-1: a wrong password while locked changes neither the count nor the lock", async () => {
     const email = newEmail();
     await run(register, { email, password: PASSWORD });
@@ -241,6 +261,30 @@ describe("logIn", () => {
 
     expect(await login).toMatchObject({ code: "INVALID_CREDENTIALS" });
     expect((await sessionRows()).filter((r) => r.hostId === id)).toEqual([]);
+  });
+
+  it("FR-1: a lock set while a wrong-password login waits for scrypt is neither counted on nor changed", async () => {
+    const email = newEmail();
+    await run(register, { email, password: PASSWORD });
+    const { id } = await hostRow(email);
+
+    const busy = [hashPassword("opptatt-1-xyz"), hashPassword("opptatt-2-xyz")];
+    const login = run(logIn, { email, password: "feil-passord-123" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const lockedUntil = new Date(Date.now() + 60 * 60_000);
+    await (
+      await getDb()
+    )
+      .update(host)
+      .set({ failedLogins: 5, lockedUntil })
+      .where(eq(host.id, id));
+    await Promise.all(busy);
+
+    expect(await login).toMatchObject({ code: "INVALID_CREDENTIALS" });
+    expect(await hostRow(email)).toMatchObject({
+      failedLogins: 5,
+      lockedUntil,
+    });
   });
 });
 

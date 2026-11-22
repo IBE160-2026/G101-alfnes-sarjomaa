@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { deleteGame } from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
 import { createGame } from "@/app/spill/actions";
 import GamesPage from "@/app/spill/page";
@@ -163,6 +164,17 @@ describe("Host B against Host A's Game", () => {
       ).toBeInstanceOf(NotFoundError);
   });
 
+  it("FR-1, AD-5: deleteGame from B gives one identical NOT_FOUND for all three and leaves A's Game", async () => {
+    as("B");
+    for (const gameId of ids())
+      expect(await run(deleteGame, { gameId }), gameId).toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    expect((await gameRow(gameOfA)).updatedAt).toEqual(T0);
+  });
+
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {
     expect((await games.listOwned(hosts.B)).map((g) => g.id)).not.toContain(
       gameOfA,
@@ -220,5 +232,21 @@ describe("with the game table dropped", () => {
       code: "INTERNAL",
       sqlstate: "42P01",
     });
+  });
+
+  it("FR-1, UX-DR23: the Game page turns a DB failure into INTERNAL (the 500 page), not the not-found page", async () => {
+    as("A");
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const error = await rejection(
+      GamePage({
+        params: Promise.resolve({ id: gameOfA }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    write.mockRestore();
+    expect(error).toBeInstanceOf(DomainError);
+    expect((error as DomainError).code).toBe("INTERNAL");
   });
 });

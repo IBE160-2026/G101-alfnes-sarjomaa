@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,20 +49,36 @@ async function gameRow(id: string) {
   return row;
 }
 
-type ForeignKey = { tbl: string; col: string; confdeltype: string };
+type ForeignKey = {
+  tbl: string;
+  col: string;
+  ref: string;
+  confdeltype: string;
+};
 
-// Every foreign key pointing at `referenced`, read from the catalog, so tables
-// added by later stories are covered without touching this test.
-async function foreignKeysTo(referenced: string): Promise<ForeignKey[]> {
+// Every foreign key under `root`: those pointing at it and, recursively, at the tables
+// that do. Read from the catalog, so tables added by later stories are covered
+// without touching this test. UNION drops repeats, so a cycle still ends.
+async function foreignKeysUnder(root: string): Promise<ForeignKey[]> {
+  const edge = sql`
+    select c.conrelid as relid, c.conrelid::regclass::text as tbl, a.attname::text as col,
+      c.confrelid::regclass::text as ref, c.confdeltype::text as confdeltype
+    from pg_constraint c
+    join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]`;
   const result = await (
     await getDb()
   ).execute(sql`
-    select c.conrelid::regclass::text as tbl, a.attname as col, c.confdeltype::text as confdeltype
-    from pg_constraint c
-    join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
-    where c.contype = 'f' and c.confrelid = ${referenced}::regclass`);
+    with recursive fk as (
+      ${edge} where c.contype = 'f' and c.confrelid = ${root}::regclass
+      union
+      ${edge} join fk on c.confrelid = fk.relid where c.contype = 'f'
+    )
+    select tbl, col, ref, confdeltype from fk`);
   return (result as unknown as { rows: ForeignKey[] }).rows;
 }
+
+const direct = async (root: string) =>
+  (await foreignKeysUnder(root)).filter((fk) => fk.ref === root);
 
 beforeAll(async () => {
   for (const who of ["A", "B"] as const) {
@@ -102,7 +117,7 @@ describe("deleteGame", () => {
       );
       expect(await gameRow(id)).toBeUndefined();
       const db = await getDb();
-      for (const { tbl, col } of await foreignKeysTo("game")) {
+      for (const { tbl, col } of await direct("game")) {
         const result = await db.execute(
           sql`select count(*)::int as n from ${sql.identifier(tbl)} where ${sql.identifier(col)} = ${id}`,
         );
@@ -114,18 +129,6 @@ describe("deleteGame", () => {
     },
   );
 
-  it("FR-1, AD-5: B deleting A's Game, a random UUID and a malformed ID gets one identical NOT_FOUND, and A's Game is untouched", async () => {
-    const gameOfA = await insertGame("draft", "As spill");
-    as("B");
-    for (const gameId of [gameOfA, randomUUID(), "abc"])
-      expect(await run(deleteGame, { gameId }), gameId).toEqual({
-        ok: false,
-        code: "NOT_FOUND",
-        message: "Vi finner ikke dette spillet.",
-      });
-    expect((await gameRow(gameOfA)).updatedAt).toEqual(T0);
-  });
-
   it("FR-1, AD-5: logged out it redirects to /logg-inn and deletes nothing", async () => {
     const id = await insertGame("draft", "Uten konto");
     expect(await run(deleteGame, { gameId: id })).toEqual({
@@ -136,15 +139,35 @@ describe("deleteGame", () => {
 });
 
 describe("cascade", () => {
-  it("FR-3, AD-4: every foreign key to game is ON DELETE CASCADE", async () => {
-    for (const fk of await foreignKeysTo("game"))
+  it("FR-3, AD-4: every foreign key under game, direct or through another table, is ON DELETE CASCADE", async () => {
+    for (const fk of await foreignKeysUnder("game"))
       expect(fk.confdeltype, `${fk.tbl}.${fk.col}`).toBe("c");
   });
 
   it("FR-3: the same catalog query finds session and game referencing host, both cascading", async () => {
-    const fks = await foreignKeysTo("host");
+    const fks = await direct("host");
     expect(fks.map((fk) => fk.tbl).sort()).toEqual(["game", "session"]);
     for (const fk of fks) expect(fk.confdeltype, fk.tbl).toBe("c");
+  });
+
+  it("FR-3: the query reaches a table that references game only through another table", async () => {
+    const db = await getDb();
+    await db.execute(
+      sql`create table fk_child (id uuid primary key, game_id uuid references game on delete cascade)`,
+    );
+    await db.execute(
+      sql`create table fk_grandchild (child_id uuid references fk_child)`,
+    );
+    try {
+      expect(await foreignKeysUnder("game")).toContainEqual({
+        tbl: "fk_grandchild",
+        col: "child_id",
+        ref: "fk_child",
+        confdeltype: "a",
+      });
+    } finally {
+      await db.execute(sql`drop table fk_grandchild, fk_child`);
+    }
   });
 });
 

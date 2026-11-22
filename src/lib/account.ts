@@ -14,7 +14,8 @@ export const registrationSchema = z.object({
     .string()
     .min(PASSWORD_MIN, "Passordet må ha minst 10 tegn.")
     .max(PASSWORD_MAX, "Passordet kan ha maks 256 tegn."),
-  registrationCode: z.string(),
+  // Trimmed: a mobile keyboard or a paste often adds a trailing space.
+  registrationCode: z.string().trim(),
 });
 
 // No length limit here: an over-long login password is refused as INVALID_CREDENTIALS.

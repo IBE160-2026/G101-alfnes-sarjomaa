@@ -61,12 +61,12 @@ describe("with REGISTRATION_CODE set", () => {
     },
   );
 
-  it("FR-1: the right code registers and the cookie is Secure on https", async () => {
+  it("FR-1: the right code, even with spaces around it, registers and the cookie is Secure on https", async () => {
     expect(
       await run(register, {
         email: "kode@example.test",
         password: PASSWORD,
-        registrationCode: "x",
+        registrationCode: " x ",
       }),
     ).toEqual({ redirect: "/spill" });
     expect(cookieJar.set).toHaveBeenCalledWith(

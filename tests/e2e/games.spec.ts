@@ -95,6 +95,9 @@ test("FR-2, NFR-6: an empty or 81-character title is refused on the field, and t
   await expect(live).toHaveText("");
   await field.fill("a".repeat(80));
   await expect(live).toHaveText("80 av 80 tegn");
+  // Counted trimmed, as the server does.
+  await field.fill(` ${"a".repeat(80)} `);
+  await expect(live).toHaveText("80 av 80 tegn");
   await field.fill("a".repeat(81));
   await expect(page.getByText("81 av 80 tegn", { exact: true })).toHaveCount(2);
   await expect(live).toHaveText("81 av 80 tegn");
