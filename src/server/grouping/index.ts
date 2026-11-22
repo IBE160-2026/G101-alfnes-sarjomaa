@@ -25,7 +25,6 @@ import * as games from "@/server/games";
 import {
   getJudge,
   JudgeError,
-  type FallbackReason,
   type Judge,
   type PartitionResult,
 } from "@/server/judge";
@@ -46,15 +45,17 @@ const isGone = (error: unknown) =>
   (error.code === "NOT_FOUND" || error.code === "WRONG_STATE");
 
 // The runner's own timer, so the 30 s bound holds even for a provider that ignores the signal.
+// It rejects one setImmediate after the abort, so a provider that honours the signal settles
+// first with its own call count.
 async function timedPartition(
   judge: Judge,
   input: { question: string; items: string[] },
-): Promise<PartitionResult | FallbackReason> {
+): Promise<PartitionResult | JudgeError> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), JUDGE_TIMEOUT_MS);
   const timedOut = new Promise<never>((_, reject) =>
     controller.signal.addEventListener("abort", () =>
-      reject(new JudgeError("TIMEOUT")),
+      setImmediate(() => reject(new JudgeError("TIMEOUT"))),
     ),
   );
   try {
@@ -63,7 +64,7 @@ async function timedPartition(
       timedOut,
     ]);
   } catch (error) {
-    return error instanceof JudgeError ? error.reason : "ERROR";
+    return error instanceof JudgeError ? error : new JudgeError("ERROR");
   } finally {
     clearTimeout(timer);
   }
@@ -83,13 +84,13 @@ async function groupQuestion(
   const items = rows.map((r) => r.text).sort();
   // Outside any transaction (AD-12).
   const outcome = await timedPartition(judge, { question: q.text, items });
-  const fellBack = typeof outcome === "string";
+  const fellBack = outcome instanceof JudgeError;
   const assignments = fellBack ? items.map((_, i) => i) : outcome.assignments;
   const members: string[][] = [];
   items.forEach((item, i) => (members[assignments[i]] ??= []).push(item));
   // replay numbers uncovered singletons last, so they are the last `uncovered` clusters.
   const firstFallback = fellBack ? 0 : members.length - outcome.uncovered;
-  const judgeCalls = fellBack ? 0 : outcome.calls;
+  const judgeCalls = outcome.calls;
 
   await db.transaction(async (tx) => {
     await games.lockForMutation(tx, {
@@ -124,14 +125,15 @@ async function groupQuestion(
         : outcome.source === "live"
           ? "judge"
           : "replay",
-      promptVersion: judge.info.promptVersion,
+      promptVersion: fellBack
+        ? judge.info.promptVersion
+        : outcome.promptVersion,
       normalizeVersion: NORMALIZE_VERSION,
-      modelId: judge.info.model,
-      // shortcut: a failed partition records 0 Judge calls, let JudgeError carry calls when Story 4.4's live provider can fail after spending some.
+      modelId: fellBack ? judge.info.model : outcome.model,
       judgeCalls,
       uncoveredItems: fellBack ? 0 : outcome.uncovered,
       fellBack,
-      fallbackReason: fellBack ? outcome : null,
+      fallbackReason: fellBack ? outcome.reason : null,
     });
     // In the same transaction as the result, so a rerun never counts a Question twice (AD-18).
     await games.bumpCounters(tx, gameId, {

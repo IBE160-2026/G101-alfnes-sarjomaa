@@ -2,6 +2,7 @@ import "server-only";
 import { env } from "@/server/env";
 import type { Judge } from "@/server/judge/core";
 import { createMockJudge } from "@/server/judge/providers/mock";
+import { createOpenRouterJudge } from "@/server/judge/providers/openrouter";
 import { createReplayJudge } from "@/server/judge/providers/replay";
 
 export { JudgeError } from "@/server/judge/core";
@@ -10,6 +11,11 @@ export type {
   Judge,
   PartitionResult,
 } from "@/server/judge/core";
+export {
+  assertRecordTarget,
+  record,
+  recordInputSchema,
+} from "@/server/judge/record";
 
 export function getJudge(): Judge {
   switch (env.JUDGE_PROVIDER) {
@@ -18,7 +24,11 @@ export function getJudge(): Judge {
     case "replay":
       return createReplayJudge();
     case "openrouter":
-      // shortcut: the key-derived default replays stored rulings, replace with the live provider in Story 4.4.
-      return createReplayJudge();
+      return createOpenRouterJudge();
   }
+}
+
+// For src/cli: always a live call, never a stored ruling.
+export function getLiveJudge(onUsage?: (usage: unknown) => void): Judge {
+  return createOpenRouterJudge({ dir: null, onUsage });
 }

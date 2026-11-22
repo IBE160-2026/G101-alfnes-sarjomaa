@@ -243,6 +243,10 @@ stateDiagram-v2
   - **Reads.** `grouping.summary(gameId)` gives the *in review* summary (Questions, Groups with `origin = judge`, fallen-back Questions), and `grouping.countsOf(questionId)` gives each Group's `count(distinct contributor_key)`.
   - **Foreign key.** `answer.group_id` references `answer_group` with `ON DELETE CASCADE`, like every other key under `game`.
   - **Deferred.** `edit_count` is not added here: Review (Epic 5) increments it, and Story 4.3 adds the column with the report that reads it. `bumpCounters` also arrives with 4.3. *Resolved in Story 4.3* (see AD-18).
+- *Amended in Story 4.4:*
+  - **Result columns.** `prompt_version` and `model_id` come from the result (`PartitionResult.model`, `.promptVersion`): mock and live report their `info`, replay the ruling that covers the first covered item. On fallback they come from `judge.info`.
+  - **Calls on fallback.** `JudgeError` carries `calls`, so a fallen-back Question records the requests its provider sent (`judge_calls`) and bumps the `judgeCalls` counter by the same figure; any other throw counts 0. The Story 4.2 `shortcut:` is gone.
+  - **Timer.** The runner's timeout rejects one `setImmediate` after its abort, so a provider that honours the signal settles first with `TIMEOUT` and its call count; a provider that ignores the signal still falls back with `TIMEOUT` and 0 calls.
 
 ### AD-13 — One Judge boundary, three providers
 
@@ -286,6 +290,11 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Imports.** "Or the SDK" becomes a ban on the endpoint: an ESLint rule rejects any string or template literal containing `openrouter.ai`, in any letter case, in `src/` outside `src/server/judge`. It catches literals only, not a host built from pieces at runtime.
   - Until Story 4.4, `JUDGE_PROVIDER=openrouter` (the key-derived default) selects replay.
 - *Amended in Story 4.2:* **mock** failure injection. A map value may also be a `FallbackReason`, thrown as `JudgeError(reason)`, or an `Error`, thrown as is. `"TIMEOUT"` first waits for the signal to abort, as the live provider will, so every fallback reason is testable offline.
+- *Amended in Story 4.4:*
+  - **Interface.** `JudgeError(reason, calls = 0)`, and `partition` also returns `model` and `promptVersion`, since replay mixes rulings from different models and prompt versions that a static `info` cannot name.
+  - **openrouter** is `src/server/judge/providers/openrouter.ts`. The request body is `{ model, messages, response_format: { type: "json_schema", json_schema: { name: "partition", strict: true, schema } }, temperature: 0, max_tokens: maxTokens(n), provider: { require_parameters: true, data_collection: "deny" } }` with only the `Authorization` and `Content-Type` headers. Retry once on invalid output, 429 or ≥ 500; other non-2xx and network errors are `ERROR`. `calls` counts every request sent, on success and on failure. No exact stored ruling and no key is `NO_KEY`. `info` is `{ provider: "openrouter", model: JUDGE_MODEL, promptVersion: PROMPT_VERSION }`, and `JUDGE_PROVIDER=openrouter` (including the key-derived default) now selects it.
+  - **Prompt.** `prompt.ts` holds the system prompt, `messages(input)`, `ASSIGNMENTS_SCHEMA` and `maxTokens(n)`. The user message is `JSON.stringify({ question, answers: items })`. This first prompt is version `"1"`.
+  - **CLI access.** `index.ts` exports `getLiveJudge(onUsage?)` (openrouter without stored rulings) and the recorder helpers from `record.ts`, so `src/cli` never imports a provider.
 
 ### AD-14 — Stored ruling format
 
@@ -295,6 +304,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Shape.** A ruling is `{ kind: "partition", promptVersion, normalizeVersion, model, question, items, assignments }`, where `items` are sorted distinct normalised texts.
   - **Fixtures.** Fixture files are JSON arrays: `data/rulings/demo.json` and `data/rulings/protoqa-dev.json`. They are written only by `npm run judge:record`, which needs a live key.
   - **In the DB.** A Game's stored ruling is its materialised Groups plus `grouping_result(question_id, source: judge | replay | fallback, prompt_version, normalize_version, model_id, judge_calls, uncovered_items, fell_back, fallback_reason)`.
+- *Amended in Story 4.4:* `npm run judge:record <input.json> <output.json>` reads a JSON array of `{ question, answers }`, makes one partition per entry (up to two requests with the retry) over its sorted distinct non-empty normalised answers, and writes the rulings with the result's `model` and `promptVersion`. It refuses before any call without `OPENROUTER_API_KEY` or for an output path outside `.data/` other than the two fixtures, and a `JudgeError` writes nothing. `npm run judge:smoke` makes one live call on a fixed synthetic Question and prints model, latency, calls, usage and the groups; without a key it prints `skipped: no OPENROUTER_API_KEY` and exits 0. Neither is part of the test scripts or CI.
 
 ### AD-15 — Review closes with a Board snapshot, and play reads only the snapshot
 
@@ -383,7 +393,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Reading.** The app reads only the variables below, through `src/server/env.ts` (zod-validated).
   - **Template.** `.env.example` lists every variable with a safe default or an empty value. A test checks that its keys equal those in `env.ts`.
   - **Git.** `.env*` files (except `.env.example`), `.data/`, `.next/` and `node_modules/` are gitignored.
-  - **CLI.** `src/cli` runs as `tsx --conditions=react-server --env-file-if-exists=.env.local`.
+  - **CLI.** `src/cli` runs as `tsx --conditions=react-server --env-file-if-exists=.env.local`. *Amended in Story 4.4:* the `judge:*` scripts also read `.env` first (`--env-file-if-exists=.env --env-file-if-exists=.env.local`), and `no-console` is off in `src/cli`.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

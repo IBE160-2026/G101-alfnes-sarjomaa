@@ -32,9 +32,9 @@ const rulingSchema = z
     "assignments must have one entry per item",
   );
 
-type Ruling = z.infer<typeof rulingSchema>;
+export type Ruling = z.infer<typeof rulingSchema>;
 
-async function loadRulings(dir: string): Promise<Ruling[]> {
+export async function loadRulings(dir: string): Promise<Ruling[]> {
   let names: string[];
   try {
     names = await readdir(dir);
@@ -79,22 +79,24 @@ export function createReplayJudge({
           normalize(r.question) === key,
       );
       // Cluster identity is (ruling, stored cluster): two rulings never merge clusters.
-      const clusterOf = new Map<string, string>();
+      const clusterOf = new Map<string, { key: string; ruling: Ruling }>();
       matching.forEach((ruling, r) => {
         const stored = canonicalise(ruling.assignments, ruling.items.length);
         ruling.items.forEach((item, i) => {
-          if (!clusterOf.has(item)) clusterOf.set(item, `${r}:${stored[i]}`);
+          if (!clusterOf.has(item))
+            clusterOf.set(item, { key: `${r}:${stored[i]}`, ruling });
         });
       });
-      const ids = new Map<string, number>();
-      const covered = items.map((item) => {
-        const cluster = clusterOf.get(item);
-        if (cluster === undefined) return undefined;
-        if (!ids.has(cluster)) ids.set(cluster, ids.size);
-        return ids.get(cluster);
-      });
-      if (ids.size === 0)
+      const clusters = items.map((item) => clusterOf.get(item));
+      const first = clusters.find((cluster) => cluster !== undefined)?.ruling;
+      if (first === undefined)
         throw new JudgeError(hasKey ? "NO_STORED_RULING" : "NO_KEY");
+      const ids = new Map<string, number>();
+      const covered = clusters.map((cluster) => {
+        if (cluster === undefined) return undefined;
+        if (!ids.has(cluster.key)) ids.set(cluster.key, ids.size);
+        return ids.get(cluster.key);
+      });
       // Uncovered items are singletons numbered after every covered cluster.
       let next = ids.size;
       return {
@@ -102,6 +104,9 @@ export function createReplayJudge({
         calls: 0,
         uncovered: next - ids.size,
         source: "stored",
+        // shortcut: the first covered item's ruling names the result, though others may cover the rest; record one model per Question if mixed fixtures ever matter.
+        model: first.model,
+        promptVersion: first.promptVersion,
       };
     },
   };

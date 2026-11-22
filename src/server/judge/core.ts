@@ -7,8 +7,12 @@ export type FallbackReason =
   | "REFUSAL"
   | "INVALID_OUTPUT";
 
+// `calls` counts the requests a provider sent before failing, so a failed Question still reports its cost.
 export class JudgeError extends Error {
-  constructor(readonly reason: FallbackReason) {
+  constructor(
+    readonly reason: FallbackReason,
+    readonly calls = 0,
+  ) {
     super(reason);
     this.name = "JudgeError";
   }
@@ -19,6 +23,9 @@ export type PartitionResult = {
   calls: number;
   uncovered: number;
   source: "live" | "stored";
+  // What produced this result: replay mixes rulings from different models and prompt versions.
+  model: string;
+  promptVersion: string;
 };
 
 export interface Judge {

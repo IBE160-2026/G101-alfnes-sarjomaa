@@ -37,6 +37,7 @@ import {
   createMockJudge,
   type MockRuling,
 } from "@/server/judge/providers/mock";
+import { createOpenRouterJudge } from "@/server/judge/providers/openrouter";
 import { createReplayJudge } from "@/server/judge/providers/replay";
 import { cookieJar, runAfterTasks } from "./next-mocks";
 
@@ -91,6 +92,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 afterAll(() => {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
@@ -264,12 +266,12 @@ const judged = (calls = 1) => ({
   fallbackReason: null,
 });
 
-const fellBack = (reason: string, modelId = "mock") => ({
+const fellBack = (reason: string, modelId = "mock", judgeCalls = 0) => ({
   source: "fallback",
   promptVersion: PROMPT_VERSION,
   normalizeVersion: NORMALIZE_VERSION,
   modelId,
-  judgeCalls: 0,
+  judgeCalls,
   uncoveredItems: 0,
   fellBack: true,
   fallbackReason: reason,
@@ -449,6 +451,55 @@ describe("run", () => {
     expect(await resultOf(ids[0])).toMatchObject(judged());
   });
 
+  it("FR-17, AD-12 (4.4): a live Judge failing with HTTP 500 twice falls back with ERROR, judge_calls 2, and adds 2 to the judgeCalls counter", async () => {
+    const { gameId, ids } = await groupingGame([THREE[0]]);
+    const fetch = vi.fn(async () => new Response("{}", { status: 500 }));
+    vi.stubGlobal("fetch", fetch);
+    install(
+      createOpenRouterJudge({ apiKey: "k", model: "test/model", dir: null }),
+    );
+    await grouping.run(gameId);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(await resultOf(ids[0])).toMatchObject(
+      fellBack("ERROR", "test/model", 2),
+    );
+    expect(await games.counters(gameId)).toMatchObject({
+      judgeCalls: 2,
+      questionsFellBack: 1,
+    });
+  });
+
+  it("FR-17, AD-12 (4.4): a live call hanging until the runner's 30 s abort falls back with TIMEOUT and judge_calls 1", async () => {
+    const { gameId, ids } = await groupingGame([THREE[0]]);
+    let started!: () => void;
+    const hanging = new Promise<void>((resolve) => (started = resolve));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise<never>((_, reject) => {
+            started();
+            init.signal!.addEventListener("abort", () =>
+              reject(new DOMException("aborted", "AbortError")),
+            );
+          }),
+      ),
+    );
+    install(
+      createOpenRouterJudge({ apiKey: "k", model: "test/model", dir: null }),
+    );
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const running = grouping.run(gameId);
+    await hanging;
+    vi.advanceTimersByTime(30_000);
+    vi.useRealTimers();
+    await running;
+    expect(await resultOf(ids[0])).toMatchObject(
+      fellBack("TIMEOUT", "test/model", 1),
+    );
+    expect(await games.counters(gameId)).toMatchObject({ judgeCalls: 1 });
+  });
+
   it("FR-17 (AC3): a mock map of the wrong length falls back with INVALID_OUTPUT", async () => {
     const { gameId, ids } = await groupingGame(THREE);
     mock({ [Q1]: [0, 1] });
@@ -485,7 +536,7 @@ describe("run", () => {
       );
   });
 
-  it("FR-15, FR-17 (AC3): a partial replay hit is source replay with the uncovered count; uncovered Groups are origin fallback, also one that sorts before every covered item, and covered ones judge", async () => {
+  it("FR-15, FR-17 (AC3, 4.4 AC4): a partial replay hit is source replay with the uncovered count and the ruling's own model and prompt version; uncovered Groups are origin fallback, also one that sorts before every covered item, and covered ones judge", async () => {
     const { gameId, ids } = await groupingGame([
       [
         "Nevn en frukt",
@@ -498,7 +549,7 @@ describe("run", () => {
       JSON.stringify([
         {
           kind: "partition",
-          promptVersion: "1",
+          promptVersion: "0",
           normalizeVersion: NORMALIZE_VERSION,
           model: "fixture/model",
           question: "Nevn en frukt",
@@ -511,7 +562,8 @@ describe("run", () => {
     await grouping.run(gameId);
     expect(await resultOf(ids[0])).toMatchObject({
       source: "replay",
-      modelId: "replay",
+      promptVersion: "0",
+      modelId: "fixture/model",
       judgeCalls: 0,
       uncoveredItems: 2,
       fellBack: false,

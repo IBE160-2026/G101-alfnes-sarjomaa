@@ -60,6 +60,14 @@ npm run dev                 # http://localhost:3000, helsesjekk på /api/health
 
 Variablene står i [`.env.example`](.env.example). Kopier den til `.env.local` for å endre noe.
 
+Med `OPENROUTER_API_KEY` i `.env` eller `.env.local` grupperer dommeren svarene live. To skript bruker nøkkelen, og
+ingen av dem kjører i testene eller CI:
+
+```bash
+npm run judge:smoke         # ett live kall: modell, ventetid, tokenbruk og gruppene; uten nøkkel hopper det over
+npm run judge:record -- inn.json .data/rulings/ut.json   # tar opp nye kjennelser (AD-14), bare under .data/ eller data/rulings/demo.json og protoqa-dev.json
+```
+
 CI kjører de samme skriptene på Node 22 og 26, uten nøkkel:
 
 ```bash

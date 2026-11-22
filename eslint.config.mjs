@@ -63,6 +63,7 @@ export default defineConfig([
   prettier,
   { rules: { "no-console": "error" } },
   { files: ["src/server/log.ts"], rules: { "no-console": "off" } },
+  { files: ["src/cli/**"], rules: { "no-console": "off" } },
   zone(["**/*.{js,mjs,cjs,ts,tsx}"]),
   zone(["src/*.{ts,tsx}", "src/app/**", "src/components/**"], NO_DB),
   // A later zone replaces the earlier patterns, so the routes' ban is repeated.

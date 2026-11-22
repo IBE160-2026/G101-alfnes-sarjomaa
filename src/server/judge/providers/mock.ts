@@ -12,8 +12,13 @@ export type MockRuling = number[] | FallbackReason | Error;
 // Vitest only: no I/O. The map is keyed by the exact Question text; unknown Questions get
 // one cluster per item. "TIMEOUT" waits for the signal to abort, as the live provider will.
 export function createMockJudge(map: Record<string, MockRuling> = {}): Judge {
+  const info = {
+    provider: "mock",
+    model: "mock",
+    promptVersion: PROMPT_VERSION,
+  } as const;
   return {
-    info: { provider: "mock", model: "mock", promptVersion: PROMPT_VERSION },
+    info,
     async partition({ question, items }, signal) {
       const raw = Object.hasOwn(map, question)
         ? map[question]
@@ -29,6 +34,8 @@ export function createMockJudge(map: Record<string, MockRuling> = {}): Judge {
         calls: 1,
         uncovered: 0,
         source: "live",
+        model: info.model,
+        promptVersion: info.promptVersion,
       };
     },
   };
