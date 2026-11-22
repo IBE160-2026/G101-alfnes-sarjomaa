@@ -1,5 +1,6 @@
 import "server-only";
 import { and, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { DomainError, validate } from "@/lib/errors";
 import { createGameSchema } from "@/lib/game";
 import { canTransition, PERMITTED, type GameState } from "@/lib/game-state";
@@ -147,19 +148,16 @@ export async function transition(
 ): Promise<void> {
   if (!canTransition(from, to)) throw new DomainError("WRONG_STATE");
   assertGameId(gameId);
+  let extra: PgUpdateSetSource<typeof game> = {};
+  if (to === "played") extra = { playedAt: new Date() };
+  // DB time, since the Grouping runner compares it with now() (AD-9).
+  if (to === "grouping")
+    extra = {
+      groupingLeaseUntil: sql`now() + ${GROUPING_LEASE_MS} * interval '1 millisecond'`,
+    };
   const [row] = await tx
     .update(game)
-    .set(
-      to === "played"
-        ? { state: to, playedAt: new Date() }
-        : to === "grouping"
-          ? {
-              state: to,
-              // DB time, since the Grouping runner compares it with now() (AD-9).
-              groupingLeaseUntil: sql`now() + ${GROUPING_LEASE_MS} * interval '1 millisecond'`,
-            }
-          : { state: to },
-    )
+    .set({ state: to, ...extra })
     .where(and(eq(game.id, gameId), eq(game.state, from)))
     .returning({ id: game.id });
   if (!row) throw new DomainError("WRONG_STATE");
