@@ -30,9 +30,10 @@ async function stderrOf(fn: () => Promise<unknown>) {
   return { result, lines: out.trimEnd().split("\n"), out };
 }
 
-describe("with the auth tables dropped", () => {
+describe("with the auth tables (and game, which references host) dropped", () => {
   beforeAll(async () => {
     const db = await getDb();
+    await db.execute(sql`drop table game`);
     await db.execute(sql`drop table session`);
     await db.execute(sql`drop table host`);
   });

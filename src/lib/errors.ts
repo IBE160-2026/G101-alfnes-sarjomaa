@@ -5,6 +5,8 @@ export type ErrorCode =
   | "INVALID_CREDENTIALS"
   | "EMAIL_TAKEN"
   | "REGISTRATION_CODE_WRONG"
+  | "NOT_FOUND"
+  | "WRONG_STATE"
   | "INTERNAL";
 
 export const MESSAGES: Record<ErrorCode, string> = {
@@ -12,6 +14,8 @@ export const MESSAGES: Record<ErrorCode, string> = {
   INVALID_CREDENTIALS: "Feil e-post eller passord.",
   EMAIL_TAKEN: "Det finnes allerede en konto med denne e-posten.",
   REGISTRATION_CODE_WRONG: "Registreringskoden stemmer ikke.",
+  NOT_FOUND: "Vi finner ikke dette spillet.",
+  WRONG_STATE: "Spillet er i en annen fase nå. Last inn siden på nytt.",
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",
 };
 

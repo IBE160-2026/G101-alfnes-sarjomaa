@@ -2,12 +2,14 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import {
   integer,
+  pgEnum,
   pgTable,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { GAME_STATES } from "@/lib/game-state";
 
 const utc = { withTimezone: true, mode: "date" } as const;
 
@@ -30,4 +32,17 @@ export const session = pgTable("session", {
     .notNull()
     .references(() => host.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", utc).notNull(),
+});
+
+export const gameState = pgEnum("game_state", GAME_STATES);
+
+export const game = pgTable("game", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  hostId: uuid("host_id")
+    .notNull()
+    .references(() => host.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  state: gameState("state").notNull().default("draft"),
+  createdAt: timestamp("created_at", utc).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", utc).notNull().defaultNow(),
 });

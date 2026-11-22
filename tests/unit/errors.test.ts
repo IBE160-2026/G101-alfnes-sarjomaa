@@ -11,6 +11,13 @@ describe("errors", () => {
     },
   );
 
+  it("FR-1, AD-4: NOT_FOUND and WRONG_STATE have their exact bokmål messages", () => {
+    expect(MESSAGES.NOT_FOUND).toBe("Vi finner ikke dette spillet.");
+    expect(MESSAGES.WRONG_STATE).toBe(
+      "Spillet er i en annen fase nå. Last inn siden på nytt.",
+    );
+  });
+
   it("AD-17: toFailure gives the action result shape for a DomainError", () => {
     expect(
       toFailure(
