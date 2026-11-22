@@ -40,13 +40,19 @@ function recordLeaves(value: unknown) {
 // NFR-3: the browser never reaches a host other than localhost. Every context passes
 // through here, so it also records what the server logs must never hold.
 export async function localOnly(context: BrowserContext) {
-  await context.route("**/*", (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (!LOCAL_HOSTS.has(url.hostname)) return route.abort("blockedbyclient");
-    if (request.headers()["next-action"] && url.pathname.startsWith("/svar/"))
+  await context.route("**/*", (route) =>
+    LOCAL_HOSTS.has(new URL(route.request().url()).hostname)
+      ? route.continue()
+      : route.abort("blockedbyclient"),
+  );
+  // An event, not the route above: a page's own route wins over the context's, and its
+  // route.fetch() sends the real request without passing through here.
+  context.on("request", (request) => {
+    if (
+      request.headers()["next-action"] &&
+      new URL(request.url()).pathname.startsWith("/svar/")
+    )
       recordLeaves(request.postDataJSON());
-    return route.continue();
   });
   context.on("response", async (response) => {
     if (!response.request().headers()["next-action"]) return;

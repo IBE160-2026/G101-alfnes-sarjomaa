@@ -6,8 +6,9 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 3100;
 const baseURL = `http://localhost:${PORT}`;
 const DEV_PORT = 3101;
-process.env.E2E_DEV_URL ??= `http://localhost:${DEV_PORT}`;
-const devURL = process.env.E2E_DEV_URL;
+// Set, not defaulted: the dev server always listens on DEV_PORT, and specs read this.
+const devURL = `http://localhost:${DEV_PORT}`;
+process.env.E2E_DEV_URL = devURL;
 
 // One fresh PGlite directory per run. Workers inherit process.env, so specs read
 // the same path. The directory itself does not exist until the app opens the DB.
