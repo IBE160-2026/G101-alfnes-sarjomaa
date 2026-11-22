@@ -174,7 +174,7 @@ test("FR-10, FR-15 (AC6), FR-18 (AC4), UX-DR8, UX-DR16: at 360 px Steng innsamli
   });
   const summary = page.getByRole("region", { name: "Grupperingen er ferdig" });
   await expect(summary.getByRole("term")).toHaveText([
-    "Spørsmål",
+    "Spørsmål i alt",
     "Grupper foreslått",
     "Spørsmål å gruppere for hånd",
   ]);
@@ -220,12 +220,34 @@ test("FR-10, FR-15 (AC6), FR-18 (AC4), UX-DR8, UX-DR16: at 360 px Steng innsamli
     ],
   });
 
+  // A failed download keeps the Game page and names the problem in a danger Notice.
+  const gameUrl = page.url();
+  await page.route("**/rapport", (route) =>
+    route.fulfill({
+      status: 404,
+      json: { code: "NOT_FOUND", message: "Vi finner ikke dette spillet." },
+    }),
+  );
+  await report.click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Vi finner ikke dette spillet." }),
+  ).toBeVisible();
+  expect(page.url()).toBe(gameUrl);
+  await page.unrouteAll();
+
   await late.page.getByRole("button", { name: "Send inn svar" }).click();
   await expect(
     late.page.getByText(CLOSED_SUBMIT, { exact: true }),
   ).toBeVisible();
   expect(await stored()).toBeNull();
   await late.context.close();
+
+  // An expired session still lands on the login page, not on a saved redirect.
+  await page.context().clearCookies();
+  await report.click();
+  await expect(page).toHaveURL(/\/logg-inn/);
 });
 
 test("FR-10, UX-DR23: while close runs neither Esc nor Avbryt dismisses the dialog, an aborted request then shows the focused network message in it, and the Game keeps collecting", async ({

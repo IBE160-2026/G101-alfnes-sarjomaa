@@ -40,7 +40,7 @@ After the Host closes Collection, Grouping runs once in the background. Each Que
 
 ## UX & Interaction Patterns
 
-- The Game page in *grouping* shows "Dommeren, en KI-modell, grupperer svarene …" with "N av M spørsmål ferdig", polling every 3 s; a run past its lease shows "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt." Judge failures are not shown there; Review's fallback Notice reads `fallback_reason` later, and `NO_KEY` and `NO_STORED_RULING` read as the normal group-by-hand state.
+- The Game page in *grouping* shows "Dommeren, en KI-modell, grupperer svarene …" with "N av M spørsmål ferdig", polling every 3 s; a run past its lease shows the warning Notice "Grupperingen tar lengre tid enn vanlig. Siden oppdateres av seg selv. Stopper grupperingen, fortsetter den der den slapp." Judge failures are not shown there; Review's fallback Notice reads `fallback_reason` later, and `NO_KEY` and `NO_STORED_RULING` read as the normal group-by-hand state.
 - From *in review* onward the page has a secondary "Last ned bruksrapport" button; each state keeps exactly one primary action.
 - Voice: literal bokmål from the UX contract, "du", no exclamation marks, "dommeren" and "gruppering"; 44 px targets, visible focus, WCAG 2.1 AA checked with axe.
 

@@ -1457,7 +1457,7 @@ describe("close", () => {
     // Leave close's own run queued but unrun, as if it had died.
     afterTasks.length = 0;
     const SLOW =
-      "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt.";
+      "Grupperingen tar lengre tid enn vanlig. Siden oppdateres av seg selv. Stopper grupperingen, fortsetter den der den slapp.";
     const page = async () =>
       renderToStaticMarkup(
         await GamePage({
@@ -1465,10 +1465,12 @@ describe("close", () => {
           searchParams: Promise.resolve({}),
         }),
       );
+    const text = (html: string) => html.replace(/<[^>]*>/g, "");
     const fresh = await page();
     expect(fresh).toContain("Det tar vanligvis under to minutter.");
     expect(fresh.replace(/<[^>]*>/g, "")).toContain("0 av 3 spørsmål ferdig");
-    expect(fresh).not.toContain(SLOW);
+    expect(text(fresh)).not.toContain(SLOW);
+    expect(fresh).not.toContain('role="status"');
     expect(afterTasks).toHaveLength(0);
     await (
       await getDb()
@@ -1476,7 +1478,13 @@ describe("close", () => {
       .update(game)
       .set({ groupingLeaseUntil: sql`now() - interval '1 second'` })
       .where(eq(game.id, gameId));
-    expect(await page()).toContain(SLOW);
+    const slow = await page();
+    expect(text(slow)).toContain(SLOW);
+    // A warning Notice: announced once as a status, never told to reload a page that polls.
+    expect(slow).toMatch(
+      /<div role="status" class="[^"]*bg-warning-soft[^"]*">/,
+    );
+    expect(text(slow)).not.toContain("Last inn siden");
     expect(afterTasks).toHaveLength(1);
     await runAfterTasks();
     const [row] = await (
@@ -1548,7 +1556,7 @@ describe("close", () => {
           const html = await page();
           expect(html.replace(/<[^>]*>/g, "")).toContain(
             "Grupperingen er ferdig" +
-              "Spørsmål3" +
+              "Spørsmål i alt3" +
               `Grupper foreslått${proposed}` +
               `Spørsmål å gruppere for hånd${fell}`,
           );

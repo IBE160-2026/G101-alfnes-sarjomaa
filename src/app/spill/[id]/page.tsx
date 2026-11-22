@@ -6,8 +6,10 @@ import { cache, type ReactNode } from "react";
 import { CloseCollection } from "@/components/CloseCollection";
 import { CollectingRefresh } from "@/components/CollectingRefresh";
 import { DeleteGame } from "@/components/DeleteGame";
+import { DownloadReport } from "@/components/DownloadReport";
 import { GroupingRefresh } from "@/components/GroupingRefresh";
 import { InviteLinkPanel } from "@/components/InviteLinkPanel";
+import { Notice } from "@/components/Notice";
 import { ProgressCount } from "@/components/ProgressCount";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
@@ -154,11 +156,14 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           <span className="font-display text-display tabular-nums">{done}</span>
           {` av ${total} spørsmål ferdig`}
         </p>
-        {/* Past the lease Grouping is slow or interrupted (AD-9), so the Host gets the way on. */}
+        {/* Past the lease Grouping is slow or interrupted (AD-9). The poll already resumes it,
+            so the Host is told nothing needs doing. */}
         {game.leaseExpired && (
-          <p className="mt-2 max-w-prose">
-            Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt.
-          </p>
+          <Notice tone="warning" className="mt-4 max-w-prose">
+            <strong>Grupperingen tar lengre tid enn vanlig.</strong> Siden
+            oppdateres av seg selv. Stopper grupperingen, fortsetter den der den
+            slapp.
+          </Notice>
         )}
         <GroupingRefresh />
       </section>,
@@ -167,8 +172,9 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
     const result = await grouping.summary(game.id);
     // Numbers only, no key sentence: it must read right for every fallback reason and in
     // Demo mode. The reason-specific Notice belongs to Review (Epic 5).
+    // shortcut: no way forward from in review until Epic 5, add the primary "Gå til gjennomgangen" link here in Story 5.1.
     const rows: [string, number][] = [
-      ["Spørsmål", result.questions],
+      ["Spørsmål i alt", result.questions],
       ["Grupper foreslått", result.groupsProposed],
       ["Spørsmål å gruppere for hånd", result.fellBack],
     ];
@@ -219,17 +225,11 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <StatusBadge state={game.state} />
       </div>
       {panel}
-      {/* Secondary, never primary: each state keeps its one primary action (UX-DR16). No
-          `download` attribute, so a logged-out redirect is not saved as the file. */}
+      {/* Secondary, never primary: each state keeps its one primary action (UX-DR16). */}
       {REPORT_STATES.includes(game.state) && (
-        <p className="mt-10">
-          <a
-            href={`/api/spill/${game.id}/rapport`}
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-primary hover:bg-surface-sunken"
-          >
-            Last ned bruksrapport
-          </a>
-        </p>
+        <div className="mt-10">
+          <DownloadReport href={`/api/spill/${game.id}/rapport`} />
+        </div>
       )}
       {/* Every state (FR-3), outside the switch. */}
       <footer className="mt-16 border-t border-line pt-6">
