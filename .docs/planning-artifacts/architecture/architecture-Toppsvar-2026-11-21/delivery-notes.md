@@ -20,7 +20,23 @@ Assumptions: `deepseek/deepseek-v4.1-flash` on OpenRouter at USD 0.05 per millio
 | Largest: 50 Invite links, 20 Questions, 5 Answers | 250 | 20 (at most 40) | about 4.2K / 1.0K | about USD 0.008 (worst case about 0.016) | expected about 40 s; at most 4 waves × 30 s = 120 s |
 | Naive all-pairs, for comparison | n(n−1)/2 per Question | 167,625 (sizing) / 622,500 (largest) | — | — | not feasible |
 
-The sizing Game's worst case is inside FR-15's two minutes. The largest Game's worst case is inside the 300 s Vercel Hobby limit. The ProtoQA evaluation set has at most 88 distinct raw answers per question, so `judge:eval` does not exercise the 150 to 250 item case. The Judge story should time one synthetic 250-item Question. Hard ceiling: even if every call of the largest Game's 40 hit the 2,048-token cap, the cost stays under USD 0.03.
+The sizing Game's worst case is inside FR-15's two minutes. The largest Game's worst case is inside the 300 s Vercel Hobby limit. The ProtoQA evaluation set has at most 88 distinct raw answers per question, so `judge:eval` does not exercise the 150 to 250 item case. Hard ceiling: even if every call of the largest Game's 40 hit the 2,048-token cap, the cost stays under USD 0.03.
+
+### Live measurements (2026-11-22, after `reasoning: { effort: "none" }`)
+
+Run by the orchestrator with the group's key through `npm run judge:smoke` and `npm run judge:record` on synthetic Questions (inputs in the session scratchpad, outputs under the gitignored `.data/`). Every call reported `reasoning_tokens: 0`.
+
+| Distinct items | Calls | Out tokens | Wall time | Result |
+| --- | --- | --- | --- | --- |
+| 7 (smoke) | 1 | 26 | 1.7 s | correct grouping, USD 0.00006 |
+| 60 | 1 | 125 | 1.3 s | valid ruling |
+| 120 | 1 | 245 | 1.3 s | valid, 30 groups, every one correct (30 dishes × 4 variants) |
+| 180 | 2 | 437 / 389 | — | `INVALID_OUTPUT` both times, fell back |
+| 240 | 2 | 645 / 405 | 6.7 s total | `INVALID_OUTPUT` both times, fell back |
+
+Before the fix, the 7-item smoke run needed 2 calls because reasoning used all 92 output tokens of the old `64 + 4n` bound.
+
+**Consequence.** Time is never the limit: 240 items took 6.7 s against the 30 s timeout. The limit is output reliability. The model returns a valid positional `assignments` array up to at least 120 distinct items and fails somewhere between 120 and 180. A Question above that falls back to manual grouping after 2 calls (about USD 0.0006), which FR-17 allows. The sizing Game (at most 150 raw Answers per Question, usually far fewer distinct after normalisation) is normally below the limit; only a Question in the largest Game where almost every Answer is different reaches it. `shortcut: positional output fails above ~120-180 distinct items; if real Games hit it, split large Questions into chunks or ask for groups instead of a positional array.`
 
 ## README contract
 
