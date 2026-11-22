@@ -1,6 +1,12 @@
 import type { Locator, Page, Request } from "@playwright/test";
 import { storageKey } from "@/lib/invite-link";
-import { expect, registerHost, seriousViolations, test } from "./fixtures";
+import {
+  expect,
+  localOnly,
+  registerHost,
+  seriousViolations,
+  test,
+} from "./fixtures";
 
 const Q1 = "Hva gjør Jonas når han har forsovet seg?";
 const Q2 = "Hvem synger høyest på hytta?";
@@ -18,6 +24,9 @@ const UNKNOWN_HEADING = "Vi finner ikke denne lenken.";
 const INTERNAL = "Noe gikk galt hos oss. Prøv igjen om litt.";
 const INVALID = "Sjekk feltene som er merket, og prøv igjen.";
 const SECRET = /^[A-Za-z0-9_-]{43}$/;
+const RETURNING =
+  "Du har allerede sendt inn. Endringer lagres først når du trykker «Lagre endringer».";
+const DRAFT_NOTICE = "Du har endringer som ikke er sendt inn.";
 
 async function createGame(page: Page, title: string): Promise<string> {
   await page.goto("/spill");
@@ -267,6 +276,10 @@ test("FR-6, NFR-6: an aborted submit POST shows the network sentence and keeps e
   page,
 }) => {
   const { gameId, token } = await openForm(page, "Uten nett");
+  const qid = (n: number) =>
+    field(page, n, 1)
+      .getAttribute("name")
+      .then((name) => name!.split(".")[0]);
   await page.route("**/svar/**", (route) =>
     route.request().method() === "POST" ? route.abort() : route.continue(),
   );
@@ -281,10 +294,15 @@ test("FR-6, NFR-6: an aborted submit POST shows the network sentence and keeps e
   await expect(
     page.getByRole("button", { name: "Send inn svar" }),
   ).toBeVisible();
-  // The secret is kept before the call, so a response lost after commit still matches.
+  // The secret is kept before the call, so a response lost after commit still matches,
+  // and the draft is saved at once, as the network sentence promises.
   expect(await storedValue(page, gameId, token)).toEqual({
     token,
     editSecret: expect.stringMatching(SECRET),
+    draft: {
+      [await qid(1)]: ["Sover videre", ""],
+      [await qid(2)]: ["Kari", ""],
+    },
   });
 });
 
@@ -315,6 +333,8 @@ test("FR-10, FR-9, FR-6, NFR-6: a real submit response rewritten to closed, unkn
   for (const [code, rewritten] of cases) {
     await page.unrouteAll();
     await page.goto("/");
+    // Each case starts as a fresh device: the real submits of earlier cases did commit.
+    await page.evaluate(() => localStorage.clear());
     await page.goto(`/svar/${gameId}#${token}`);
     await field(page, 1, 1).fill("Sover videre");
     await field(page, 2, 1).fill("Kari");
@@ -353,4 +373,129 @@ test("FR-10, FR-9, FR-6, NFR-6: a real submit response rewritten to closed, unkn
       await expect(field(page, 1, 1)).toHaveValue("Sover videre");
     }
   }
+});
+
+const saved = (page: Page) =>
+  page.getByRole("heading", { level: 2, name: "Svarene dine er lagret." });
+
+// Resolves once the link's stored draft holds `text`.
+const draftHolds = (page: Page, gameId: string, token: string, text: string) =>
+  expect
+    .poll(async () =>
+      JSON.stringify((await storedValue(page, gameId, token))?.draft ?? null),
+    )
+    .toContain(text);
+
+test("FR-7: the same browser reopens the link pre-filled with the returning notice and saves an added third Answer; a fresh browser context gets an empty form", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  const { gameId, token } = await openForm(page, "Tilbake igjen");
+  const main = page.locator("main");
+  await field(page, 1, 1).fill("Sover videre");
+  await field(page, 1, 2).fill("Snorker");
+  await field(page, 2, 1).fill("Kari");
+  await page.getByRole("button", { name: "Send inn svar" }).click();
+  await expect(saved(page)).toBeFocused();
+
+  await page.reload();
+  await expect(field(page, 1, 1)).toHaveValue("Sover videre");
+  await expect(field(page, 1, 2)).toHaveValue("Snorker");
+  await expect(field(page, 2, 1)).toHaveValue("Kari");
+  await expect(main.getByText(RETURNING, { exact: true })).toBeVisible();
+  await expect(main.getByText(DRAFT_NOTICE)).toHaveCount(0);
+  await expect(main.getByText(HELPER, { exact: true })).toBeVisible();
+  await group(page, 1).getByRole("button", { name: "Legg til svar" }).click();
+  await field(page, 1, 3).fill("Vekker alle");
+  await page.getByRole("button", { name: "Lagre endringer" }).click();
+  await expect(saved(page)).toBeFocused();
+
+  await page.reload();
+  await expect(field(page, 1, 3)).toHaveValue("Vekker alle");
+  await expect(main.getByText(RETURNING, { exact: true })).toBeVisible();
+
+  const fresh = await browser.newContext({ baseURL });
+  await localOnly(fresh);
+  const other = await fresh.newPage();
+  await other.goto(`/svar/${gameId}#${token}`);
+  await expect(field(other, 1, 1)).toHaveValue("");
+  await expect(field(other, 1, 2)).toHaveValue("");
+  await expect(field(other, 2, 1)).toHaveValue("");
+  await expect(group(other, 1).getByRole("textbox")).toHaveCount(2);
+  await expect(other.getByText(RETURNING)).toHaveCount(0);
+  await expect(
+    other.getByRole("button", { name: "Send inn svar" }),
+  ).toBeVisible();
+  await expect(
+    other.locator("main").getByText(HELPER, { exact: true }),
+  ).toBeVisible();
+  await fresh.close();
+});
+
+test("UX-DR20, FR-6: a typed draft is kept on the device, restored on reload with the draft notice, never sent before submit, and dropped after a successful submit", async ({
+  page,
+}) => {
+  const { gameId, token } = await openForm(page, "Utkast på bussen");
+  const main = page.locator("main");
+  const sent: string[] = [];
+  page.on("request", (r) => sent.push(`${r.url()}\n${r.postData() ?? ""}`));
+  const draft = `Tunnel ${Date.now()}`;
+
+  await field(page, 1, 1).fill(draft);
+  await draftHolds(page, gameId, token, draft);
+  await page.reload();
+  await expect(field(page, 1, 1)).toHaveValue(draft);
+  await expect(main.getByText(DRAFT_NOTICE, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Forkast endringene" }),
+  ).toBeVisible();
+  await expect(main.getByText(HELPER, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send inn svar" }),
+  ).toBeVisible();
+  expect(sent.length).toBeGreaterThan(0);
+  expect(sent.filter((r) => r.includes(draft))).toEqual([]);
+
+  await field(page, 2, 1).fill("Kari");
+  await page.getByRole("button", { name: "Send inn svar" }).click();
+  await expect(saved(page)).toBeFocused();
+  expect(await storedValue(page, gameId, token)).toEqual({
+    token,
+    editSecret: expect.stringMatching(SECRET),
+  });
+});
+
+test("UX-DR20, FR-7, NFR-6: a local draft wins over the saved set, and Forkast endringene restores the saved values, the returning notice and focus", async ({
+  page,
+}) => {
+  const { gameId, token } = await openForm(page, "Utkast vinner");
+  const main = page.locator("main");
+  await field(page, 1, 1).fill("Sover videre");
+  await field(page, 2, 1).fill("Kari");
+  await page.getByRole("button", { name: "Send inn svar" }).click();
+  await expect(saved(page)).toBeFocused();
+  const { editSecret } = await storedValue(page, gameId, token);
+
+  await page.getByRole("button", { name: "Se eller endre svarene" }).click();
+  await expect(main.getByText(RETURNING, { exact: true })).toBeVisible();
+  await field(page, 1, 1).fill("Står opp likevel");
+  await draftHolds(page, gameId, token, "Står opp likevel");
+
+  await page.reload();
+  await expect(field(page, 1, 1)).toHaveValue("Står opp likevel");
+  await expect(field(page, 2, 1)).toHaveValue("Kari");
+  await expect(main.getByText(DRAFT_NOTICE, { exact: true })).toBeVisible();
+  await expect(main.getByText(RETURNING)).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Lagre endringer" }),
+  ).toBeVisible();
+  expect(await seriousViolations(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "Forkast endringene" }).click();
+  await expect(field(page, 1, 1)).toHaveValue("Sover videre");
+  await expect(field(page, 1, 1)).toBeFocused();
+  await expect(main.getByText(RETURNING, { exact: true })).toBeVisible();
+  await expect(main.getByText(DRAFT_NOTICE)).toHaveCount(0);
+  expect(await storedValue(page, gameId, token)).toEqual({ token, editSecret });
 });

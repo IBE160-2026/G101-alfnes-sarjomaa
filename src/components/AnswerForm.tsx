@@ -3,6 +3,7 @@
 import { unstable_rethrow } from "next/navigation";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -12,7 +13,7 @@ import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
 import { TextField } from "@/components/TextField";
-import { ANSWER_MISSING, parseAnswerSet } from "@/lib/answer-set";
+import { ANSWER_MISSING, parseAnswerSet, toFields } from "@/lib/answer-set";
 import { DomainError, MESSAGES, type FieldErrors } from "@/lib/errors";
 import {
   clearLinkStore,
@@ -29,6 +30,7 @@ import {
 
 type Question = { id: string; text: string };
 type Phase = "form" | "saved" | "closed";
+type Fields = Record<string, string[]>;
 
 export const NETWORK_SUBMIT =
   "Fikk ikke sendt svarene. Sjekk nettet og prøv igjen. Utkastet ditt ligger fortsatt på denne enheten.";
@@ -36,39 +38,76 @@ const NOTICE =
   "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet.";
 const CLOSED =
   "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret.";
+const RETURNING =
+  "Du har allerede sendt inn. Endringer lagres først når du trykker «Lagre endringer».";
 const DEFAULT_FIELDS = 2;
+const DRAFT_SAVE_MS = 500;
 
 // Field names are `${qid}.${i}`, the same keys parseAnswerSet reports field errors under.
 const fieldName = (qid: string, i: number) => `${qid}.${i}`;
+
+// Compares the trimmed non-empty values per Question: a blank extra field is not a change.
+function differs(a: Fields, b: Fields, questionIds: readonly string[]) {
+  const given = (f: Fields) =>
+    JSON.stringify(
+      questionIds.map((qid) => f[qid].map((v) => v.trim()).filter((v) => v)),
+    );
+  return given(a) !== given(b);
+}
+
+// The draft stays on this device (AD-8, FR-6). A form that holds nothing new stores none.
+function saveDraft(
+  gameId: string,
+  token: string,
+  fields: Fields,
+  savedFields: Fields,
+  questionIds: readonly string[],
+) {
+  const stored = readLinkStore(gameId, token);
+  if (differs(fields, savedFields, questionIds))
+    writeLinkStore(gameId, { ...stored, token, draft: fields });
+  // JSON.stringify leaves out an undefined draft.
+  else if (stored) writeLinkStore(gameId, { ...stored, draft: undefined });
+}
 
 export function AnswerForm({
   gameId,
   token,
   questions,
+  saved,
   onUnknown,
 }: {
   gameId: string;
   token: string;
   questions: Question[];
+  saved?: Fields;
   onUnknown: () => void;
 }) {
-  const [fields, setFields] = useState<Record<string, string[]>>(() =>
-    Object.fromEntries(
-      questions.map((q) => [q.id, Array<string>(DEFAULT_FIELDS).fill("")]),
-    ),
-  );
+  const questionIds = useMemo(() => questions.map((q) => q.id), [questions]);
+  // A local draft wins over the saved set on load (AD-8), unless it holds nothing new.
+  const [start] = useState(() => {
+    const savedFields = toFields(saved, questionIds);
+    const draft = readLinkStore(gameId, token)?.draft;
+    const drafted = draft == null ? null : toFields(draft, questionIds);
+    const restored =
+      drafted !== null && differs(drafted, savedFields, questionIds);
+    return { savedFields, fields: restored ? drafted : savedFields, restored };
+  });
+  const [savedFields, setSavedFields] = useState(start.savedFields);
+  const [fields, setFields] = useState<Fields>(start.fields);
+  const [draftRestored, setDraftRestored] = useState(start.restored);
   const [errors, setErrors] = useState<FieldErrors | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("form");
   const [pending, setPending] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(saved !== undefined);
   const [announcement, setAnnouncement] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
   const closedRef = useRef<HTMLDivElement>(null);
   const savedRef = useRef<HTMLHeadingElement>(null);
   const focusField = useRef<string | null>(null);
-  const questionIds = questions.map((q) => q.id);
+  const draftTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Added and removed fields exist only after the render, so focus moves here.
   useEffect(() => {
@@ -82,6 +121,16 @@ export function AnswerForm({
   useEffect(() => {
     if (errors) summaryRef.current?.focus();
   }, [errors]);
+
+  // Saved about 500 ms after typing stops, only to this device's storage.
+  useEffect(() => {
+    if (phase !== "form") return;
+    draftTimer.current = setTimeout(
+      () => saveDraft(gameId, token, fields, savedFields, questionIds),
+      DRAFT_SAVE_MS,
+    );
+    return () => clearTimeout(draftTimer.current);
+  }, [fields, phase, gameId, token, savedFields, questionIds]);
 
   useEffect(() => {
     if (phase === "closed") closedRef.current?.focus();
@@ -98,6 +147,14 @@ export function AnswerForm({
         ? `${ANSWER_TEXT_MAX} av ${ANSWER_TEXT_MAX} tegn`
         : "",
     );
+  }
+
+  function discardDraft() {
+    focusField.current = fieldName(questionIds[0], 0);
+    setFields(savedFields);
+    setDraftRestored(false);
+    const stored = readLinkStore(gameId, token);
+    if (stored) writeLinkStore(gameId, { ...stored, draft: undefined });
   }
 
   function addField(qid: string) {
@@ -127,6 +184,9 @@ export function AnswerForm({
     event.preventDefault();
     if (pending) return;
     setFailure(null);
+    // At once, so a refused or lost submit still leaves the draft (NETWORK_SUBMIT says so).
+    clearTimeout(draftTimer.current);
+    saveDraft(gameId, token, fields, savedFields, questionIds);
     try {
       parseAnswerSet(fields, questionIds);
     } catch (error) {
@@ -161,11 +221,16 @@ export function AnswerForm({
     }
 
     if (result.ok) {
+      clearTimeout(draftTimer.current);
+      writeLinkStore(gameId, { token, editSecret });
+      setSavedFields(fields);
+      setDraftRestored(false);
       setSubmitted(true);
       setPhase("saved");
     } else if (result.code === "INVALID_INPUT" && result.fieldErrors) {
       setErrors({ ...result.fieldErrors });
     } else if (result.code === "COLLECTION_CLOSED") {
+      clearTimeout(draftTimer.current);
       clearLinkStore(gameId, token);
       setPhase("closed");
     } else if (result.code === "LINK_UNKNOWN") {
@@ -249,7 +314,29 @@ export function AnswerForm({
           </ul>
         </Notice>
       )}
-      <Notice tone="info" className="mt-6">
+      {draftRestored ? (
+        <Notice tone="info" className="mt-6">
+          <p>Du har endringer som ikke er sendt inn.</p>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={discardDraft}
+            className="mt-2 -ml-2 px-2"
+          >
+            Forkast endringene
+          </Button>
+        </Notice>
+      ) : (
+        submitted && (
+          <Notice tone="info" className="mt-6">
+            {RETURNING}
+          </Notice>
+        )
+      )}
+      <Notice
+        tone="info"
+        className={draftRestored || submitted ? "mt-4" : "mt-6"}
+      >
         {NOTICE}
       </Notice>
       <p className="mt-4">

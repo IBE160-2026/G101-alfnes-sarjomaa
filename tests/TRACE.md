@@ -75,7 +75,9 @@ Answer through an Invite link.
 - `tests/unit/answer-set.test.ts`: `parseAnswerSet` trims, drops empty fields and keeps field order; 80 trimmed characters pass and 81 fail under `qid.1` with "Svaret kan ha maks 80 tegn."; six entries, a value that is not an array, an unknown Question ID and a non-object set fail; a missing key and an all-blank Question fail with "Skriv minst ett svar." (Story 2.4, AC3, AC4).
 - `tests/integration/collection.test.ts`, through the `submitAnswerSet` action: a first submit stores exactly one `submission` row with `token_hash = sha256(token)`, trimmed non-empty Answers in field order and `sha256` of the secret; a missing key or all-blank Question returns `INVALID_INPUT` with "Skriv minst ett svar." under the Question ID; 81 trimmed characters at field 1 return "Svaret kan ha maks 80 tegn." under `qid.1` while 80 are stored; six Answers, an unknown Question ID, a non-object set, a non-array value and a missing, 42-character or non-string secret are `INVALID_INPUT`; none of these writes a row (Story 2.4, AC3–AC5).
 - `tests/e2e/answer-form.spec.ts`: at 360 px each Question is a fieldset "Spørsmål N av 2: …" with "Svar 1" and "Svar 2 (valgfritt)"; inputs carry `maxlength="80"`, `autocomplete="off"`, `autocapitalize="sentences"` and `enterkeyhint="next"`; three "Legg til svar" clicks give five fields, focus each new one and remove the button; "Fjern svar 4" focuses Svar 3; no counter at 59 characters and "60/80" at 60; "0 av 2" becomes "1 av 2 spørsmål har svar"; the instruction and helper lines show; a submit with Question 2 empty sends no `next-action` POST, focuses the summary "1 spørsmål mangler svar" with one link "Spørsmål 2: …", marks Question 2's Svar 1 `aria-invalid` with "Skriv minst ett svar." as its description, and the link focuses that field without changing `location.hash`; an 81-character Answer past a removed `maxlength` shows "Svaret kan ha maks 80 tegn." under its field; a complete submit with an empty Svar 2 and a filled Svar 3 focuses "Svarene dine er lagret." with the body and "Se eller endre svarene" (Story 2.4, AC2, AC3, AC5).
-- Pending: Story 2.5.
+- `tests/unit/answer-set.test.ts`: `toFields` caps a tampered draft at five string fields, pads to two, drops non-strings and unknown Question IDs, and turns a non-object or non-array into `["", ""]` without throwing (Story 2.5, AC4).
+- `tests/e2e/answer-form.spec.ts`: a typed draft lands in the link's `localStorage` value about 500 ms later, a reload restores it with "Du har endringer som ikke er sendt inn.", "Forkast endringene" and the helper line, and no request URL or body carries its text before "Send inn svar"; after a successful submit the value is `{ token, editSecret }` with no draft; an aborted submit leaves `{ token, editSecret, draft }` (Story 2.5, AC4).
+- `tests/e2e/invite-link-page.spec.ts`: a closed link clears the whole key with an unsent draft in it (Story 2.5, AC4).
 
 ## FR-7
 
@@ -84,7 +86,9 @@ Change a submitted Answer set.
 - `tests/unit/token.test.ts`: the link store writes `{ token, editSecret }` under `storageKey` and reads it back only for exactly that Token; `newEditSecret()` is 32 bytes in `TOKEN_PATTERN`'s shape and two calls differ (Story 2.4, AC5).
 - `tests/integration/collection.test.ts`: a second submit on the same link keeps one row and replaces both the Answers and the secret hash (Story 2.4, AD-8).
 - `tests/e2e/answer-form.spec.ts`: after a complete submit the `localStorage` value at `storageKey` is `{ token: <link Token>, editSecret: <43 base64url characters> }`; "Se eller endre svarene" focuses the `<h1>` and shows the form with the submitted values and "Lagre endringer", and pressing it keeps the same `editSecret`; after an aborted submit the key already holds `{ token, editSecret }` (Story 2.4, AC5).
-- Pending: Story 2.5.
+- `tests/unit/token.test.ts`: the link store round-trips `{ token, editSecret, draft }` (Story 2.5, AC4).
+- `tests/integration/collection.test.ts`, through `openInviteLink`: only the matching edit secret returns `answers`; a wrong, missing, `"abc"`, numeric or Token-as-secret call `toEqual`s an unused sibling link, and so does another link's secret; a same-device resubmit keeps one row with the same hash and reopens with the edited set; a submit with a new secret replaces the row and hash, after which the old secret gets no `answers` and the new one the new set; an edit that leaves a Question blank is `INVALID_INPUT` "Skriv minst ett svar." with the row unchanged (Story 2.5, AC1, AC2).
+- `tests/e2e/answer-form.spec.ts`: after a submit, a reload in the same context is pre-filled with "Du har allerede sendt inn. Endringer lagres først når du trykker «Lagre endringer».", an added Svar 3 saved through "Lagre endringer" is there after the next reload, and a fresh browser context shows two empty fields, no returning notice, "Send inn svar" and the helper line; a draft over a saved set wins with the draft notice and not the returning one, axe finds nothing serious, and "Forkast endringene" restores the saved value, shows the returning notice, focuses Question 1's Svar 1 and leaves `{ token, editSecret }` with the same secret (Story 2.5, AC3, AC4).
 
 ## FR-8
 
@@ -139,7 +143,8 @@ Nothing linkable in the Host's view.
 
 - `tests/integration/invite-links.test.ts`: after creating links, no column of any public table (a `row_to_json` scan of every row) contains a returned Token, `invite_link` holds only `token_hash` and `game_id`, and the _collecting_ Game page contains no Token and no `/svar/` (Story 2.2, AC5).
 - `tests/e2e/invite-links.spec.ts`: after "Jeg har kopiert lenkene" and a reload the page holds no link, Token or `/svar/` (Story 2.2, AC4, AC5).
-- Pending: Stories 2.5, 2.6, 3.3, 4.3, 5.1.
+- `tests/integration/collection.test.ts`: `openInviteLink` with a wrong, missing, malformed or another link's edit secret returns exactly the unused-link response, so a link's holder cannot tell whether it was used (Story 2.5, AC1).
+- Pending: Stories 2.6, 3.3, 4.3, 5.1.
 
 ## FR-13
 

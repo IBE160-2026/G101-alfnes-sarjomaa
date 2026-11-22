@@ -54,12 +54,17 @@ const pathOf = (link: string) => new URL(link).pathname;
 
 // From another page first, so a link differing only in its fragment still loads anew.
 // The seeded value is a link store for this exact Token, so closed and unknown clear it.
-async function openWithSeededKey(page: Page, gameId: string, token: string) {
+async function openWithSeededKey(
+  page: Page,
+  gameId: string,
+  token: string,
+  extra: object = {},
+) {
   const key = storageKey(gameId, token);
   await page.goto("/");
   await page.evaluate(
     ([k, v]) => localStorage.setItem(k, v),
-    [key, JSON.stringify({ token })],
+    [key, JSON.stringify({ token, ...extra })],
   );
   await page.goto(`/svar/${gameId}#${token}`);
   return key;
@@ -160,7 +165,7 @@ test("FR-9, FR-3: a missing or malformed Game, a malformed or unknown Token and 
   }
 });
 
-test("FR-10: a link of a Game that is not collecting (a draft) shows the closed page and clears the key", async ({
+test("FR-10, UX-DR20: a link of a Game that is not collecting (a draft) shows the closed page and clears the whole key, unsent draft included", async ({
   page,
 }) => {
   await registerHost(page);
@@ -169,6 +174,7 @@ test("FR-10: a link of a Game that is not collecting (a draft) shows the closed 
     page,
     gameId,
     randomBytes(32).toString("base64url"),
+    { draft: { q: ["Utkast som ikke er sendt", ""] } },
   );
   await expect(page.locator("h1")).toHaveText(CLOSED_HEADING);
   await expect(page.getByText(CLOSED_BODY)).toBeVisible();
