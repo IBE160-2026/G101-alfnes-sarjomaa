@@ -20,6 +20,13 @@ describe("errors", () => {
     expect(MESSAGES.COLLECTION_CLOSED).toBe("Innsamlingen er stengt.");
   });
 
+  it("FR-10, FR-8: TOO_FEW_ANSWER_SETS is the full wireframe reason and names no exact count below three", () => {
+    expect(MESSAGES.TOO_FEW_ANSWER_SETS).toBe(
+      "Du trenger minst 3 innsendte svar før du kan stenge. Det beskytter anonymiteten. Lag flere lenker, vent litt, eller slett spillet.",
+    );
+    expect(MESSAGES.TOO_FEW_ANSWER_SETS).not.toMatch(/[012]/);
+  });
+
   it("AD-17: toFailure gives the action result shape for a DomainError", () => {
     expect(
       toFailure(

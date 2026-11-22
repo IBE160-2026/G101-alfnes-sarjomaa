@@ -3,6 +3,7 @@ import { asc, eq, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  closeCollection,
   createInviteLinks,
   deleteGame,
   moveQuestion,
@@ -12,12 +13,20 @@ import {
 } from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
 import { createGame } from "@/app/spill/actions";
+import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import GamesPage from "@/app/spill/page";
 import { DomainError } from "@/lib/errors";
+import { newToken } from "@/lib/token";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
 import { getDb } from "@/server/db/client";
-import { game, inviteLink, question } from "@/server/db/schema";
+import {
+  answer,
+  game,
+  inviteLink,
+  question,
+  submission,
+} from "@/server/db/schema";
 import * as games from "@/server/games";
 import { cookieJar, NotFoundError, run } from "./next-mocks";
 
@@ -357,6 +366,51 @@ describe("Invite links across Hosts", () => {
       state: "collecting",
       inviteLinksIssued: 2,
     });
+  });
+
+  it("FR-10, AD-5: B's closeCollection on A's closable Game, a random UUID and a malformed ID gives one identical NOT_FOUND and leaves A's state, links, sets, updated_at and answer table", async () => {
+    const db = await getDb();
+    const [{ id: closableOfA }] = await db
+      .insert(game)
+      .values({ hostId: hosts.A, title: "As stengbare" })
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db.insert(question).values({
+      id: questionId,
+      gameId: closableOfA,
+      position: 1,
+      text: "Hvem?",
+    });
+    as("A");
+    const created = await createInviteLinks({ gameId: closableOfA, count: 3 });
+    if (!created.ok) throw new Error(created.code);
+    for (const link of created.data.links) {
+      const sent = await submitAnswerSet(closableOfA, link.split("#")[1], {
+        answers: { [questionId]: ["Kari"] },
+        editSecret: newToken(),
+      });
+      if (!sent.ok) throw new Error(sent.code);
+    }
+    const snapshot = async () => ({
+      game: await gameRow(closableOfA),
+      links: await db
+        .select()
+        .from(inviteLink)
+        .where(eq(inviteLink.gameId, closableOfA)),
+      sets: await db.select().from(submission),
+      answers: await db.select().from(answer),
+    });
+    const before = await snapshot();
+    as("B");
+    for (const gameId of [closableOfA, randomUUID(), "abc"])
+      expect(await closeCollection({ gameId }), gameId).toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    expect(await snapshot()).toEqual(before);
+    expect(before.game.state).toBe("collecting");
+    expect(before.links).toHaveLength(3);
   });
 
   it("FR-8, AD-5: B's collection.progress on A's Game, a random UUID and a malformed ID rejects with the same NOT_FOUND", async () => {

@@ -186,7 +186,7 @@ stateDiagram-v2
   4. Delete the Game's `submission` and `invite_link` rows.
   5. `transition(collecting → grouping)`. This also sets `grouping_lease_until = now() + 180 s`.
 
-  After commit, a best-effort `VACUUM FULL submission, invite_link` runs outside any transaction, with `lock_timeout = '2s'`. Its errors are swallowed and logged by SQLSTATE only, and it never fails the close. The same best-effort VACUUM runs after deleting a Game that was `collecting`. Then the action starts Grouping with `after()` (AD-12). Nothing else inserts into `answer`.
+  After commit, a best-effort `VACUUM (FULL, SKIP_LOCKED) submission, invite_link` runs outside any transaction. Its errors are swallowed and logged by SQLSTATE only, and it never fails the close. The same best-effort VACUUM runs after deleting a Game that was `collecting`, so the helper (`vacuumCollectionTables`) lives in the db layer (`src/server/db/vacuum.ts`), since `games` may not import `collection`. *Amended in Story 3.1:* `SKIP_LOCKED` replaces `lock_timeout = '2s'`. VACUUM cannot run in a transaction block, so `SET lock_timeout` would need a second statement on the same connection, which a pooled postgres.js client does not guarantee without driver-specific code (AD-2). With `SKIP_LOCKED`, in one statement, the VACUUM never waits for a lock and never queues an ACCESS EXCLUSIVE request ahead of live submits; it skips a table someone holds. The rewrite itself still holds ACCESS EXCLUSIVE on each table briefly while it runs. Then the action starts Grouping with `after()` (AD-12). Nothing else inserts into `answer`.
 
 ### AD-10 — Answers carry no order and no identity, and Host views never see the linking columns
 
@@ -428,7 +428,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - `outputFileTracingIncludes` for `data/rulings/**`
   - `agentRules: false`
 
-  The close action and the Game page export `maxDuration = 300`.
+  The Game page exports `maxDuration = 300`. *Amended in Story 3.1:* a `"use server"` file may export only async functions, so the close action cannot export it; it inherits the setting from the Game page it posts to.
 
 | Environment | `DATABASE_URL` | Migrations | Live Judge |
 | --- | --- | --- | --- |

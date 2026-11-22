@@ -79,3 +79,11 @@ export async function revokeInviteLink(
 ): Promise<ActionResult<{ link: string }>> {
   return hostAction(collection.revokeInviteLink, input);
 }
+
+// A "use server" file exports only async functions, so this action inherits
+// maxDuration = 300 from the Game page it posts to (AD-24).
+export async function closeCollection(
+  input: unknown,
+): Promise<ActionResult<void>> {
+  return hostAction(collection.close, input);
+}

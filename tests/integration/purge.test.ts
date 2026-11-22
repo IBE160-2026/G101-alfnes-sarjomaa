@@ -1,4 +1,5 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql, type SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -99,6 +100,39 @@ describe("games.purgeExpired", () => {
     expect(await existing(all)).toEqual([playedRecently, idleRecently].sort());
     expect(await games.purgeExpired()).toEqual({ deleted: 0 });
     expect(await existing(all)).toEqual([playedRecently, idleRecently].sort());
+  });
+});
+
+describe("VACUUM after purge", () => {
+  const dialect = new PgDialect();
+
+  // Purges one idle Game in `state` with db.execute spied; returns the SQL it ran.
+  async function purgeWatched(state: "collecting" | "draft") {
+    const id = await insertGame({ updatedAt: now - 91 * DAY });
+    const db = await getDb();
+    await db.update(game).set({ state }).where(eq(game.id, id));
+    const execute = vi.spyOn(db, "execute");
+    let statements;
+    try {
+      expect(await games.purgeExpired()).toEqual({ deleted: 1 });
+    } finally {
+      statements = execute.mock.calls.map(
+        ([query]) => dialect.sqlToQuery((query as SQL).getSQL()).sql,
+      );
+      execute.mockRestore();
+    }
+    expect(await existing([id])).toEqual([]);
+    return statements.filter((q) => q.startsWith("VACUUM"));
+  }
+
+  it("FR-3, AD-9: purging an idle collecting Game runs the VACUUM on submission and invite_link", async () => {
+    expect(await purgeWatched("collecting")).toEqual([
+      "VACUUM (FULL, SKIP_LOCKED) submission, invite_link",
+    ]);
+  });
+
+  it("FR-3, AD-9: purging an idle draft Game runs no VACUUM", async () => {
+    expect(await purgeWatched("draft")).toEqual([]);
   });
 });
 

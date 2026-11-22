@@ -43,6 +43,13 @@
       "when": 1795366837280,
       "tag": "0005_shallow_dakota_north",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795374089743,
+      "tag": "0006_rare_earthquake",
+      "breakpoints": true
     }
   ]
 }

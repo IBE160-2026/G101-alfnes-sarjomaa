@@ -4,6 +4,7 @@ import { DomainError, validate } from "@/lib/errors";
 import { createGameSchema } from "@/lib/game";
 import { canTransition, PERMITTED, type GameState } from "@/lib/game-state";
 import {
+  GROUPING_LEASE_MS,
   INVITE_LINKS_MAX,
   PURGE_INTERVAL_MS,
   RETENTION_IDLE_MS,
@@ -13,6 +14,7 @@ import * as auth from "@/server/auth";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Tx } from "@/server/db/client";
 import { game } from "@/server/db/schema";
+import { vacuumCollectionTables } from "@/server/db/vacuum";
 
 export type GameSummary = {
   id: string;
@@ -131,6 +133,7 @@ export async function lockForMutation(
 }
 
 // Compare-and-set along the forward chain; a stale `from` is WRONG_STATE too.
+// Entering grouping also starts the Grouping lease (AD-9).
 export async function transition(
   tx: Tx,
   gameId: string,
@@ -141,7 +144,17 @@ export async function transition(
   assertGameId(gameId);
   const [row] = await tx
     .update(game)
-    .set(to === "played" ? { state: to, playedAt: new Date() } : { state: to })
+    .set(
+      to === "played"
+        ? { state: to, playedAt: new Date() }
+        : to === "grouping"
+          ? {
+              state: to,
+              // DB time, since the Grouping runner compares it with now() (AD-9).
+              groupingLeaseUntil: sql`now() + ${GROUPING_LEASE_MS} * interval '1 millisecond'`,
+            }
+          : { state: to },
+    )
     .where(and(eq(game.id, gameId), eq(game.state, from)))
     .returning({ id: game.id });
   if (!row) throw new DomainError("WRONG_STATE");
@@ -169,22 +182,25 @@ export async function reserveInviteLinks(
 }
 
 // Any state (AD-4). Children cascade from game, so one DELETE removes every row of it.
+// A collecting Game had links and Answer sets, so their dead rows are vacuumed (AD-9).
 export function deleteOwned(
   hostId: string,
   gameId: string,
 ): Promise<{ title: string }> {
   return withBoundary("games", "deleteOwned", async () => {
     const db = await getDb();
-    return db.transaction(async (tx) => {
-      const { title } = await lockForMutation(tx, {
+    const { title, state } = await db.transaction(async (tx) => {
+      const row = await lockForMutation(tx, {
         hostId,
         gameId,
         states: PERMITTED.deleteGame,
         touch: false,
       });
       await tx.delete(game).where(eq(game.id, gameId));
-      return { title };
+      return row;
     });
+    if (state === "collecting") await vacuumCollectionTables("games");
+    return { title };
   });
 }
 
@@ -209,7 +225,10 @@ export function purgeExpired(): Promise<{ deleted: number }> {
           ),
         ),
       )
-      .returning({ id: game.id });
+      .returning({ state: game.state });
+    // A collecting Game had links and Answer sets, as in deleteOwned (AD-9).
+    if (rows.some((r) => r.state === "collecting"))
+      await vacuumCollectionTables("games");
     await auth.purgeExpiredSessions();
     return { deleted: rows.length };
   });

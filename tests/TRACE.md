@@ -129,7 +129,18 @@ Close Collection.
 - `tests/integration/collection.test.ts`: in each of the six states other than _collecting_ a submit is `COLLECTION_CLOSED` and writes no row (Story 2.4).
 - `tests/integration/collection.test.ts`: a link revoked, a Game deleted, or a Game moved to _grouping_ between submit's lookup and its transaction gives `LINK_UNKNOWN`, `LINK_UNKNOWN` and `COLLECTION_CLOSED` and writes no row, so the guards under the Game lock are proven (Epic 2 review, L1).
 - `tests/e2e/answer-form.spec.ts`: a real submit response rewritten to `COLLECTION_CLOSED` replaces the form with the focused "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." and removes the key; rewritten to `LINK_UNKNOWN` it shows the focused unknown heading; to `INTERNAL` the alert with the values kept; to `INVALID_INPUT` with a `qid.0` field error that error under Question 1's Svar 1 (Story 2.4).
-- Pending: Story 3.1.
+- `tests/unit/errors.test.ts`: `TOO_FEW_ANSWER_SETS` is the full wireframe reason and holds no digit below three (Story 3.1, AC2).
+- `tests/integration/collection.test.ts`: with 0, 1 and 2 Answer sets `closeCollection` is `TOO_FEW_ANSWER_SETS` and the Game row (`updated_at` included), links, sets and `answer` rows are unchanged (Story 3.1, AC2).
+- `tests/integration/collection.test.ts`: a close with three sets writes one `answer` row per Answer with `rank` and `text`, calls `grouping.insertAnswers` once, deletes this Game's links and sets but not another collecting Game's, moves the Game to _grouping_ with `grouping_lease_until` 180 s ahead, and logs nothing; a forced VACUUM failure (`db.execute` rejecting with `55P03`) still closes and logs one line `{ module: "collection", op: "vacuum", code: "INTERNAL", sqlstate: "55P03" }` with no Answer, Token, hash or gameId (Story 3.1, AC3).
+- `tests/integration/collection.test.ts`: after close every former link, one revoked before close included, is `COLLECTION_CLOSED` in `openInviteLink`, `linkStatus` is `closed`, the shell renders the closed copy, and a late submit is `COLLECTION_CLOSED` with no row; a real `collection.close` run between submit's lookup and its lock refuses the submit with `COLLECTION_CLOSED` and leaves its set out; a submit before close is among the Answers; an unordered `Promise.all` of submit and close ends with the set fully included or refused, never partial (Story 3.1, AC4).
+- `tests/integration/collection.test.ts`: from three sets the Game page changes only in the count and the close control, which loses `aria-disabled` and gets the dialog (Story 3.1, AC5).
+- `tests/integration/collection.test.ts`: a real `collection.close` started right after submit's Game lock, while submit's transaction is open, waits for it; submit is ok and its set is among the closed Answers. The dialog's no-key sentence shows with neither `OPENROUTER_API_KEY` nor Demo mode, and not with either (Story 3.1 review).
+- `tests/integration/purge.test.ts`: the retention purge of an idle _collecting_ Game runs the VACUUM, and of an idle _draft_ Game does not (Story 3.1 review).
+- `tests/e2e/close.spec.ts`: an aborted close POST keeps the dialog open with the focused alert "Fikk ikke kontakt. Sjekk nettet og prøv igjen." and the Game stays _collecting_; confirming in a tab whose Game another tab already closed refreshes it to "Grupperer" (Story 3.1 review).
+- `tests/integration/authz.test.ts`: Host B's `closeCollection` on A's closable Game, a random UUID and `"abc"` is one identical `NOT_FOUND`, and A's Game, links, sets and the `answer` table are unchanged (Story 3.1).
+- `tests/integration/game-state.test.ts`: `collection.close` is `WRONG_STATE` in every state but _collecting_, and the Game row and links are unchanged (Story 3.1).
+- `tests/integration/delete.test.ts`: deleting a _collecting_ Game runs `VACUUM (FULL, SKIP_LOCKED) submission, invite_link` after commit, a forced VACUUM failure still deletes and logs one `games`/`vacuum` line with only the SQLSTATE, and deleting a _draft_ Game runs no VACUUM (Story 3.1, AC3).
+- `tests/e2e/close.spec.ts`: at 360 px "Steng innsamlingen" is `aria-disabled` with the reason as its accessible description at two sets and opens no dialog; at three it opens "Stenge innsamlingen?" with the consequence and the no-key sentence, focus on "Avbryt"; Esc closes it and focus returns to the trigger; confirming shows "Grupperer", the Judge sentence and focuses the `<h1>`; a form opened before close then submits, shows "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." and its `localStorage` key is gone; axe finds no serious violations in the disabled, dialog and _grouping_ states (Story 3.1, AC5).
 
 ## FR-11
 
@@ -161,8 +172,10 @@ Nothing linkable in the Host's view.
 
 Unlinkable storage after close.
 
-- None yet.
-- Pending: Stories 3.1, 3.2, 5.5.
+- `tests/unit/shuffle.test.ts`: the shuffle always returns a permutation and leaves its input unmutated, and its swaps come from `node:crypto` `randomInt` as a Fisher-Yates from the end, with `randomInt` called with 4, 3, 2 for four items (Story 3.1, AC1).
+- `tests/integration/collection.test.ts`: after close every `answer.id` and Contributor key is a v4 UUID, there is one key per Answer set and Question (9 keys for 3 sets × 3 Questions, each covering one Question's Answers of one set), and no Token hash, link or set of the Game remains (Story 3.1, AC3).
+- `tests/integration/collection.test.ts`: with 3 sets × 3 Questions × 5 Answers, the 45 rows read in `ORDER BY ctid` do not keep every key's rows contiguous, which any unshuffled build does, and the Answer sets interleave, which a build that shuffles only inside each set does not; checked to fail with the shuffle removed (Story 3.1, AC3).
+- Pending: Stories 3.2, 5.5.
 
 ## FR-14
 
@@ -190,8 +203,9 @@ Ranking and labels.
 
 Manual Grouping fallback.
 
-- None yet.
-- Pending: Stories 3.1, 4.1, 4.2, 5.1.
+- `tests/unit/normalize.test.ts`: `NORMALIZE_VERSION` is 1; normalisation applies NFC, locale-free lower case (Æ, Ø, Å and a Turkish `İ`), trim, inner-whitespace collapse and removal of trailing `.,!?;:…` mixed with spaces, and falls back to the trimmed lower-cased text when nothing else is left (Story 3.1, AC1).
+- `tests/integration/collection.test.ts`: close stores `normalized_text` from `normalize()`, e.g. "Kari Nordmann!!" as "kari nordmann" with rank 1 (Story 3.1, AC3).
+- Pending: Stories 4.1, 4.2, 5.1.
 
 ## FR-18
 

@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { INVITE_LINKS_MAX, QUESTIONS_MAX } from "@/lib/limits";
+import { INVITE_LINKS_MAX, QUESTIONS_MAX, SUBMISSIONS_MIN } from "@/lib/limits";
 
 export type ErrorCode =
   | "INVALID_INPUT"
@@ -13,6 +13,7 @@ export type ErrorCode =
   | "LINK_CAP_REACHED"
   | "LINK_UNKNOWN"
   | "COLLECTION_CLOSED"
+  | "TOO_FEW_ANSWER_SETS"
   | "INTERNAL";
 
 export const MESSAGES: Record<ErrorCode, string> = {
@@ -27,6 +28,8 @@ export const MESSAGES: Record<ErrorCode, string> = {
   LINK_CAP_REACHED: `Spillet har nådd maks ${INVITE_LINKS_MAX} lenker.`,
   LINK_UNKNOWN: "Vi finner ikke denne lenken.",
   COLLECTION_CLOSED: "Innsamlingen er stengt.",
+  // Says "minst 3", never the exact count below it (FR-8).
+  TOO_FEW_ANSWER_SETS: `Du trenger minst ${SUBMISSIONS_MIN} innsendte svar før du kan stenge. Det beskytter anonymiteten. Lag flere lenker, vent litt, eller slett spillet.`,
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",
 };
 
