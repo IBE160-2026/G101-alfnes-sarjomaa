@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/lib/errors";
 import {
@@ -9,8 +9,9 @@ import {
   type Operation,
 } from "@/lib/game-state";
 import { getDb, type Tx } from "@/server/db/client";
-import { game, host } from "@/server/db/schema";
+import { game, host, question } from "@/server/db/schema";
 import * as games from "@/server/games";
+import * as questions from "@/server/questions";
 
 const T0 = new Date("2026-11-01T12:00:00Z");
 const LATER = new Date("2026-11-22T09:00:00Z");
@@ -174,5 +175,50 @@ describe("games.lockForMutation", () => {
           `${op} in ${state}`,
         ).toBe(permitted.includes(state) ? "ok" : "WRONG_STATE");
       }
+  });
+});
+
+describe("questions in a non-draft Game", () => {
+  it("FR-4, AD-4: save (new and existing id), move and remove are WRONG_STATE in every state but draft, and no Question changes", async () => {
+    await setState("draft");
+    const [a, b] = [randomUUID(), randomUUID()];
+    await questions.save(hostId, { gameId, questionId: a, text: "Første" });
+    await questions.save(hostId, { gameId, questionId: b, text: "Andre" });
+    const snapshot = async () =>
+      (await getDb())
+        .select()
+        .from(question)
+        .where(eq(question.gameId, gameId))
+        .orderBy(asc(question.position));
+    const before = await snapshot();
+    expect(before).toHaveLength(2);
+
+    for (const state of GAME_STATES.filter((s) => s !== "draft")) {
+      await setState(state);
+      for (const [name, op] of [
+        [
+          "save new",
+          () =>
+            questions.save(hostId, {
+              gameId,
+              questionId: randomUUID(),
+              text: "Ny",
+            }),
+        ],
+        [
+          "save existing",
+          () =>
+            questions.save(hostId, { gameId, questionId: a, text: "Endret" }),
+        ],
+        [
+          "move",
+          () =>
+            questions.move(hostId, { gameId, questionId: b, direction: "up" }),
+        ],
+        ["remove", () => questions.remove(hostId, { gameId, questionId: a })],
+      ] as const)
+        expect(await codeOf(op()), `${name} in ${state}`).toBe("WRONG_STATE");
+      expect(await snapshot(), state).toEqual(before);
+    }
   });
 });

@@ -3,10 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { DeleteGame } from "@/components/DeleteGame";
+import { QuestionEditor } from "@/components/QuestionEditor";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
 import * as games from "@/server/games";
+import * as questions from "@/server/questions";
 
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
@@ -44,17 +46,21 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
   // One route; later stories add their state's panel as a case here.
   let panel = null;
   switch (game.state) {
-    case "draft":
+    case "draft": {
+      const { hostId } = await auth.requireHost();
       panel = (
         <section aria-labelledby="sporsmal" className="mt-10">
           <h2 id="sporsmal" className="text-heading">
             Spørsmål
           </h2>
-          {/* shortcut: neutral copy while there is no question editor; restore the EXPERIENCE.md sentence ("Skriv det første …") with the editor in Epic 2. */}
-          <p className="mt-2">Ingen spørsmål ennå.</p>
+          <QuestionEditor
+            gameId={game.id}
+            questions={await questions.list(hostId, game.id)}
+          />
         </section>
       );
       break;
+    }
   }
 
   return (

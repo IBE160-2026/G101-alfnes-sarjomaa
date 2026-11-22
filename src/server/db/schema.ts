@@ -47,3 +47,16 @@ export const game = pgTable("game", {
   updatedAt: timestamp("updated_at", utc).notNull().defaultNow(),
   playedAt: timestamp("played_at", utc),
 });
+
+export const question = pgTable(
+  "question",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => game.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    text: text("text").notNull(),
+  },
+  (t) => [uniqueIndex("question_game_position_key").on(t.gameId, t.position)],
+);

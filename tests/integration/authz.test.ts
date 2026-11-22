@@ -1,15 +1,20 @@
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteGame } from "@/app/spill/[id]/actions";
+import {
+  deleteGame,
+  moveQuestion,
+  removeQuestion,
+  saveQuestion,
+} from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
 import { createGame } from "@/app/spill/actions";
 import GamesPage from "@/app/spill/page";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
-import { game } from "@/server/db/schema";
+import { game, question } from "@/server/db/schema";
 import * as games from "@/server/games";
 import { cookieJar, NotFoundError, run } from "./next-mocks";
 
@@ -206,10 +211,85 @@ describe("Host B against Host A's Game", () => {
   });
 });
 
+describe("Questions across Hosts", () => {
+  const NOT_FOUND = {
+    ok: false,
+    code: "NOT_FOUND",
+    message: "Vi finner ikke dette spillet.",
+  };
+  const questionOfA = randomUUID();
+  const questionOfB = randomUUID();
+  let gameOfB: string;
+
+  const questionsOf = async (gameId: string) =>
+    (await getDb())
+      .select()
+      .from(question)
+      .where(eq(question.gameId, gameId))
+      .orderBy(asc(question.position));
+
+  beforeAll(async () => {
+    const db = await getDb();
+    [{ id: gameOfB }] = await db
+      .insert(game)
+      .values({ hostId: hosts.B, title: "Bs spill" })
+      .returning({ id: game.id });
+    // Inserted directly, so A's updated_at stays T0.
+    await db.insert(question).values([
+      { id: questionOfA, gameId: gameOfA, position: 1, text: "As spørsmål" },
+      { id: randomUUID(), gameId: gameOfA, position: 2, text: "As andre" },
+      { id: questionOfB, gameId: gameOfB, position: 1, text: "Bs spørsmål" },
+    ]);
+  });
+
+  it("FR-4, AD-5: B's save, move and remove on A's Game, a random UUID and a malformed ID give one identical NOT_FOUND and leave A's Questions and updated_at", async () => {
+    as("B");
+    const before = await questionsOf(gameOfA);
+    for (const gameId of [gameOfA, randomUUID(), "abc"]) {
+      for (const result of [
+        await saveQuestion({ gameId, questionId: randomUUID(), text: "B" }),
+        await saveQuestion({ gameId, questionId: questionOfA, text: "B" }),
+        await moveQuestion({
+          gameId,
+          questionId: questionOfA,
+          direction: "down",
+        }),
+        await removeQuestion({ gameId, questionId: questionOfA }),
+      ])
+        expect(result, gameId).toEqual(NOT_FOUND);
+    }
+    expect(await questionsOf(gameOfA)).toEqual(before);
+    expect((await gameRow(gameOfA)).updatedAt).toEqual(T0);
+  });
+
+  it("FR-4, AD-5: A saving, moving or removing B's questionId inside A's own Game is NOT_FOUND and changes neither Game", async () => {
+    as("A");
+    const beforeA = await questionsOf(gameOfA);
+    const beforeB = await questionsOf(gameOfB);
+    for (const result of [
+      await saveQuestion({
+        gameId: gameOfA,
+        questionId: questionOfB,
+        text: "A",
+      }),
+      await moveQuestion({
+        gameId: gameOfA,
+        questionId: questionOfB,
+        direction: "up",
+      }),
+      await removeQuestion({ gameId: gameOfA, questionId: questionOfB }),
+    ])
+      expect(result).toEqual(NOT_FOUND);
+    expect(await questionsOf(gameOfA)).toEqual(beforeA);
+    expect(await questionsOf(gameOfB)).toEqual(beforeB);
+    expect((await gameRow(gameOfA)).updatedAt).toEqual(T0);
+  });
+});
+
 // Last in the file: it drops the game table.
 describe("with the game table dropped", () => {
   beforeAll(async () => {
-    await (await getDb()).execute(sql`drop table game`);
+    await (await getDb()).execute(sql`drop table game cascade`);
   });
 
   it("FR-2, UX-DR23: /spill keeps the create form and shows the danger notice; the boundary logs one listOwned line", async () => {

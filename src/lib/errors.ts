@@ -7,6 +7,7 @@ export type ErrorCode =
   | "REGISTRATION_CODE_WRONG"
   | "NOT_FOUND"
   | "WRONG_STATE"
+  | "QUESTION_CAP_REACHED"
   | "INTERNAL";
 
 export const MESSAGES: Record<ErrorCode, string> = {
@@ -16,6 +17,7 @@ export const MESSAGES: Record<ErrorCode, string> = {
   REGISTRATION_CODE_WRONG: "Registreringskoden stemmer ikke.",
   NOT_FOUND: "Vi finner ikke dette spillet.",
   WRONG_STATE: "Spillet er i en annen fase nå. Last inn siden på nytt.",
+  QUESTION_CAP_REACHED: "Du har nådd maks 20 spørsmål.",
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",
 };
 
