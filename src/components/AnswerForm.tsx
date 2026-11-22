@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type KeyboardEvent,
   type MouseEvent,
 } from "react";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
@@ -180,6 +181,25 @@ export function AnswerForm({
       ?.focus({ preventScroll: true });
   }
 
+  // enterKeyHint="next": Enter moves to the next answer field, from the last one to
+  // the submit button, and never submits from a field.
+  function nextOnEnter(event: KeyboardEvent<HTMLFormElement>) {
+    const input = event.target;
+    if (
+      event.key !== "Enter" ||
+      event.nativeEvent.isComposing ||
+      !(input instanceof HTMLInputElement)
+    )
+      return;
+    event.preventDefault();
+    const form = event.currentTarget;
+    const inputs = [...form.querySelectorAll("input")];
+    (
+      inputs[inputs.indexOf(input) + 1] ??
+      form.querySelector<HTMLButtonElement>('button[type="submit"]')
+    )?.focus();
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
@@ -346,7 +366,13 @@ export function AnswerForm({
         Gi 1–5 svar per spørsmål. Skriv det første du kommer på i Svar 1.
       </p>
 
-      <form ref={formRef} noValidate onSubmit={submit} className="mt-6">
+      <form
+        ref={formRef}
+        noValidate
+        onSubmit={submit}
+        onKeyDown={nextOnEnter}
+        className="mt-6"
+      >
         <div className="space-y-4">
           {questions.map((q, n) => {
             const questionError = errors?.[q.id];

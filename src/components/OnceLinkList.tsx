@@ -5,6 +5,9 @@ import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
 
 const COPIED_MS = 2000;
+const LEAVE =
+  "Lenkene vises ikke igjen. Vil du gå videre uten å ha kopiert dem?";
+const asked = new WeakSet<Event>();
 
 // The only place the full links ever appear (FR-5, FR-12): they live in this
 // component's props and are never re-fetched or stored.
@@ -26,16 +29,46 @@ export function OnceLinkList({
     headingRef.current?.focus();
   }, []);
 
-  // shortcut: beforeunload covers reload, closing the tab and a typed URL, not Next's client-side links (breadcrumb, top bar); intercept router navigation if Hosts lose links that way.
+  // Until "Jeg har kopiert lenkene" unmounts this list, leaving the page asks first:
+  // beforeunload for reload, closing the tab and a typed URL; a confirm for in-app
+  // links and forms, since Next navigates those without unloading.
+  // shortcut: browser Back/Forward inside the app is not covered (popstate cannot be cancelled), intercept the router if Hosts lose links that way.
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       // Older Safari and Chromium show the prompt only with returnValue set.
       event.returnValue = "";
     };
+    const confirmLeave = (event: Event) => {
+      // Both panels can show a list at once; ask once per event.
+      if (event.defaultPrevented || asked.has(event)) return;
+      asked.add(event);
+      if (!window.confirm(LEAVE)) event.preventDefault();
+    };
+    const onClick = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest?.("a[href]");
+      if (
+        !(link instanceof HTMLAnchorElement) ||
+        link.origin !== location.origin ||
+        link.target === "_blank" ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        // An in-page anchor such as "Hopp til innhold" stays on the page.
+        (link.pathname === location.pathname && link.hash)
+      )
+        return;
+      confirmLeave(event);
+    };
     window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("submit", confirmLeave, true);
     return () => {
       window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("submit", confirmLeave, true);
       clearTimeout(timer.current);
     };
   }, []);

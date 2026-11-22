@@ -175,7 +175,7 @@ test("FR-14, FR-6, FR-11, NFR-4, NFR-6: at 360 px the form shows the notice, the
   expect(await precedes(submit, helper)).toBe(true);
 });
 
-test("FR-6, NFR-6: a submit with Question 2 empty sends nothing, focuses the summary, and its link focuses Question 2 without changing the fragment", async ({
+test("FR-6, NFR-6: Enter moves to the next field and never submits; a submit with Question 2 empty sends nothing, focuses the summary, and its link focuses Question 2 without changing the fragment", async ({
   page,
 }) => {
   const { token } = await openForm(page, "Mangler svar");
@@ -185,6 +185,15 @@ test("FR-6, NFR-6: a submit with Question 2 empty sends nothing, focuses the sum
   });
 
   await field(page, 1, 1).fill("Sover videre");
+  // Enter is "Neste": it moves on, from the last field to the button, and never submits.
+  await field(page, 1, 1).press("Enter");
+  await expect(field(page, 1, 2)).toBeFocused();
+  await field(page, 2, 2).press("Enter");
+  await expect(
+    page.getByRole("button", { name: "Send inn svar" }),
+  ).toBeFocused();
+  await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
+  expect(actions).toHaveLength(0);
   await page.getByRole("button", { name: "Send inn svar" }).click();
   const summary = page.locator("main").getByRole("alert");
   await expect(summary).toBeFocused();

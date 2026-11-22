@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Dialog, Page } from "@playwright/test";
 import {
   expect,
   FOCUS_RING,
@@ -13,6 +13,8 @@ const BODY =
 const NOTICE =
   "Av hensyn til anonymiteten lagrer vi ikke lenkene, så de kan ikke vises igjen. Send én lenke til hver deltaker.";
 const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
+const LEAVE =
+  "Lenkene vises ikke igjen. Vil du gå videre uten å ha kopiert dem?";
 
 async function createGame(page: Page, title: string): Promise<string> {
   await page.goto("/spill");
@@ -70,7 +72,7 @@ test("FR-5: with zero Questions Lag lenker is aria-disabled, described by the re
   await expect(page.getByText("Utkast", { exact: true })).toBeVisible();
 });
 
-test("FR-5, FR-4, FR-12: the first batch asks first, shows the links once with copy, warns on leaving, locks the Questions; more links need no dialog", async ({
+test("FR-5, FR-4, FR-12: the first batch asks first, shows the links once with copy, warns on leaving and on in-app links, locks the Questions; more links need no dialog", async ({
   page,
   context,
 }) => {
@@ -135,6 +137,22 @@ test("FR-5, FR-4, FR-12: the first batch asks first, shows the links once with c
   expect(leave.type()).toBe("beforeunload");
   await leave.dismiss();
   await expect(onceList(page)).toBeVisible();
+
+  // An in-app link asks too, since Next navigates without unloading; cancel stays.
+  let asked: Dialog | undefined;
+  page.once("dialog", (d) => {
+    asked = d;
+    void d.dismiss();
+  });
+  await page
+    .getByRole("navigation", { name: "Hovedmeny" })
+    .getByRole("link", { name: "Mine spill" })
+    .click();
+  await expect.poll(() => asked?.type()).toBe("confirm");
+  expect(asked?.message()).toBe(LEAVE);
+  await expect(onceList(page)).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe(gamePath);
+  expect(await linkTexts(page)).toEqual(links);
 
   await page.getByRole("button", { name: "Jeg har kopiert lenkene" }).click();
   await expect(countField(page)).toBeFocused();
