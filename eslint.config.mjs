@@ -67,7 +67,12 @@ export default defineConfig([
   zone(["src/*.{ts,tsx}", "src/app/**", "src/components/**"], NO_DB),
   // A later zone replaces the earlier patterns, so the routes' ban is repeated.
   zone(
-    ["src/app/svar/**"],
+    [
+      "src/app/svar/**",
+      "src/components/InviteLinkView.tsx",
+      "src/components/LinkStatus.tsx",
+      "src/components/ParticipantChrome.tsx",
+    ],
     NO_DB,
     ban("@/server/auth", "No auth code runs under /svar (AD-6)."),
   ),

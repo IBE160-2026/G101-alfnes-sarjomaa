@@ -210,7 +210,86 @@ test("NFR-6, UX-DR23: an aborted openInviteLink request shows the network messag
   await expect(page.locator("h1")).toHaveCount(0);
 
   await page.unrouteAll();
-  await retry.click();
+  await retry.focus();
+  await page.keyboard.press("Enter");
   await expect(page.locator("h1")).toHaveText("Uten nett");
+  await expect(page.locator("h1")).toBeFocused();
   await expect(page.getByRole("listitem")).toHaveText([QUESTION]);
+});
+
+test("FR-1, UX-DR27: unmatched /svar URLs show the unknown page without Host chrome, even with a Host session", async ({
+  page,
+}) => {
+  await registerHost(page);
+  for (const url of ["/svar", `/svar/${randomUUID()}/x`]) {
+    await page.goto(url);
+    await expect(page.locator("h1"), url).toHaveText(UNKNOWN_HEADING);
+    for (const text of ["Mine spill", "Logg ut"])
+      await expect(page.getByText(text), url).toHaveCount(0);
+    await expect(page.locator("nav"), url).toHaveCount(0);
+  }
+});
+
+test("FR-9: pasting a replacement link in the same tab (only the fragment changes) loads it", async ({
+  page,
+}) => {
+  await registerHost(page);
+  const { gameId, token } = await collectingGame(page, "Ny lenke");
+  await openWithSeededKey(page, gameId, randomBytes(32).toString("base64url"));
+  await expect(page.locator("h1")).toHaveText(UNKNOWN_HEADING);
+  await page.evaluate((t) => (location.hash = t), token);
+  await expect(page.locator("h1")).toHaveText("Ny lenke");
+});
+
+test("FR-10, FR-11, NFR-6: a client-side COLLECTION_CLOSED shows the closed page and clears the key; INTERNAL shows the alert and keeps it", async ({
+  page,
+}) => {
+  await registerHost(page);
+  const { gameId } = await collectingGame(page, "Omskrevet svar");
+  const INTERNAL = "Noe gikk galt hos oss. Prøv igjen om litt.";
+  const rewrites: [string, string][][] = [
+    [
+      ['"code":"LINK_UNKNOWN"', '"code":"INTERNAL"'],
+      ['"message":"Vi finner ikke denne lenken."', `"message":"${INTERNAL}"`],
+    ],
+    [['"code":"LINK_UNKNOWN"', '"code":"COLLECTION_CLOSED"']],
+  ];
+  for (const [i, rewrite] of rewrites.entries()) {
+    await page.unrouteAll();
+    // A real LINK_UNKNOWN response for an unknown Token, with its body rewritten.
+    await page.route("**/svar/**", async (route) => {
+      if (route.request().method() !== "POST") return route.continue();
+      const response = await route.fetch();
+      let body = await response.text();
+      for (const [from, to] of rewrite) {
+        expect(body).toContain(from);
+        body = body.replace(from, to);
+      }
+      const headers = response.headers();
+      delete headers["content-length"];
+      await route.fulfill({ response, headers, body });
+    });
+    const key = await openWithSeededKey(
+      page,
+      gameId,
+      randomBytes(32).toString("base64url"),
+    );
+    if (i === 0) {
+      await expect(page.locator("main").getByRole("alert")).toHaveText(
+        INTERNAL,
+      );
+      await expect(
+        page.getByRole("button", { name: "Prøv igjen" }),
+      ).toBeVisible();
+      await expect(page.locator("h1")).toHaveCount(0);
+      await expect(page.getByText(UNKNOWN_HEADING)).toHaveCount(0);
+      await expect(page.getByText(CLOSED_HEADING)).toHaveCount(0);
+      expect(await storedValue(page, key)).toBe("utkast");
+    } else {
+      await expect(page.locator("h1")).toHaveText(CLOSED_HEADING);
+      await expect(page.getByText(CLOSED_BODY)).toBeVisible();
+      await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
+      await expect.poll(() => storedValue(page, key)).toBeNull();
+    }
+  }
 });

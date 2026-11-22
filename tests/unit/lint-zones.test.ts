@@ -16,6 +16,7 @@ const cases: [file: string, source: string, banned: boolean][] = [
   ["src/proxy.ts", "@/server/db", true],
   ["src/app/svar/[gameId]/x.ts", "@/server/auth", true],
   ["src/app/svar/[gameId]/x.ts", "@/server/db", true],
+  ["src/components/LinkStatus.tsx", "@/server/auth", true],
   ["src/app/spill/x.ts", "@/server/auth", false],
   ["src/lib/x.ts", "@/server/env", true],
   ["src/lib/x.ts", "@/lib/limits", false],

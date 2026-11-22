@@ -1,7 +1,7 @@
 "use client";
 
 import { unstable_rethrow } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { openInviteLink } from "@/app/svar/[gameId]/actions";
 import { Button } from "@/components/Button";
 import { LinkStatus } from "@/components/LinkStatus";
@@ -33,13 +33,33 @@ async function fetchView(gameId: string): Promise<View> {
 export function InviteLinkView({ gameId }: { gameId: string }) {
   const [view, setView] = useState<View>({ kind: "loading" });
   const load = useCallback(() => fetchView(gameId).then(setView), [gameId]);
+  const retried = useRef(false);
+  const retryRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  // A pasted replacement link changes only the fragment, which loads nothing by itself.
+  useEffect(() => {
+    const reload = () => location.reload();
+    window.addEventListener("hashchange", reload);
+    return () => window.removeEventListener("hashchange", reload);
+  }, []);
+
+  // "Prøv igjen" unmounts itself, so focus goes to what replaced it once the load settles.
+  useEffect(() => {
+    if (!retried.current || view.kind === "loading") return;
+    retried.current = false;
+    if (view.kind === "failed") return retryRef.current?.focus();
+    const h1 = document.querySelector("h1");
+    h1?.setAttribute("tabindex", "-1");
+    h1?.focus();
+  }, [view]);
+
   // Next re-renders the root layout's <title> ("Toppsvar") when a Server Action
   // resolves, after this effect has run, so the title is re-applied whenever <head> changes.
+  // shortcut: re-applies the title against Next's head re-render after Server Actions, replace with metadata or a React <title> once Next stops rewriting <title>.
   const title = view.kind === "open" ? `${view.title} – Toppsvar` : null;
   useEffect(() => {
     if (title === null) return;
@@ -74,7 +94,9 @@ export function InviteLinkView({ gameId }: { gameId: string }) {
             type="button"
             variant="secondary"
             className="mt-4"
+            ref={retryRef}
             onClick={() => {
+              retried.current = true;
               setView({ kind: "loading" });
               void load();
             }}

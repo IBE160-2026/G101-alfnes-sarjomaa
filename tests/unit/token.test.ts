@@ -35,7 +35,7 @@ describe("token", () => {
       expect(TOKEN_PATTERN.test(bad), bad).toBe(false);
   });
 
-  it("FR-7: storageKey is toppsvar:<gameId>:<first 16 Token characters>", () => {
+  it("FR-9, AD-8: storageKey is toppsvar:<gameId>:<first 16 Token characters>", () => {
     const gameId = "3f0c2d8e-1b4a-4c6e-9f7a-2d5b8c1e0a9f";
     const token = "abcdefghijklmnopQRSTUVWXYZ0123456789-_abcde";
     expect(storageKey(gameId, token)).toBe(
