@@ -59,7 +59,7 @@ development_status:
   3-3-anonymity-tests-the-host-s-view-during-collection-and-log-hy: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-judge-boundary-with-replay-and-mock-providers: done
   4-2-grouping-runs-once-at-close-with-per-question-fallback: done
   4-3-usage-counters-and-the-usage-report: done
