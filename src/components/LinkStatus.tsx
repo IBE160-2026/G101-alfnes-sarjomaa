@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import { useDocumentTitle } from "@/components/useDocumentTitle";
 import { clearLinkStore } from "@/lib/invite-link";
+
+const TITLES = {
+  closed: "Innsamlingen er stengt – Toppsvar",
+  unknown: "Vi finner ikke lenken – Toppsvar",
+} as const;
 
 const COPY = {
   closed: [
@@ -17,6 +23,8 @@ const COPY = {
 // A closed or unknown link has nothing left to keep, so its saved draft and secret go,
 // but only when they belong to exactly this Token (a cut-short link shares the key).
 export function LinkStatus({ status }: { status: keyof typeof COPY }) {
+  useDocumentTitle(TITLES[status]);
+
   useEffect(() => {
     clearLinkStore(
       location.pathname.split("/")[2] ?? "",

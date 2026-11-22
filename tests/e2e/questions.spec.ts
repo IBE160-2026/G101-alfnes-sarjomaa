@@ -130,6 +130,10 @@ test("FR-4: Flytt ned, Flytt opp and Slett reorder and remove with focus followi
   await page.reload();
   expect(await texts(page)).toEqual(["C", "B", "A"]);
 
+  // A destructive action reads as one: secondary-danger, not a ghost word.
+  await expect(
+    page.getByRole("button", { name: "Slett spørsmål 2" }),
+  ).toHaveCSS("border-top-color", DANGER);
   await page.getByRole("button", { name: "Slett spørsmål 2" }).click();
   await expect.poll(() => texts(page)).toEqual(["C", "A"]);
   await expect(field(page, 2)).toBeFocused();
@@ -144,7 +148,7 @@ test("FR-4: Flytt ned, Flytt opp and Slett reorder and remove with focus followi
   expect(await texts(page)).toEqual(["C", "A"]);
 });
 
-test("FR-4: an aborted save shows Fikk ikke lagret. Prøv igjen. and keeps the text", async ({
+test("FR-4: an aborted save shows Fikk ikke lagret. Prøv igjen. and keeps the text, and the Prøv igjen control saves it", async ({
   page,
 }) => {
   await registerHost(page);
@@ -158,6 +162,16 @@ test("FR-4: an aborted save shows Fikk ikke lagret. Prøv igjen. and keeps the t
   const status = row(page, 1).getByRole("status");
   await expect(status).toHaveText("Fikk ikke lagret. Prøv igjen.");
   await expect(status).toHaveCSS("color", DANGER);
+  await expect(field(page, 1)).toHaveValue("Hva skjer?");
+
+  // "Prøv igjen" resends the same text once the network is back.
+  await page.unrouteAll();
+  await row(page, 1)
+    .getByRole("button", { name: "Prøv igjen spørsmål 1" })
+    .click();
+  await expect(status).toHaveText("Lagret");
+  await expect(field(page, 1)).toBeFocused();
+  await page.reload();
   await expect(field(page, 1)).toHaveValue("Hva skjer?");
 });
 

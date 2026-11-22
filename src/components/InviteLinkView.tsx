@@ -7,6 +7,7 @@ import { AnswerForm } from "@/components/AnswerForm";
 import { Button } from "@/components/Button";
 import { LinkStatus } from "@/components/LinkStatus";
 import { Notice } from "@/components/Notice";
+import { useDocumentTitle } from "@/components/useDocumentTitle";
 import { NETWORK } from "@/components/useFormAction";
 import { readLinkStore } from "@/lib/invite-link";
 
@@ -72,24 +73,13 @@ export function InviteLinkView({ gameId }: { gameId: string }) {
     h1?.focus();
   }, [view]);
 
-  // Next re-renders the root layout's <title> ("Toppsvar") when a Server Action
-  // resolves, after this effect has run, so the title is re-applied whenever <head> changes.
-  // shortcut: re-applies the title against Next's head re-render after Server Actions, replace with metadata or a React <title> once Next stops rewriting <title>.
-  const title = view.kind === "open" ? `${view.title} – Toppsvar` : null;
-  useEffect(() => {
-    if (title === null) return;
-    const apply = () => {
-      if (document.title !== title) document.title = title;
-    };
-    apply();
-    const observer = new MutationObserver(apply);
-    observer.observe(document.head, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-    });
-    return () => observer.disconnect();
-  }, [title]);
+  useDocumentTitle(
+    view.kind === "open"
+      ? `${view.title} – Toppsvar`
+      : view.kind === "failed"
+        ? "Noe gikk galt – Toppsvar"
+        : null,
+  );
 
   switch (view.kind) {
     case "loading":

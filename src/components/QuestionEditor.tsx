@@ -23,7 +23,11 @@ import {
 } from "@/lib/limits";
 
 type Question = { id: string; text: string };
-type Status = { tone: "success" | "danger"; text: string } | null;
+type Status = {
+  tone: "success" | "danger";
+  text: string;
+  retry?: boolean;
+} | null;
 
 const EMPTY =
   "Ingen spørsmål ennå. Skriv det første, gjerne om noen dere kjenner, for eksempel «Hva gjør Jonas når han har forsovet seg?»";
@@ -206,16 +210,19 @@ function QuestionRow({
   // A draft deleted while its save is in flight; a save that lands is then removed again.
   const dropped = useRef(false);
 
-  function showFailure(result: Failure | null) {
+  // `retry`: a save that failed for the network or the server gets a "Prøv igjen" control.
+  function showFailure(result: Failure | null, retry = false) {
     if (
       result?.code === "WRONG_STATE" ||
       result?.code === "NOT_FOUND" ||
       result?.code === "QUESTION_CAP_REACHED"
     )
       router.refresh();
+    const failed = !result || result.code === "INTERNAL";
     setStatus({
       tone: "danger",
-      text: !result || result.code === "INTERNAL" ? FAILED : result.message,
+      text: failed ? FAILED : result.message,
+      retry: retry && failed,
     });
   }
 
@@ -247,7 +254,7 @@ function QuestionRow({
         setError(result.fieldErrors.text);
         setStatus(null);
       } else {
-        showFailure(result);
+        showFailure(result, true);
       }
       // A blur during the save was not sent; catch up if the text changed since.
       if (textRef.current.trim() !== sent) save();
@@ -290,7 +297,7 @@ function QuestionRow({
             : "border border-line-strong px-3 py-2"
         }`}
       />
-      <div className="mt-1 flex min-h-5 gap-4 text-body-sm">
+      <div className="mt-1 flex min-h-5 items-center gap-4 text-body-sm">
         <p
           role="status"
           className={
@@ -299,6 +306,19 @@ function QuestionRow({
         >
           {status?.text}
         </p>
+        {status?.retry && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              // Focus first: the button unmounts once the save starts.
+              document.getElementById(fieldId)?.focus();
+              save();
+            }}
+          >
+            Prøv igjen{suffix}
+          </Button>
+        )}
         {length >= QUESTION_COUNTER_FROM && (
           <span aria-hidden="true" className="ml-auto text-ink-muted">
             {count}
@@ -325,7 +345,7 @@ function QuestionRow({
         {canMoveUp && (
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             data-move="up"
             pending={busy}
             onClick={() =>
@@ -341,7 +361,7 @@ function QuestionRow({
         {canMoveDown && (
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             data-move="down"
             pending={busy}
             onClick={() =>
@@ -357,7 +377,7 @@ function QuestionRow({
         )}
         <Button
           type="button"
-          variant="ghost"
+          variant="secondary-danger"
           pending={busy}
           onClick={() => {
             if (saved)

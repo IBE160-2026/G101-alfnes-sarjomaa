@@ -87,7 +87,9 @@ test("FR-5, FR-4, FR-12: the first batch asks first, shows the links once with c
   await createButton(page).click();
   const dialog = openDialog(page);
   await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveAccessibleDescription(BODY);
+  await expect(dialog).toHaveAccessibleDescription(
+    `Du har lagret 1 spørsmål. ${BODY}`,
+  );
   await expect(dialog.getByRole("button", { name: "Avbryt" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();

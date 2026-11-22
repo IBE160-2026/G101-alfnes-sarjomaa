@@ -13,6 +13,7 @@ const UNKNOWN_HEADING = "Vi finner ikke denne lenken.";
 const UNKNOWN_BODY =
   "Den kan være skrevet feil eller ikke lenger gyldig. Be den som sendte deg den om en ny.";
 const CLOSED_HEADING = "Innsamlingen er stengt.";
+const CLOSED_TITLE = "Innsamlingen er stengt – Toppsvar";
 const CLOSED_BODY =
   "Verten har stengt innsamlingen, så svar kan ikke lenger sendes inn eller endres.";
 const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
@@ -161,6 +162,7 @@ test("FR-9, FR-3: a missing or malformed Game, a malformed or unknown Token and 
     const key = await openWithSeededKey(page, gameId, token);
     await expect(page.locator("h1"), name).toHaveText(UNKNOWN_HEADING);
     await expect(page.getByText(UNKNOWN_BODY), name).toBeVisible();
+    await expect(page, name).toHaveTitle("Vi finner ikke lenken – Toppsvar");
     await expect.poll(() => storedValue(page, key), name).toBeNull();
   }
 });
@@ -178,6 +180,7 @@ test("FR-10, UX-DR20: a link of a Game that is not collecting (a draft) shows th
   );
   await expect(page.locator("h1")).toHaveText(CLOSED_HEADING);
   await expect(page.getByText(CLOSED_BODY)).toBeVisible();
+  await expect(page).toHaveTitle(CLOSED_TITLE);
   await expect.poll(() => storedValue(page, key)).toBeNull();
   await expect(page.getByText("Fortsatt utkast")).toHaveCount(0);
 });
@@ -218,6 +221,7 @@ test("NFR-6, UX-DR23: an aborted openInviteLink request shows the network messag
   );
   await page.goto(link);
   await expect(page.locator("main").getByRole("alert")).toHaveText(NETWORK);
+  await expect(page).toHaveTitle("Noe gikk galt – Toppsvar");
   const retry = page.getByRole("button", { name: "Prøv igjen" });
   await expect(retry).toBeVisible();
   await expect(page.locator("h1")).toHaveCount(0);
@@ -298,6 +302,7 @@ test("FR-10, FR-11, NFR-6: a client-side COLLECTION_CLOSED shows the closed page
     } else {
       await expect(page.locator("h1")).toHaveText(CLOSED_HEADING);
       await expect(page.getByText(CLOSED_BODY)).toBeVisible();
+      await expect(page).toHaveTitle(CLOSED_TITLE);
       await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
       await expect.poll(() => storedValue(page, key)).toBeNull();
     }

@@ -344,7 +344,7 @@ export function AnswerForm({
             type="button"
             variant="ghost"
             onClick={discardDraft}
-            className="mt-2 -ml-2 px-2"
+            className="mt-2 -ml-2 px-2 text-primary underline underline-offset-2"
           >
             Forkast endringene
           </Button>

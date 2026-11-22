@@ -134,6 +134,7 @@ export function InviteLinkPanel({
           </Button>
         }
       >
+        <p>Du har lagret {questionCount} spørsmål.</p>
         <p>
           Spørsmålene låses når du lager de første lenkene, og kan ikke endres
           etterpå.
