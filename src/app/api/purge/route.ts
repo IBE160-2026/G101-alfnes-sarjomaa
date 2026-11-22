@@ -5,7 +5,7 @@ import * as games from "@/server/games";
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
 
-// The daily cron backstop (AD-17). Skips the hourly marker on purpose: Host traffic sets it too.
+// The daily cron backstop (AD-23). Skips the hourly marker on purpose: Host traffic sets it too.
 export async function GET(request: Request): Promise<Response> {
   await connection();
   if (!env.CRON_SECRET)

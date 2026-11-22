@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/server/db/client";
 import { game, host } from "@/server/db/schema";
@@ -91,5 +91,32 @@ describe("GET /api/purge", () => {
     expect(await response.json()).toEqual({ status: "ok", deleted: 1 });
     expect(await survivors()).toEqual([young]);
     expect(marker.__lastPurgeAt).toBe(before);
+  });
+
+  // Last in the file: it renames the game table away.
+  it("FR-3, AD-17: a failing purge is 500 error, and the boundary logs exactly one purgeExpired line", async () => {
+    await (await getDb()).execute(sql`alter table game rename to game_gone`);
+    const GET = await loadRoute("hemmelig");
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const response = await call(GET, "Bearer hemmelig");
+    const out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+    write.mockRestore();
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ status: "error" });
+    expect(
+      out
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line)),
+    ).toEqual([
+      {
+        module: "games",
+        op: "purgeExpired",
+        code: "INTERNAL",
+        sqlstate: "42P01",
+      },
+    ]);
   });
 });

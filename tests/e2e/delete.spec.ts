@@ -100,6 +100,33 @@ test("FR-3, UX-DR23: an aborted delete request keeps the dialog open with the fo
   await expect(page.getByRole("link", { name: "Uten nett" })).toBeVisible();
 });
 
+test("FR-3, AD-5: confirming in a stale dialog after the Game was deleted elsewhere keeps the dialog open with the focused not-found alert", async ({
+  page,
+  context,
+}) => {
+  await registerHost(page);
+  const gamePath = await createGame(page, "Slettet to ganger");
+  await page.getByRole("button", { name: "Slett spillet" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  const other = await context.newPage();
+  await other.goto(gamePath);
+  await other.getByRole("button", { name: "Slett spillet" }).click();
+  await other
+    .getByRole("dialog")
+    .getByRole("button", { name: "Slett for godt" })
+    .click();
+  await expect(other).toHaveURL(/\/spill\?slettet=/);
+  await other.close();
+
+  await dialog.getByRole("button", { name: "Slett for godt" }).click();
+  const alert = dialog.getByRole("alert");
+  await expect(alert).toHaveText("Vi finner ikke dette spillet.");
+  await expect(alert).toBeFocused();
+  await expect(dialog).toBeVisible();
+});
+
 test("NFR-6: axe with the dialog open and on /spill with the notice; the trigger and dialog buttons show the focus ring and are 44 px high", async ({
   page,
 }) => {

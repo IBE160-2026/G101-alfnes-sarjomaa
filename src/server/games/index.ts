@@ -136,6 +136,7 @@ export function deleteOwned(
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // FR-3 retention: 30 days after played, 90 days after the last Host change otherwise.
+// shortcut: one unbatched DELETE with no index on played_at/updated_at, fine at pilot scale; batch it and add an index if Games reach tens of thousands.
 export function purgeExpired(): Promise<{ deleted: number }> {
   return withBoundary("games", "purgeExpired", async () => {
     const now = Date.now();

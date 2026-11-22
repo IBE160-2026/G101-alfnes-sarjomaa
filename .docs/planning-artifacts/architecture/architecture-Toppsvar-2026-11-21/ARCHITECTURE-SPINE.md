@@ -311,7 +311,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Rule:**
   - **Reads.** Pages read data in server components. After a mutation, the action calls `revalidatePath`. There is no client data library.
   - **Mutations and token reads** are Server Actions in `src/app/**/actions.ts`, with their zod shape schemas in a sibling `schema.ts`. A module entry point enforces every invariant again, using the shared schemas from `src/lib`, so the CLI and tests get the same checks.
-  - **Result shape.** Actions return `{ ok: true, data } | { ok: false, code, message, fieldErrors? }`. The only exception is `redirect()` flows (login, create Game).
+  - **Result shape.** Actions return `{ ok: true, data } | { ok: false, code, message, fieldErrors? }`. The only exception is `redirect()` flows (login, create Game, delete Game).
   - **Error codes.** `ErrorCode` is a closed union, with bokmål messages, in `src/lib/errors.ts`. A zod failure gives `INVALID_INPUT` with `fieldErrors`.
   - **Error boundary.** Entry points and `after()` tasks convert any error that is not a `DomainError` into `DomainError('INTERNAL')`, with no cause and no original message. `src/server/log.ts` receives only `{ module, op, code, sqlstate }`. Actions never throw to Next.
   - **Route Handlers** are limited to `GET /api/health` (no side effects), `GET /api/purge` (requires `CRON_SECRET`, AD-23) and `GET /api/spill/[gameId]/rapport` (the AD-18 export).
