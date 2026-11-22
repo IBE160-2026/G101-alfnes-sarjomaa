@@ -156,7 +156,8 @@ No identity in the answering flow.
 - `tests/e2e/answer-form.spec.ts`: opened in the Host's own browser, the answer form shows no "Logg ut", "Mine spill" or `@` (Story 2.4, AC6).
 - `tests/unit/lint-zones.test.ts`: `AnswerForm.tsx` may not import `@/server/auth` (Story 2.4, AD-6).
 - `tests/unit/next-config.test.ts`: `next.config.ts` sets `logging.serverFunctions` and `logging.browserToTerminal` to `false`, so `next dev` never prints a Server Function's arguments (Token, edit secret) or a guest's browser console (Epic 2 review, H1).
-- Pending: Stories 3.2, 3.3, 6.5.
+- `tests/integration/anonymity.test.ts`: after a real close, no column in any app schema outside `host` and `session` names (case-insensitively) a Participant's email, IP or address, `forwarded`, `ua`, cookie, `user_id`, user agent, device, fingerprint, account, phone, participant or a person-prefixed `*name`, and none has type `inet`, `cidr` or `macaddr`, arrays included; checked to fail with `inet`, `inet[]`, `participant_email`, `EMAIL` or `forwarded_for` added (Story 3.2, AC4).
+- Pending: Stories 3.3, 6.5.
 
 ## FR-12
 
@@ -175,7 +176,11 @@ Unlinkable storage after close.
 - `tests/unit/shuffle.test.ts`: the shuffle always returns a permutation and leaves its input unmutated, and its swaps come from `node:crypto` `randomInt` as a Fisher-Yates from the end, with `randomInt` called with 4, 3, 2 for four items (Story 3.1, AC1).
 - `tests/integration/collection.test.ts`: after close every `answer.id` and Contributor key is a v4 UUID, there is one key per Answer set and Question (9 keys for 3 sets × 3 Questions, each covering one Question's Answers of one set), and no Token hash, link or set of the Game remains (Story 3.1, AC3).
 - `tests/integration/collection.test.ts`: with 3 sets × 3 Questions × 5 Answers, the 45 rows read in `ORDER BY ctid` do not keep every key's rows contiguous, which any unshuffled build does, and the Answer sets interleave, which a build that shuffles only inside each set does not; checked to fail with the shuffle removed (Story 3.1, AC3).
-- Pending: Stories 3.2, 5.5.
+- `tests/integration/anonymity.test.ts`: on one Game closed through the real actions (3 sets, 1 unused link, 1 set revoked before close), `answer` has exactly six columns with pinned type, nullability and default (`group_id` is added in Story 4.2); in every app schema (all but the system schemas and `drizzle`) no timestamp, date, time, interval or time-range column, arrays included, and no `*_at` column exists outside `host`, `session` and `game`; `answer` has no identity or `nextval` default and no app schema owns a sequence; with `invite_link` and `submission` empty no other table has a `token`/`hash`/`secret`/`link`/`submission` column (any case) or a foreign key into them (Story 3.2, AC1).
+- `tests/integration/anonymity.test.ts`: `invite_link` and `submission` hold no row and have `pg_relation_size` 0, so close's VACUUM ran and no dead tuple keeps a hash; a `row_to_json` scan of every row of every base table finds neither the first 16 characters of any of the 6 Tokens, 4 edit secrets or their `sha256` hashes captured before close, nor any text of the set revoked before close (Story 3.2, AC2).
+- `tests/integration/anonymity.test.ts`: no Contributor key appears under two Questions, and every `answer.id` and key is a v4 UUID (Story 3.2, AC3).
+- `tests/integration/anonymity.test.ts`: in `ORDER BY ctid` the 45 rows keep neither each key's rows nor each set's rows contiguous (more than 9 key runs and more than 3 set runs, so whole sets in any block order fail), and all share one `xmin` and one `cmin`, so they came from one statement in one transaction; each check was seen to fail with the matching break in the migration or in `close` (Story 3.2).
+- Pending: Story 5.5.
 
 ## FR-14
 
