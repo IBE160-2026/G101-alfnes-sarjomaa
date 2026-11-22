@@ -45,4 +45,5 @@ export const game = pgTable("game", {
   state: gameState("state").notNull().default("draft"),
   createdAt: timestamp("created_at", utc).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", utc).notNull().defaultNow(),
+  playedAt: timestamp("played_at", utc),
 });

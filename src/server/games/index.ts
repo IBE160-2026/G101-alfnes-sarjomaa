@@ -1,8 +1,8 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { DomainError, validate } from "@/lib/errors";
 import { createGameSchema } from "@/lib/game";
-import { canTransition, type GameState } from "@/lib/game-state";
+import { canTransition, PERMITTED, type GameState } from "@/lib/game-state";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Tx } from "@/server/db/client";
 import { game } from "@/server/db/schema";
@@ -108,8 +108,72 @@ export async function transition(
   assertGameId(gameId);
   const [row] = await tx
     .update(game)
-    .set({ state: to })
+    .set(to === "played" ? { state: to, playedAt: new Date() } : { state: to })
     .where(and(eq(game.id, gameId), eq(game.state, from)))
     .returning({ id: game.id });
   if (!row) throw new DomainError("WRONG_STATE");
+}
+
+// Any state (AD-4). Children cascade from game, so one DELETE removes every row of it.
+export function deleteOwned(
+  hostId: string,
+  gameId: string,
+): Promise<{ title: string }> {
+  return withBoundary("games", "deleteOwned", async () => {
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      const { title } = await lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.deleteGame,
+      });
+      await tx.delete(game).where(eq(game.id, gameId));
+      return { title };
+    });
+  });
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// FR-3 retention: 30 days after played, 90 days after the last Host change otherwise.
+export function purgeExpired(): Promise<{ deleted: number }> {
+  return withBoundary("games", "purgeExpired", async () => {
+    const now = Date.now();
+    const db = await getDb();
+    const rows = await db
+      .delete(game)
+      .where(
+        or(
+          and(
+            isNotNull(game.playedAt),
+            lte(game.playedAt, new Date(now - 30 * DAY_MS)),
+          ),
+          and(
+            isNull(game.playedAt),
+            lte(game.updatedAt, new Date(now - 90 * DAY_MS)),
+          ),
+        ),
+      )
+      .returning({ id: game.id });
+    return { deleted: rows.length };
+  });
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+const marker = globalThis as typeof globalThis & { __lastPurgeAt?: number };
+
+// At most hourly per process, from Host requests (AD-23). Never rejects.
+export async function purgeIfDue(): Promise<void> {
+  const now = Date.now();
+  if (
+    marker.__lastPurgeAt !== undefined &&
+    now - marker.__lastPurgeAt < HOUR_MS
+  )
+    return;
+  marker.__lastPurgeAt = now; // before the await, so concurrent requests do not both run
+  try {
+    await purgeExpired();
+  } catch {
+    // already logged by the boundary
+  }
 }
