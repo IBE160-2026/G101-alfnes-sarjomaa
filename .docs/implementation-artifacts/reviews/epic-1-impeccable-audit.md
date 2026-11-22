@@ -85,3 +85,28 @@ Fix: in the `useEffect`, if no `[aria-invalid="true"]` exists, fall back to `not
 ## Open question for the group
 
 The palette and display face are marked `[ASSUMPTION]` in DESIGN.md; nothing in epic 1 contradicts them, but the group has not confirmed them.
+
+## Epic 1 review fixes (2026-11-22)
+
+Commits on `epic-1-fundament`: `3a889ba` (titles and UI states), `caf2930` (delete notice), `531dff0` (form hook).
+
+| ID | Status | Note |
+|---|---|---|
+| M1 | fixed (`3a889ba`) | The template is `%s – Toppsvar`, and each route has its title from the table. `/spill/[id]` gets the Game title through `generateMetadata`, from the same `cache()`d owner-checked read the page uses. A missing or foreign Game gets "Vi finner ikke dette spillet", so a foreign title never leaks. The 500 pages set `<title>Noe gikk galt – Toppsvar</title>`. There is one e2e title assertion per page, and the error pages are checked in `error-pages.test.ts`. |
+| S1 | fixed (`3a889ba`) | `ServerError` adds a primary "Prøv igjen" button that calls Next 16's `retry()`, which is `reset()` plus a router refresh, so server errors are actually fetched again. The wordmark already links home, so no separate link was added. |
+| S2 | fixed (`3a889ba`) | `src/app/spill/error.tsx` catches errors in the /spill pages inside the signed-in spill layout, so the Host keeps "Mine spill" and "Logg ut". The root `error.tsx` and `global-error.tsx` stay signed out, because a client component cannot read the httpOnly cookie. |
+| S3 | fixed (`3a889ba`) | The 404 body links to "Til forsiden" when signed out and "Mine spill" when signed in. |
+| S4 | fixed (`3a889ba`) | The draft panel says only "Ingen spørsmål ennå." until the editor exists. A `shortcut:` comment says to restore the EXPERIENCE.md sentence with the editor in Epic 2. |
+| S5 | fixed (`caf2930`) | The `?slettet=` parameter is replaced by a short-lived httpOnly flash cookie, which the proxy clears after one showing. See ponytail item 4. |
+| S6 | fixed (`3a889ba`) | `::selection` is `color-mix(in oklab, primary 40%, surface)`. Ink on it is 8.1:1, and against paper it is 2.0:1 (the old value was 1.1:1). |
+| S7 | fixed (`3a889ba`) | `aria-required` is set on E-post, Passord, Registreringskode and Navn på spillet. `noValidate` and server validation are unchanged. |
+| S8 | fixed (`531dff0`) | `useFormAction` shows the notice whenever no rendered field has an error, and focus falls back to it. |
+| S9 | fixed in part (`3a889ba`) | `backdrop:bg-ink/55`, `max-w-120` and `px-2.75`. Skipped: the shared link and button class strings, which the audit itself marked "not now". |
+| N1 | skipped | The audit says to leave it. |
+| N2 | skipped | It is one line per skeleton, but a second `role="status"` on /spill during streaming would collide with the success notice and needs its own test. |
+| N3 | fixed (`3a889ba`) | `NavLink` sets `aria-current="page"` on "Mine spill" on `/spill`. It needs `usePathname`, so it is a 10-line client component, not one line. |
+| N4 | skipped | Consistency only, and the contract does not require it. |
+| N5 | skipped | Fine for now, according to the audit. |
+| N6 | no change | Contrast passes. |
+
+Checks: `lint`, `format:check` and `typecheck` are clean, `npm test` passes 255 tests and `npm run test:e2e` passes 45, all offline with no keys. The app was verified through the e2e suite only, not by looking at it at 360 and 1280 px.

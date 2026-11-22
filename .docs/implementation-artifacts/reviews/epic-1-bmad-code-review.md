@@ -197,3 +197,28 @@ The remaining findings are mostly tests that don't cover a guard, places where c
 | 25 | orchestrator | `Secure` is off when `APP_BASE_URL` is unset in production | Spec 1.3 and AD-6 mandate deriving it from `APP_BASE_URL`. Deployment config belongs to Story 7.5. |
 | 26 | orchestrator | CSRF on Server Actions | False: Next 16 Server Actions check Origin against Host. There are no GET mutations, and `/api/purge` needs a bearer secret. |
 | 27 | orchestrator | IDOR on Games | False: every Host read and write filters by `host_id`, and `authz.test.ts` and `delete.test.ts` cover foreign, random and malformed IDs. |
+
+## Epic 1 review fixes (2026-11-22)
+
+Commits on `epic-1-fundament`: `3a889ba` (titles and UI), `caf2930` (delete notice and session cache), `327f045` (tests and conventions), `531dff0` (simplification).
+
+| ID | Status | Note |
+|---|---|---|
+| M1 | fixed (`caf2930`) | `requireHost` is wrapped in React `cache()`, so the spill layout and the page share one session read per request. `tests/integration/session-expiry.test.ts` backdates a session, renders the layout and `/spill` one after the other within one request and checks that both redirect to `/logg-inn?utlopt=1`, then that the page shows the notice. Without `cache()` the second render gets `/logg-inn`; this was checked by disabling the memo. Not e2e, because the test process cannot write to the server's PGlite directory while the server holds it. |
+| L1 | fixed (`327f045`) | `auth.test.ts`: with `failed_logins = 15`, one wrong attempt locks for exactly 24 h. Removing the cap makes the test fail (checked). |
+| L2 | fixed (`327f045`) | `auth.test.ts`: when a lock lands while a wrong-password login waits for scrypt, neither the count nor the lock changes. Replacing `stillOpen` with `eq(host.id, row.id)` makes the test fail (checked). `greatest()` is still covered by reasoning only, because no test can land a lock between the count update and the lock write. |
+| L3 | fixed (`327f045`) | `authz.test.ts`, dropped-table block: `GamePage` rejects with `DomainError("INTERNAL")`, not `notFound()`. |
+| L4 | fixed (`327f045`) | `games.spec.ts`: `" " + "a".repeat(80) + " "` is announced as "80 av 80 tegn". |
+| L5 | fixed (`327f045`) | `delete.test.ts` walks `pg_constraint` recursively from `game` and checks `ON DELETE CASCADE` on every edge. A self-check creates `fk_child → game` and `fk_grandchild → fk_child` (NO ACTION) and asserts that the walk reports the grandchild. |
+| L6 | fixed (`327f045`) | `RETENTION_PLAYED_MS`, `RETENTION_IDLE_MS` and `PURGE_INTERVAL_MS` are in `src/lib/limits.ts`. |
+| L7 | fixed (`327f045`) | Host B's delete of A's Game, a random UUID and `"abc"` moved to `authz.test.ts`. |
+| L8 | fixed (`327f045`) | The comment now says that `lockForMutation` is the only way a Host or Player mutation locks a Game row, and that `create`, `transition` and `purgeExpired` write without it. |
+| L9 | fixed (`327f045`) | `.nvmrc` is `22.13`. |
+| L10 | fixed (`327f045`) | TRACE.md: `guards.test.ts` asserts only the `mock` provider config, and the skeleton appears after 300 ms without a fade. TRACE.md was also updated for every test that was added, moved or removed in these commits. |
+| L11 | fixed (`327f045`) | `registrationCode: z.string().trim()`, plus a test with `" x "`. Passwords are still never trimmed. |
+| L12 | skipped | Deferred in the report: no Postgres runs offline. The fix belongs with Story 7.3 (CI Postgres job) or 7.5. |
+| L13 | skipped | Deferred in the report: it edits the architecture document, which is a docs commit on `main`. |
+
+Dismissed items that other reports' fixes resolved anyway: #1 (a crafted `?slettet=` link) is gone with the flash cookie, #4 (no "Prøv igjen" on the 500 page) is fixed, #7 (expired sessions pile up) is now purged, and #22 (`aria-current`) is set.
+
+Checks after the fixes, offline and with no keys: `lint`, `format:check` and `typecheck` are clean, `npm test` passes 255 tests in 23 files and `npm run test:e2e` passes 45.

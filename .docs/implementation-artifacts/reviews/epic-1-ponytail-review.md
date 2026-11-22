@@ -87,3 +87,22 @@ None. I found no bug, security hole or data loss at the assumed load. I traced l
 Verdict: Ship. No must-fix findings; do 1, 2 and 4 before the PR, and 3 if you want the smaller suite.
 Lean: -70 lines possible in `src`, about -150 in `tests`.
 Not checked: UI rendering and axe results (did not run the app or the e2e suite), and whether the 24 h lockout ceiling is acceptable for account-lockout abuse (it is what AD-6 specifies).
+
+## Epic 1 review fixes (2026-11-22)
+
+Commits on `epic-1-fundament`: `3a889ba`, `caf2930`, `327f045`, `531dff0`.
+
+| ID | Status | Note |
+|---|---|---|
+| 1 (S) | fixed (`531dff0`) | The four `schema.ts` files are deleted. Each action passes `Object.fromEntries(formData)` to the module function, which validates every rule. `registrationCode` has a `.default("")` in `account.ts`, because the form leaves the field out when no code is configured. `deleteGame` passes `String(formData.get("gameId") ?? "")`, so anything that is not a UUID becomes `NOT_FOUND`. A hand-crafted POST with a missing field now gets zod's English message. |
+| 2 (S) | fixed (`531dff0`) | `src/components/useFormAction.ts` holds `useActionState`, the network message, the redirect rethrow and the focus effect. It also returns `showNotice`, which falls back to the notice when an error key matches no rendered field (impeccable S8). In `AccountForm` the email is now controlled, so it no longer has to ride along in the action state. |
+| 3 (S) | fixed (`531dff0`) | Removed or merged: the integration 49-pair test (now one legal edge, one skipped edge and one backward edge), the unit "names only known states" loop (the integration walk of `PERMITTED` stays, because `epic-1-context.md` requires it), 13 of 28 lint-zone cases including the folders that do not exist yet, the localhost guard test, the `.gitignore` reader and the `MESSAGES` loop. Every acceptance criterion and every FR row in `tests/TRACE.md` keeps at least one test, and TRACE.md is updated. |
+| 4 (S) | fixed (`caf2930`) | Story 1.5 AC1 requires "«{title}» er slettet.", so a fixed sentence was not enough. `deleteGame` now sets a 60 s cookie (`httpOnly`, `SameSite=Lax`, `path=/spill`) and redirects to `/spill`. The page reads the title from the cookie, and `src/proxy.ts` clears it on the next GET. The only request it skips is the internal render that the action's redirect streams back, which Next marks with `x-action-redirect`. Tests: `proxy.test.ts`, `delete.test.ts`, and e2e checks that the notice is gone after a reload and that `/spill?slettet=x` shows nothing. |
+| 5 (N) | skipped | Not in the decided scope. TRACE.md stays in prose. |
+| 6 (N) | fixed (`531dff0`) | `purgeExpired` calls `auth.purgeExpiredSessions()`, which deletes sessions expired for **more than another 14 days**, not every expired one. Deleting an expired row at once would break the `?utlopt=1` notice (Story 1.3 AC3), because the browser's cookie can outlive its row by up to an hour. Tested in `purge.test.ts`. |
+| 7 (N) | fixed (`caf2930`) | `requireHost` is wrapped in `cache()` (bmad M1). |
+| 8 (N) | fixed (`531dff0`) | `lockForMutation` takes `touch: false`, and `deleteOwned` passes it. The lock still goes through the one AD-4 path. Tested in `game-state.test.ts`. |
+| 9 (N) | skipped | Not in the decided scope. The proxy also imports `src/app/spill/deleted-notice.ts` now. |
+| 10 (N) | skipped | Not in the decided scope (`INITIAL_STATE`, the hard-coded 80 in the title message). |
+
+Checks: `lint`, `format:check` and `typecheck` are clean, `npm test` passes 255 tests and `npm run test:e2e` passes 45, all offline with no keys.
