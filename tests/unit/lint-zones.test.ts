@@ -17,6 +17,7 @@ const cases: [file: string, source: string, banned: boolean][] = [
   ["src/lib/x.ts", "@/components/Button", true],
   ["src/lib/x.ts", "@/lib/limits", false],
   ["src/server/auth/x.ts", "@/server/games", true],
+  ["src/server/auth/x.ts", "@/server/db", false],
   ["src/server/games/x.ts", "@/server/auth", false],
   ["src/server/questions/x.ts", "@/server/games", false],
   ["src/server/collection/x.ts", "@/server/review", true],
