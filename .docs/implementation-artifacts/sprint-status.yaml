@@ -59,8 +59,8 @@ development_status:
   3-3-anonymity-tests-the-host-s-view-during-collection-and-log-hy: done
   epic-3-retrospective: optional
 
-  epic-4: backlog
-  4-1-judge-boundary-with-replay-and-mock-providers: backlog
+  epic-4: in-progress
+  4-1-judge-boundary-with-replay-and-mock-providers: done
   4-2-grouping-runs-once-at-close-with-per-question-fallback: backlog
   4-3-usage-counters-and-the-usage-report: backlog
   4-4-live-judge-through-the-openrouter-provider-prompt-and-ruling: backlog
