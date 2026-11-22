@@ -54,6 +54,7 @@ Begge referanserepo committer hele rammeverket, slik at gruppa deler identisk ve
 - `.claude/skills/` — 39 `bmad-*`-skills (product-brief, prd, architecture, ux, spec, create-epics-and-stories, sprint-planning, build, code-review, retrospective, brainstorming, …)
 - `.claude/skills/ponytail*` — seks ponytail-skills (MIT), vendret inn 2026-11-21 så hele gruppa har dem uten global installasjon. Alltid på ved kodeoppgaver. Se CLAUDE.md og [[beslutninger]]
 - `.claude/skills/sesjonslogg` — logger hver økt i `.logs/<bruker>/`
+- `.claude/skills/caveman*` — caveman, caveman-help, caveman-review og caveman-explore, vendret inn 2026-11-22. Bare for chat og subagent-rapporter, aldri i filer. Se CLAUDE.md
 - `.claude/skills/impeccable` og `.claude/skills/design-taste-frontend` — designskills, vendret inn 2026-11-21 **uten** skript, binærer og hooks (se `VENDORED.md`). Brukes på alt UI-arbeid, men `DESIGN.md`/`EXPERIENCE.md` går foran
 
 Personlig config holdes utenfor. `.gitignore`-blokka vi allerede har i repoet er hentet herfra:

@@ -48,6 +48,24 @@ så standardbiblioteket, så en installert avhengighet, og bare til slutt ny kod
 Kopiene oppdateres med `cp -RL ~/.claude/skills/ponytail* .claude/skills/` (de globale er
 symlenker), og endringen committes som en egen commit.
 
+## Caveman for chat og rapporter
+
+KI-arbeidet bruker mye tokens, og det meste går til lange svar og rapporter. Derfor:
+
+- **Svar i chatten** er i `caveman`-stil (nivå `lite`): korte setninger, uten fyllord, men alle
+  fakta, tall, stier og forbehold beholdes.
+- **Subagenter** får beskjed i promptet om å invokere `caveman` og levere sluttrapporten i
+  caveman-stil (nivå `full`). Det er rapporten tilbake til orkestratoren som blir kortere, ikke
+  arbeidet.
+- **Aldri i filer.** Alt som committes skrives som før: spec-er, review-seksjoner, wiki,
+  README, BMAD-artefakter, promptarkiv og norske commit-meldinger i hele setninger. Det er
+  vurderingsgrunnlag og skal kunne leses av sensor.
+- `caveman-review` kan brukes for raske ekstra gjennomganger. Den erstatter ikke
+  `bmad-code-review` og `ponytail-review` før PR.
+- `caveman-commit` og `caveman-compress` er **bevisst utelatt**. Den første lager engelske
+  Conventional Commits, og den andre skriver om dokumentfiler.
+- Skru av med «stop caveman» eller «normal mode».
+
 ## Design
 
 Designkontrakten er `DESIGN.md` og `EXPERIENCE.md` i
@@ -93,6 +111,7 @@ norsk brødtekst — vi gjør det ikke. Valget skal holde for `PRD.md` også.
 | `_bmad/custom/config.toml` | Fellesoppsett vi *skal* redigere, og som committes |
 | `.claude/skills/bmad-*` | 39 BMAD-skills |
 | `.claude/skills/ponytail*` | Ponytail-skills (MIT), vendret inn 2026-11-21. Se «Ponytail er alltid på» |
+| `.claude/skills/caveman*` | Caveman-skills for korte svar, vendret inn 2026-11-22. Se «Caveman for chat og rapporter» |
 | `.claude/skills/impeccable`, `.claude/skills/design-taste-frontend` | Designskills (Apache 2.0 / MIT), vendret inn 2026-11-21 uten skript og hooks. Se «Design» |
 | `.claude/skills/sesjonslogg` | Sesjonslogg-skillen, se nederst |
 | `.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/` | Kanonisk fase 2: `prd.md`, `.memlog.md`, gjennomgangsfiler |
