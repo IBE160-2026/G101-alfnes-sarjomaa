@@ -24,6 +24,10 @@ const PROVIDERS = ban(
   "@/server/judge/providers",
   "Judge providers are private to src/server/judge.",
 );
+const NO_DB = ban(
+  "@/server/(db|judge)",
+  "Routes and UI call module entry points, never the DB or the Judge.",
+);
 const anyOf = (names) => `@/server/(${names.join("|")})`;
 const NO_UI = ban(
   "@/(app|components)",
@@ -60,12 +64,12 @@ export default defineConfig([
   { rules: { "no-console": "error" } },
   { files: ["src/server/log.ts"], rules: { "no-console": "off" } },
   zone(["**/*.{js,mjs,cjs,ts,tsx}"]),
+  zone(["src/*.{ts,tsx}", "src/app/**", "src/components/**"], NO_DB),
+  // A later zone replaces the earlier patterns, so the routes' ban is repeated.
   zone(
-    ["src/*.{ts,tsx}", "src/app/**", "src/components/**"],
-    ban(
-      "@/server/(db|judge)",
-      "Routes and UI call module entry points, never the DB or the Judge.",
-    ),
+    ["src/app/svar/**"],
+    NO_DB,
+    ban("@/server/auth", "No auth code runs under /svar (AD-6)."),
   ),
   zone(
     ["src/lib/**"],

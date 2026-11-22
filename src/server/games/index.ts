@@ -79,6 +79,21 @@ export function getOwned(
   });
 }
 
+// Only for the Participant's link page: no owner check. Missing or malformed is null.
+export function find(
+  gameId: string,
+): Promise<{ title: string; state: GameState } | null> {
+  return withBoundary("games", "find", async () => {
+    if (!UUID.test(gameId)) return null;
+    const db = await getDb();
+    const [row] = await db
+      .select({ title: game.title, state: game.state })
+      .from(game)
+      .where(eq(game.id, gameId));
+    return row ?? null;
+  });
+}
+
 // The only way a Host or Player mutation locks a Game row. create, transition (called
 // after this in the same transaction) and the bulk purgeExpired write without it.
 // Host calls pass hostId: they are constrained to the owner and count as a Host change

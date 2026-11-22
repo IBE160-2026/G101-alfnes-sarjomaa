@@ -18,7 +18,9 @@ Host account.
 - `tests/integration/authz.test.ts`: Host B's `getOwned`, `lockForMutation({ hostId: B })` and the `deleteGame` action on Host A's Game reject with the same `NOT_FOUND` as a random UUID and `"abc"`, and A's `updated_at` stays unchanged; the Game page component calls `notFound()` for all three; with the `game` table dropped the Game page rejects with `INTERNAL` (the 500 page), not `notFound()`; `createGame` logged out redirects to `/logg-inn` and creates no Game (Story 1.4, AC3; Story 1.5, AC2).
 - `tests/integration/session-expiry.test.ts`: with a session past its 14 days, the spill layout and `/spill`, rendered in either order within one request, both redirect to `/logg-inn?utlopt=1`, because `requireHost` reads the session once per request through React `cache()`; that page then shows "Du ble logget ut etter 14 dager uten bruk. Logg inn igjen." (Story 1.3, AC3).
 - `tests/e2e/games.spec.ts`: Host B in a fresh context opening A's Game URL, a random UUID URL and `/spill/abc` sees the same `<h1>` "Vi finner ikke dette spillet.", the page title "Vi finner ikke dette spillet – Toppsvar" (never A's title), the same "Mine spill" link and the same HTTP status, and never A's title; logged out, `/spill` and a Game page answer with a 3xx to `/logg-inn` from the spill layout and end there (Story 1.4, AC3).
-- Pending: Story 2.3.
+- `tests/e2e/invite-link-page.spec.ts`: opening an Invite link in the Host's own browser (session cookie present) shows the Game title but no "Logg ut", "Mine spill", "Hopp til innhold", `nav`, `a[href^="/spill"]` or `a[href="/"]`, and the document response carries no `set-cookie` (Story 2.3, AC2).
+- `tests/unit/error-pages.test.ts`: `svar/error.tsx` has the 500 `<h1>`, title and "Prøv igjen", with the wordmark as plain text and no link, `nav`, skip link or "Logg ut" (Story 2.3, AC2).
+- `tests/unit/lint-zones.test.ts`: `src/app/svar/**` may not import `@/server/auth` and still may not import `@/server/db`; `src/app/spill/**` may import auth (Story 2.3, AC2).
 
 ## FR-2
 
@@ -37,7 +39,9 @@ Delete a Game.
 - `tests/integration/purge.test.ts` (fake `Date`): `purgeExpired` deletes a Game played 30 d + 1 s ago and a never-played one updated 90 d + 1 s ago, keeps one played 29 d ago and one updated 89 d ago, and a second run deletes 0; `purgeIfDue` runs at t and t + 60 min but not t + 59 min; `transition(playing→played)` sets `played_at` to now and `draft→collecting` leaves it null; with the `game` table renamed, `purgeIfDue` resolves with exactly one `games`/`purgeExpired`/`INTERNAL` log line, and `SpillLayout` still renders its children while the `after` purge it schedules fails and resolves (Story 1.5, AC3).
 - `tests/integration/purge-route.test.ts`: `GET /api/purge` is 404 `disabled` without `CRON_SECRET`, 401 `refused` with no header, `Bearer wrong` or the bare secret, and 200 `{ status: "ok", deleted: 1 }` with `Bearer {secret}`; the expired Game survives every non-200 call, the young Game survives all, and no call moves the hourly marker (Story 1.5, AC4, AD-17).
 - `tests/e2e/delete.spec.ts`: "Slett spillet" has a 1 px danger border, danger text and a white fill; it opens a dialog named "Slette «{title}»?" described by the consequence sentence with "Avbryt" focused; Esc and "Avbryt" both close it and return focus to the trigger; "Slett for godt" (danger fill, white text) lands on `/spill` with "«{title}» er slettet.", the title gone from the list, no notice after a reload and its old URL showing "Vi finner ikke dette spillet."; a crafted `/spill?slettet=…` link shows no notice; an aborted POST keeps the dialog open with the focused "Fikk ikke kontakt. Sjekk nettet og prøv igjen." and the Game still listed; confirming in a stale dialog after the Game was deleted from a second tab keeps the dialog open with a focused alert "Vi finner ikke dette spillet." (Story 1.5, AC1, UX-DR8).
-- Pending: Stories 2.3, 4.3, 6.4.
+- `tests/integration/collection.test.ts`: a deleted Game's link is `LINK_UNKNOWN` through `openInviteLink` and `unknown` from `linkStatus`, so the shell calls `notFound()` (Story 2.3, AC3).
+- `tests/e2e/invite-link-page.spec.ts`: the link of a Game deleted through "Slett for godt" shows "Vi finner ikke denne lenken." with its body, and its pre-seeded `localStorage` key is removed (Story 2.3, AC3).
+- Pending: Stories 4.3, 6.4.
 
 ## FR-4
 
@@ -66,8 +70,9 @@ Create Invite links.
 
 Answer through an Invite link.
 
-- None yet.
-- Pending: Stories 2.3, 2.4, 2.5.
+- `tests/integration/collection.test.ts`, through the `openInviteLink` action: every valid link of a _collecting_ Game returns `{ title, questions: { id, text }[] }` in position order, also after two "Flytt opp" reorders; `linkStatus` is `open` (Story 2.3, AC5).
+- `tests/e2e/invite-link-page.spec.ts`: opening a valid link in a fresh browser shows the Game title as `<h1>`, the document title "{title} – Toppsvar" and the Question (Story 2.3, AC1, AC5).
+- Pending: Stories 2.4, 2.5.
 
 ## FR-7
 
@@ -87,15 +92,20 @@ Collection progress.
 
 Revoke and replace an Invite link.
 
-- None yet.
-- Pending: Stories 2.3, 2.7.
+- `tests/unit/errors.test.ts`: `LINK_UNKNOWN` "Vi finner ikke denne lenken." (Story 2.3).
+- `tests/unit/token.test.ts`: `TOKEN_PATTERN` accepts 100 `newToken()`s and rejects 42 and 44 characters, `+`, `/`, `=` and an empty string; `storageKey` is `toppsvar:<gameId>:<first 16 Token characters>` (Story 2.3).
+- `tests/integration/collection.test.ts`: a Token of another Game is `LINK_UNKNOWN` (lookup by `(token_hash, game_id)`); a random 43-character Token, `"abc"`, `""`, 42 characters, a number and no Token are `LINK_UNKNOWN`; a revoked link (row deleted) is identical to an unknown one while its sibling still opens; a random UUID, `"abc"`, a non-string and a deleted Game are `LINK_UNKNOWN` and `linkStatus` `unknown`; the shell throws `notFound()` for a random UUID and `"abc"` (Story 2.3, AC3, AC5).
+- `tests/e2e/invite-link-page.spec.ts`: a random UUID, an `"abc"` gameId, a malformed Token, an unknown Token and a deleted Game's link each show "Vi finner ikke denne lenken." with "Den kan være skrevet feil eller ikke lenger gyldig. Be den som sendte deg den om en ny.", and the pre-seeded `storageKey` is removed (Story 2.3, AC3).
+- Pending: Story 2.7.
 
 ## FR-10
 
 Close Collection.
 
-- None yet.
-- Pending: Stories 2.3, 3.1.
+- `tests/unit/errors.test.ts`: `COLLECTION_CLOSED` "Innsamlingen er stengt." (Story 2.3).
+- `tests/integration/collection.test.ts`: in each of the six states other than _collecting_, a real, an unknown, a revoked and a malformed Token are all `COLLECTION_CLOSED` (the state is decided before the Token) and `linkStatus` is `closed`; the shell for a _grouping_ Game renders the closed heading and body and not the Game title (Story 2.3, AC4).
+- `tests/e2e/invite-link-page.spec.ts`: a _draft_ Game's ID with a made-up Token shows "Innsamlingen er stengt." with "Verten har stengt innsamlingen, så svar kan ikke lenger sendes inn eller endres.", no Game title, and the pre-seeded `storageKey` is removed (Story 2.3, AC4).
+- Pending: Story 3.1.
 
 ## FR-11
 
@@ -104,7 +114,9 @@ No identity in the answering flow.
 - `tests/unit/log.test.ts`: `log.ts` writes only `module`, `op`, `code` and `sqlstate`, and drops every other field at runtime (Story 1.1, AD-17).
 - `tests/unit/errors.test.ts`: `toFailure` gives the AD-17 shape and turns any other error into `INTERNAL` without its message (Story 1.3, AC5).
 - `tests/integration/auth-internal.test.ts`: with the `host` and `session` tables dropped, the login action returns `INTERNAL` and stderr holds one JSON line with only `module`, `op`, `code` and `sqlstate`, and neither the email nor the password; `register` returns `INTERNAL`, not `EMAIL_TAKEN`, with one `register` line; `requireHost` with a cookie rejects with `INTERNAL` and one `requireHost` line; logout still deletes the cookie (Story 1.3, AC5).
-- Pending: Stories 2.3, 2.4, 3.2, 3.3, 6.5.
+- `tests/integration/collection.test.ts`: with `invite_link` renamed, `openInviteLink` returns `INTERNAL` and stderr holds one line `{ module: "collection", op: "openInviteLink", code: "INTERNAL", sqlstate: "42P01" }` with no Token, hash or gameId; opening (a valid and an unknown Token) changes neither the `game` row, `updated_at` included, nor any `invite_link` row; the shell's server HTML for an open Game holds no Game title, Question text, Token or link, only the wordmark and "Henter spørsmålene …" (Story 2.3, AC1, AC6).
+- `tests/e2e/invite-link-page.spec.ts`: `GET /svar/<gameId>` answers with `Referrer-Policy: no-referrer`, `<title>Toppsvar</title>`, `noindex, nofollow`, no `og:` tag, and neither the Game title nor the Question; no request the browser sends while opening the link has the Token in its URL (Story 2.3, AC1).
+- Pending: Stories 2.4, 3.2, 3.3, 6.5.
 
 ## FR-12
 
@@ -259,6 +271,13 @@ Tests without network.
 - `tests/integration/db.test.ts`: each integration file gets a fresh `pglite://:memory:` database.
 - Pending: every story with unit or integration proof.
 
+## NFR-4
+
+Devices.
+
+- `tests/e2e/invite-link-page.spec.ts`: at 360 px the open, closed and unknown link pages have no horizontal scroll (Story 2.3).
+- Pending: Story 2.4.
+
 ## NFR-6
 
 Accessibility (WCAG 2.1 AA).
@@ -269,6 +288,7 @@ Accessibility (WCAG 2.1 AA).
 - `tests/e2e/delete.spec.ts`: axe finds no serious or critical violations with the delete dialog open and on `/spill` with the success notice; reached by keyboard, "Slett spillet", "Avbryt" and "Slett for godt" each show the focus ring and are at least 44 px high (Story 1.5).
 - `tests/e2e/questions.spec.ts`: three Questions are added with Enter on "Legg til spørsmål", typing and Tab, and one is moved with Space on "Flytt ned", focus following it; on the _draft_ Game page Tab then reaches every interactive element in DOM (reading) order, each shows the focus ring, every editor button is at least 44 px high and each textarea has a visible label "Spørsmål N"; axe finds no serious or critical violations with Questions present and with a field error shown (Story 2.1, AC4).
 - `tests/e2e/invite-links.spec.ts`: axe finds no serious or critical violations on the _draft_ Invite link panel, with the "Åpne innsamlingen?" dialog open, with the OnceLinkList shown and on the _collecting_ page; from the focused "Kopier lenkene nå", Tab reaches "Kopier alle", each "Kopier" and "Jeg har kopiert lenkene" in order, each with the focus ring and at least 44 px high (Story 2.2, NFR-6).
+- `tests/e2e/invite-link-page.spec.ts`: axe finds no serious or critical violations at 360 px on the open, closed and both unknown link pages (client `LINK_UNKNOWN` and the server `not-found.tsx`); an aborted `openInviteLink` POST shows the danger alert "Fikk ikke kontakt. Sjekk nettet og prøv igjen." with "Prøv igjen", which loads the Questions once the route is released (Story 2.3, UX-DR23).
 - Pending: every story that builds a screen.
 
 ## NFR-7

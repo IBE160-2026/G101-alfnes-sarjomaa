@@ -10,6 +10,8 @@ export type ErrorCode =
   | "QUESTION_CAP_REACHED"
   | "QUESTIONS_REQUIRED"
   | "LINK_CAP_REACHED"
+  | "LINK_UNKNOWN"
+  | "COLLECTION_CLOSED"
   | "INTERNAL";
 
 export const MESSAGES: Record<ErrorCode, string> = {
@@ -22,6 +24,8 @@ export const MESSAGES: Record<ErrorCode, string> = {
   QUESTION_CAP_REACHED: "Du har nådd maks 20 spørsmål.",
   QUESTIONS_REQUIRED: "Skriv minst ett spørsmål først.",
   LINK_CAP_REACHED: "Spillet har nådd maks 50 lenker.",
+  LINK_UNKNOWN: "Vi finner ikke denne lenken.",
+  COLLECTION_CLOSED: "Innsamlingen er stengt.",
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",
 };
 

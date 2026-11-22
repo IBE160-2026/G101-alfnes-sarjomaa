@@ -56,15 +56,20 @@ export async function count(tx: Tx, gameId: string): Promise<number> {
   return row.n;
 }
 
+// No owner check: callers have already resolved the Game (owned, or by a valid Invite link).
+export async function ofGame(gameId: string): Promise<Question[]> {
+  const db = await getDb();
+  return db
+    .select({ id: question.id, text: question.text })
+    .from(question)
+    .where(eq(question.gameId, gameId))
+    .orderBy(asc(question.position));
+}
+
 export function list(hostId: string, gameId: string): Promise<Question[]> {
   return withBoundary("questions", "list", async () => {
     await games.getOwned(hostId, gameId);
-    const db = await getDb();
-    return db
-      .select({ id: question.id, text: question.text })
-      .from(question)
-      .where(eq(question.gameId, gameId))
-      .orderBy(asc(question.position));
+    return ofGame(gameId);
   });
 }
 
