@@ -30,7 +30,7 @@ export const ASSIGNMENTS_SCHEMA = {
   additionalProperties: false,
 };
 
-// About two tokens per integer and comma, plus the JSON wrapper and some slack.
-export function maxTokens(items: number): number {
-  return 64 + 4 * items;
-}
+// A cap, not a charge. The largest Question has INVITE_LINKS_MAX 50 × ANSWERS_PER_QUESTION_MAX 5
+// = 250 items; at most 4 tokens per item (up to 3 digits and a comma) is 1,000, plus about 10
+// for the JSON wrapper, so 2,048 leaves twice that. It holds only because reasoning is off.
+export const MAX_TOKENS = 2048;

@@ -3,7 +3,7 @@ title: Toppsvar architecture delivery notes
 companion-of: ARCHITECTURE-SPINE.md
 status: final
 created: 2026-11-21
-updated: 2026-11-21
+updated: 2026-11-22
 ---
 
 # Delivery notes for the Toppsvar architecture
@@ -12,15 +12,15 @@ This companion holds what the course's examiner and the README need, and what th
 
 ## Grouping cost and time (PRD §6.2)
 
-Assumptions: `deepseek/deepseek-v4.1-flash` on OpenRouter at USD 0.05 per million input tokens and USD 0.20 per million output tokens (changed from `claude-haiku-5-5` on 2026-11-22; the group has an OpenRouter key); one partition call per Question over distinct normalised Answers; about 14 tokens per item including JSON overhead; a prompt of about 700 tokens; about 2 output tokens per item for the assignment array, with reasoning not requested. The token figures are estimates and the Judge story measures them.
+Assumptions: `deepseek/deepseek-v4.1-flash` on OpenRouter at USD 0.05 per million input tokens and USD 0.20 per million output tokens (changed from `claude-haiku-5-5` on 2026-11-22; the group has an OpenRouter key); one partition call per Question over distinct normalised Answers; about 14 tokens per item including JSON overhead; a prompt of about 700 tokens; 2 to 4 output tokens per item for the assignment array (up to 3 digits and a comma), with reasoning disabled by `reasoning: { effort: "none" }`. `max_tokens` is a flat 2,048 on every call, a cap that is billed only for tokens actually produced. The token figures are estimates; the live 7-item smoke run with reasoning on (before the fix) used 19 content tokens, about 2 per item plus the wrapper.
 
 | Game | Items per Question (max) | Judge calls | Tokens per call (in / out) | Cost | Wall time |
 | --- | --- | --- | --- | --- | --- |
-| Sizing: 30 Answer sets, 15 Questions, up to 5 Answers | 150 | 15 (at most 30 with retries) | about 2.8K / 1.2K | about USD 0.006 (worst case about 0.012) | expected about 30 s; at most 3 waves × 30 s = 90 s |
-| Largest: 50 Invite links, 20 Questions, 5 Answers | 250 | 20 (at most 40) | about 4.2K / 1.5K | about USD 0.01 (worst case about 0.02) | expected about 40 s; at most 4 waves × 30 s = 120 s |
+| Sizing: 30 Answer sets, 15 Questions, up to 5 Answers | 150 | 15 (at most 30 with retries) | about 2.8K / 0.6K | about USD 0.004 (worst case about 0.008) | expected about 30 s; at most 3 waves × 30 s = 90 s |
+| Largest: 50 Invite links, 20 Questions, 5 Answers | 250 | 20 (at most 40) | about 4.2K / 1.0K | about USD 0.008 (worst case about 0.016) | expected about 40 s; at most 4 waves × 30 s = 120 s |
 | Naive all-pairs, for comparison | n(n−1)/2 per Question | 167,625 (sizing) / 622,500 (largest) | — | — | not feasible |
 
-The sizing Game's worst case is inside FR-15's two minutes. The largest Game's worst case is inside the 300 s Vercel Hobby limit. The ProtoQA evaluation set has at most 88 distinct raw answers per question, so `judge:eval` does not exercise the 150 to 250 item case. The Judge story should time one synthetic 250-item Question.
+The sizing Game's worst case is inside FR-15's two minutes. The largest Game's worst case is inside the 300 s Vercel Hobby limit. The ProtoQA evaluation set has at most 88 distinct raw answers per question, so `judge:eval` does not exercise the 150 to 250 item case. The Judge story should time one synthetic 250-item Question. Hard ceiling: even if every call of the largest Game's 40 hit the 2,048-token cap, the cost stays under USD 0.03.
 
 ## README contract
 

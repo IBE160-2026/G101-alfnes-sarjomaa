@@ -10,7 +10,7 @@ import {
 } from "@/server/judge/core";
 import {
   ASSIGNMENTS_SCHEMA,
-  maxTokens,
+  MAX_TOKENS,
   messages,
   PROMPT_VERSION,
 } from "@/server/judge/prompt";
@@ -77,7 +77,9 @@ export function createOpenRouterJudge({
           },
         },
         temperature: 0,
-        max_tokens: maxTokens(items.length),
+        max_tokens: MAX_TOKENS,
+        // Reasoning tokens count against max_tokens; the default model reasons at high effort unless told not to.
+        reasoning: { effort: "none" },
         provider: { require_parameters: true, data_collection: "deny" },
       });
 

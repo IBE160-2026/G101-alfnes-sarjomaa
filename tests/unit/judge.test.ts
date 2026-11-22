@@ -5,7 +5,6 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { canonicalise, JudgeError } from "@/server/judge/core";
 import {
   ASSIGNMENTS_SCHEMA,
-  maxTokens,
   messages,
   PROMPT_VERSION,
 } from "@/server/judge/prompt";
@@ -449,7 +448,8 @@ describe("openrouter provider", () => {
         },
       },
       temperature: 0,
-      max_tokens: maxTokens(3),
+      max_tokens: 2048,
+      reasoning: { effort: "none" },
       provider: { require_parameters: true, data_collection: "deny" },
     });
     expect(ASSIGNMENTS_SCHEMA).toEqual(body.response_format.json_schema.schema);
@@ -479,7 +479,11 @@ describe("openrouter provider", () => {
       ok('{"assignments":[0]}'),
       ok("nei"),
     ],
-    ["a non-JSON body, then no content", new Response("<html>"), ok("")],
+    [
+      "a non-JSON body, then cut off with no content",
+      new Response("<html>"),
+      ok("", "length"),
+    ],
   ])(
     "AD-13 (AC1): %s is INVALID_OUTPUT after 2 calls",
     async (_, first, second) => {
