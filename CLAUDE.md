@@ -187,8 +187,8 @@ Se [[sensorveiledning-del-1]] **før hver fase**. Tre konsekvenser som lett glem
 - [x] **Brief revidert** etter tilbakemeldingen 2026-10-12: trinn 1/2, testbare kriterier, poeng og dobbeltsvar avklart
 - [x] `proposal.md` (fjorårets format, ikke krevd i år). Se [[proposal]]
 - [x] **Fase 2 — `PRD.md`** (skill: `bmad-prd`), `status: final` 2026-10-13. 33 FR-er merket Stage 1/2. Se [[beslutninger]]
-- [ ] Fase 3 — `bmad-ux` (skisser Review først) og `bmad-architecture` (modell, stack, demomodus) ← **nå**
-- [ ] Fase 4 — implementering
+- [x] **Fase 3** 2026-11-21/22 på branchen `fase-3-planlegging`: UX, arkitektur, krysssjekk, impeccable-critique, 38 stories, sprintplan. Se [[plan-fase-3-og-4]]
+- [ ] Fase 4 — implementering, én branch per epic ← **nå** (epic 1 ferdig 2026-11-22, i review før PR)
 - [ ] Refleksjonsrapport
 
 Fase 1 er satt til `status: final`. Samme status brukes på `addendum.md`, og skal brukes
