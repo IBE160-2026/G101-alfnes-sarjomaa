@@ -5,6 +5,7 @@ import { logOut } from "@/app/actions";
 import { logIn } from "@/app/logg-inn/actions";
 import { register } from "@/app/registrer/actions";
 import * as auth from "@/server/auth";
+import { hashPassword } from "@/server/auth/password";
 import { getDb } from "@/server/db/client";
 import { host, session } from "@/server/db/schema";
 import { cookieJar, RedirectError, run } from "./next-mocks";
@@ -200,6 +201,46 @@ describe("logIn", () => {
       failedLogins: 0,
       lockedUntil: null,
     });
+  });
+
+  it("FR-1: a wrong password while locked changes neither the count nor the lock", async () => {
+    const email = newEmail();
+    await run(register, { email, password: PASSWORD });
+    const lockedUntil = new Date(Date.now() + 60 * 60_000);
+    const db = await getDb();
+    await db
+      .update(host)
+      .set({ failedLogins: 5, lockedUntil })
+      .where(eq(sql`lower(${host.email})`, email));
+    expect(
+      await run(logIn, { email, password: "feil-passord-123" }),
+    ).toMatchObject({ code: "INVALID_CREDENTIALS" });
+    expect(await hostRow(email)).toMatchObject({
+      failedLogins: 5,
+      lockedUntil,
+    });
+  });
+
+  it("FR-1: a lock set while a right-password login waits for scrypt refuses it and creates no session", async () => {
+    const email = newEmail();
+    await run(register, { email, password: PASSWORD });
+    const { id } = await hostRow(email);
+    await (await getDb()).delete(session).where(eq(session.hostId, id));
+
+    // Both scrypt slots busy, so the login reads its row and then queues.
+    const busy = [hashPassword("opptatt-1-xyz"), hashPassword("opptatt-2-xyz")];
+    const login = run(logIn, { email, password: PASSWORD });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await (
+      await getDb()
+    )
+      .update(host)
+      .set({ lockedUntil: new Date(Date.now() + 60 * 60_000) })
+      .where(eq(host.id, id));
+    await Promise.all(busy);
+
+    expect(await login).toMatchObject({ code: "INVALID_CREDENTIALS" });
+    expect((await sessionRows()).filter((r) => r.hostId === id)).toEqual([]);
   });
 });
 

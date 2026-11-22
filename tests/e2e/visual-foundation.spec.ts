@@ -85,7 +85,7 @@ test("UX-DR15, UX-DR23: an unknown URL returns 404 inside the Host chrome, witho
   await expect(page.locator("main#innhold")).toHaveCount(1);
   await expect(
     page.locator("header").getByRole("link", { name: "Toppsvar" }),
-  ).toHaveAttribute("href", "/spill");
+  ).toHaveAttribute("href", "/");
   await expect(page.locator("nav")).toHaveCount(0);
   await expect(page.getByText("Mine spill")).toHaveCount(0);
   await expect(page.getByText("Logg ut")).toHaveCount(0);
@@ -111,6 +111,9 @@ test('UX-DR15: a signed-in Host sees "Mine spill" and "Logg ut" on the 404 page'
     "/spill",
   );
   await expect(nav.getByRole("button", { name: "Logg ut" })).toBeVisible();
+  await expect(
+    page.locator("header").getByRole("link", { name: "Toppsvar" }),
+  ).toHaveAttribute("href", "/spill");
   for (const control of await page.locator("header a, header button").all())
     expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
@@ -184,3 +187,19 @@ for (const path of ["/", UNKNOWN]) {
     for (const stop of stops) expect(stop.outline, stop.text).toBe(FOCUS_RING);
   });
 }
+
+test("NFR-6: every interactive element in the signed-in Host chrome shows the focus ring", async ({
+  page,
+}) => {
+  await registerHost(page);
+  await page.goto("/spill");
+  const stops = await tabThrough(page);
+  const interactive = await page
+    .locator("a[href], button, input:not([type=hidden]), select, textarea")
+    .count();
+  expect(stops).toHaveLength(interactive);
+  expect(stops.map((s) => s.text)).toEqual(
+    expect.arrayContaining(["Mine spill", "Logg ut"]),
+  );
+  for (const stop of stops) expect(stop.outline, stop.text).toBe(FOCUS_RING);
+});

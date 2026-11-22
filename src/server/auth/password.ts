@@ -14,6 +14,7 @@ const MAXMEM = 256 * 1024 * 1024;
 export const DUMMY_HASH =
   "scrypt$131072$8$1$pr8Gvias7EtgRgTFwuZYaA==$o3Ic1wRDfIml6CE/QhYNOVuzmTqySBU5keQfgD/LY+U=";
 
+// shortcut: the wait queue is unbounded and there is no rate limit, so a login flood delays real Hosts; add a queue cap or per-IP limit before a public pilot
 let active = 0;
 const waiting: (() => void)[] = [];
 

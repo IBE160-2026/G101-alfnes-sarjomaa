@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, timingSafeEqual } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { loginSchema, registrationSchema } from "@/lib/account";
@@ -85,8 +85,9 @@ export function logIn(input: unknown): Promise<void> {
     const [row] = await db
       .select()
       .from(host)
-      .where(eq(sql`lower(${host.email})`, email.toLowerCase()));
-    // Always one scrypt run, locked or unknown alike, so timing reveals nothing.
+      .where(eq(sql`lower(${host.email})`, sql`lower(${email})`));
+    // One scrypt run whether the email is known, unknown or locked, so that cost is equal;
+    // the DB writes after it for a known email are not.
     const correct = await verifyPassword(
       password,
       row?.passwordHash ?? DUMMY_HASH,
@@ -94,31 +95,44 @@ export function logIn(input: unknown): Promise<void> {
     const now = new Date();
     if (!row || (row.lockedUntil && row.lockedUntil > now))
       throw new DomainError("INVALID_CREDENTIALS");
+    // Re-checked in every write: the row above was read before a possibly queued scrypt run,
+    // and another attempt may have locked the account meanwhile.
+    const stillOpen = and(
+      eq(host.id, row.id),
+      or(isNull(host.lockedUntil), lte(host.lockedUntil, now)),
+    );
 
     if (!correct) {
-      const [{ failedLogins }] = await db
+      const [counted] = await db
         .update(host)
         .set({ failedLogins: sql`${host.failedLogins} + 1` })
-        .where(eq(host.id, row.id))
+        .where(stillOpen)
         .returning({ failedLogins: host.failedLogins });
-      if (failedLogins >= LOCKOUT_AFTER_FAILURES) {
+      if (counted && counted.failedLogins >= LOCKOUT_AFTER_FAILURES) {
         const lockMs = Math.min(
-          LOCKOUT_BASE_MS * 2 ** (failedLogins - LOCKOUT_AFTER_FAILURES),
+          LOCKOUT_BASE_MS *
+            2 ** (counted.failedLogins - LOCKOUT_AFTER_FAILURES),
           LOCKOUT_MAX_MS,
         );
+        const until = new Date(now.getTime() + lockMs).toISOString();
+        // greatest() so a lock finishing late never shortens a longer one.
         await db
           .update(host)
-          .set({ lockedUntil: new Date(now.getTime() + lockMs) })
+          .set({
+            lockedUntil: sql`greatest(${host.lockedUntil}, ${until}::timestamptz)`,
+          })
           .where(eq(host.id, row.id));
       }
       throw new DomainError("INVALID_CREDENTIALS");
     }
 
     const token = await db.transaction(async (tx) => {
-      await tx
+      const [reset] = await tx
         .update(host)
         .set({ failedLogins: 0, lockedUntil: null })
-        .where(eq(host.id, row.id));
+        .where(stillOpen)
+        .returning({ id: host.id });
+      if (!reset) throw new DomainError("INVALID_CREDENTIALS"); // locked meanwhile: roll back
       return createSession(tx, row.id);
     });
     await setSessionCookie(token);

@@ -24,7 +24,7 @@ export function HostChrome({
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-320 items-center justify-between gap-4 px-4 py-2 sm:px-8">
           <Link
-            href="/spill"
+            href={signedIn ? "/spill" : "/"}
             className="inline-flex min-h-11 items-center font-display text-heading"
           >
             Toppsvar

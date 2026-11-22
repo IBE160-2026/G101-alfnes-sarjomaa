@@ -18,7 +18,7 @@ describe.each([
   });
 
   it("UX-DR15: keeps the Host top bar and skip link", () => {
-    for (const text of ["Hopp til innhold", "<header", ">Toppsvar</a>"])
+    for (const text of ["Hopp til innhold", "<header", 'href="/">Toppsvar</a>'])
       expect(html).toContain(text);
     expect(html).toContain('id="innhold"');
   });
