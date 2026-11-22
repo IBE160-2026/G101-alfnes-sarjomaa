@@ -167,19 +167,26 @@ test("FR-1, FR-2, AD-5: Host B gets the same not-found page for A's Game, a rand
 
 test("FR-1, AD-5: logged out, /spill and a Game page redirect to /logg-inn", async ({
   page,
+  browser,
+  baseURL,
 }) => {
   await registerHost(page);
   const gamePath = await createGame(page, "Låst ute");
-  await page.context().clearCookies();
+  // A context without the cookie, not clearCookies(): a prefetch still in flight on the
+  // Game page answers with Set-Cookie after the clear and logs the Host back in.
+  const anon = await browser.newContext({ baseURL });
+  await localOnly(anon);
+  const anonPage = await anon.newPage();
   for (const path of ["/spill", gamePath]) {
     // A real redirect from the spill layout, before any streaming starts.
-    const response = await page.request.get(path, { maxRedirects: 0 });
+    const response = await anonPage.request.get(path, { maxRedirects: 0 });
     expect(response.status(), path).toBeGreaterThanOrEqual(300);
     expect(response.status(), path).toBeLessThan(400);
     expect(response.headers()["location"], path).toMatch(/\/logg-inn$/);
-    await page.goto(path);
-    await expect(page).toHaveURL("/logg-inn");
+    await anonPage.goto(path);
+    await expect(anonPage).toHaveURL("/logg-inn");
   }
+  await anon.close();
 });
 
 test("UX: a failed create request shows the network message, focuses it and keeps the title", async ({
@@ -206,7 +213,19 @@ test("UX-DR15, UX-DR23: a slow Game page shows the skeleton after 300 ms, then f
 }) => {
   await registerHost(page);
   const gamePath = await createGame(page, "Treg forbindelse");
+  // The skeleton exists in the browser only once the Link's prefetch has delivered the
+  // route's loading.tsx (the prefetch without the /_tree segment header). A click before
+  // that leaves the old page up until the whole delayed response arrives.
+  const loadingPrefetched = page.waitForResponse((response) => {
+    const headers = response.request().headers();
+    return (
+      response.url().includes(gamePath) &&
+      headers["next-router-prefetch"] === "1" &&
+      !headers["next-router-segment-prefetch"]
+    );
+  });
   await page.goto("/spill");
+  await (await loadingPrefetched).finished();
   await page.route(`**${gamePath}*`, async (route) => {
     const headers = route.request().headers();
     if (headers["rsc"] === "1" && !headers["next-router-prefetch"])
