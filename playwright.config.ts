@@ -21,7 +21,20 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   use: { baseURL, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // The smoke spec asserts the DB is still unopened, so it runs before any spec that registers a Host.
+  projects: [
+    {
+      name: "smoke",
+      testMatch: "smoke.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "chromium",
+      testIgnore: "smoke.spec.ts",
+      dependencies: ["smoke"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+  ],
   webServer: {
     command: "npm run build && npm run start",
     url: baseURL,

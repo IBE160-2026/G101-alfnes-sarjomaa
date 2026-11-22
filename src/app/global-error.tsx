@@ -10,7 +10,7 @@ export default function GlobalError() {
     <html lang="nb">
       <body>
         <title>Toppsvar</title>
-        <HostChrome>
+        <HostChrome signedIn={false}>
           <h1 className="text-display">
             Noe gikk galt hos oss. Prøv igjen om litt.
           </h1>

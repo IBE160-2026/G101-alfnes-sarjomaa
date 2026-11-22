@@ -1,31 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures";
+import { expect, FOCUS_RING, registerHost, tabThrough, test } from "./fixtures";
 
 const UNKNOWN = "/finnes-ikke";
-const FOCUS_RING = "3px solid rgb(30, 26, 34)";
-
-// Tabs from the top until focus leaves the page; returns what each stop looked like.
-async function tabThrough(page: Page) {
-  const stops: { tag: string; text: string; outline: string }[] = [];
-  for (let i = 0; i < 20; i++) {
-    await page.keyboard.press("Tab");
-    const stop = await page.evaluate(() => {
-      const el = document.activeElement as HTMLElement | null;
-      if (!el || el === document.body) return null;
-      const s = getComputedStyle(el);
-      return {
-        tag: el.tagName.toLowerCase(),
-        text: el.innerText.trim(),
-        outline: `${s.outlineWidth} ${s.outlineStyle} ${s.outlineColor}`,
-      };
-    });
-    if (!stop) break;
-    stops.push(stop);
-  }
-  return stops;
-}
-
 // Visible elements with their own text whose computed size is below 14 px.
 function textBelow14px(page: Page) {
   return page.evaluate(() =>
@@ -96,7 +73,7 @@ test("UX-DR28, NFR-7: the landing page has one <h1>, one sentence and links to l
   await expect(page.getByText("Hopp til innhold")).toHaveCount(0);
 });
 
-test("UX-DR15, UX-DR23: an unknown URL returns 404 inside the Host chrome", async ({
+test("UX-DR15, UX-DR23: an unknown URL returns 404 inside the Host chrome, without the nav for an anonymous visitor", async ({
   page,
 }) => {
   const res = await page.goto(UNKNOWN);
@@ -105,17 +82,13 @@ test("UX-DR15, UX-DR23: an unknown URL returns 404 inside the Host chrome", asyn
   await expect(page.locator("h1")).toHaveText("Siden finnes ikke.");
 
   await expect(page.locator("header")).toHaveCount(1);
-  const nav = page.getByRole("navigation", { name: "Hovedmeny" });
-  await expect(nav).toBeVisible();
   await expect(page.locator("main#innhold")).toHaveCount(1);
   await expect(
     page.locator("header").getByRole("link", { name: "Toppsvar" }),
   ).toHaveAttribute("href", "/spill");
-  await expect(nav.getByRole("link", { name: "Mine spill" })).toHaveAttribute(
-    "href",
-    "/spill",
-  );
-  await expect(nav.getByRole("button", { name: "Logg ut" })).toBeVisible();
+  await expect(page.locator("nav")).toHaveCount(0);
+  await expect(page.getByText("Mine spill")).toHaveCount(0);
+  await expect(page.getByText("Logg ut")).toHaveCount(0);
 
   await page.keyboard.press("Tab");
   const skip = page.getByRole("link", { name: "Hopp til innhold" });
@@ -123,6 +96,23 @@ test("UX-DR15, UX-DR23: an unknown URL returns 404 inside the Host chrome", asyn
   await expect(skip).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page.locator("main#innhold")).toBeFocused();
+});
+
+test('UX-DR15: a signed-in Host sees "Mine spill" and "Logg ut" on the 404 page', async ({
+  page,
+}) => {
+  await registerHost(page);
+  const res = await page.goto(UNKNOWN);
+  expect(res?.status()).toBe(404);
+  const nav = page.getByRole("navigation", { name: "Hovedmeny" });
+  await expect(nav).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Mine spill" })).toHaveAttribute(
+    "href",
+    "/spill",
+  );
+  await expect(nav.getByRole("button", { name: "Logg ut" })).toBeVisible();
+  for (const control of await page.locator("header a, header button").all())
+    expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
 
 for (const [path, controls] of [
@@ -141,31 +131,27 @@ for (const [path, controls] of [
 }
 
 test('UX-DR15: "Logg ut" submits its form and lands on /', async ({ page }) => {
+  await registerHost(page);
   await page.goto(UNKNOWN);
   await page.getByRole("button", { name: "Logg ut" }).click();
   await expect(page).toHaveURL("/");
   await expect(page.locator("h1")).toHaveText("Toppsvar");
 });
 
-// A link to a 404 is a full page load in Next (non-200 RSC response), so this
-// navigates from the 404 page to / with Next's public router: a real client route change.
 test("UX-DR15: after a client route change, focus moves to the page <h1>", async ({
   page,
 }) => {
-  await page.goto(UNKNOWN);
-  await expect(page.locator("main#innhold")).toBeVisible();
+  await page.goto("/");
   await expect(page.locator("h1")).not.toBeFocused();
   await page.evaluate(() => {
     (window as unknown as { marker: boolean }).marker = true;
   });
 
-  await page.evaluate(() =>
-    (
-      window as unknown as { next: { router: { push(href: string): void } } }
-    ).next.router.push("/"),
-  );
-  await expect(page.locator("h1")).toHaveText("Toppsvar");
+  await page.getByRole("link", { name: "Logg inn" }).click();
+  await expect(page).toHaveURL("/logg-inn");
+  await expect(page.locator("h1")).toHaveText("Logg inn");
   await expect(page.locator("h1")).toBeFocused();
+  // Still the same document, so this was a client route change.
   expect(
     await page.evaluate(
       () => (window as unknown as { marker?: boolean }).marker,

@@ -18,14 +18,16 @@ describe.each([
   });
 
   it("UX-DR15: keeps the Host top bar and skip link", () => {
-    for (const text of [
-      "Hopp til innhold",
-      "Toppsvar",
-      "Mine spill",
-      "Logg ut",
-    ])
+    for (const text of ["Hopp til innhold", "<header", ">Toppsvar</a>"])
       expect(html).toContain(text);
     expect(html).toContain('id="innhold"');
+  });
+
+  // A client component cannot read the httpOnly session cookie, so it never claims a session.
+  it('UX-DR15: shows no "Mine spill" or "Logg ut"', () => {
+    expect(html).not.toContain("<nav");
+    expect(html).not.toContain("Mine spill");
+    expect(html).not.toContain("Logg ut");
   });
 });
 

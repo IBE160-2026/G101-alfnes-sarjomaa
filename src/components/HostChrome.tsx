@@ -1,12 +1,18 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { logOut } from "@/app/actions";
+import { Button } from "@/components/Button";
 
 const control =
-  "inline-flex min-h-11 items-center rounded-md px-3 hover:bg-surface-sunken";
+  "inline-flex min-h-11 items-center rounded-md px-4 hover:bg-surface-sunken";
 
-// shortcut: shows "Mine spill" and "Logg ut" to every visitor on the root 404/500 pages, make it session-aware when Story 1.3 adds sessions
-export function HostChrome({ children }: { children: ReactNode }) {
+export function HostChrome({
+  signedIn,
+  children,
+}: {
+  signedIn: boolean;
+  children: ReactNode;
+}) {
   return (
     <>
       <a
@@ -23,16 +29,18 @@ export function HostChrome({ children }: { children: ReactNode }) {
           >
             Toppsvar
           </Link>
-          <nav aria-label="Hovedmeny" className="flex items-center gap-1">
-            <Link href="/spill" className={control}>
-              Mine spill
-            </Link>
-            <form action={logOut}>
-              <button type="submit" className={`${control} cursor-pointer`}>
-                Logg ut
-              </button>
-            </form>
-          </nav>
+          {signedIn && (
+            <nav aria-label="Hovedmeny" className="flex items-center gap-1">
+              <Link href="/spill" className={control}>
+                Mine spill
+              </Link>
+              <form action={logOut}>
+                <Button type="submit" variant="ghost">
+                  Logg ut
+                </Button>
+              </form>
+            </nav>
+          )}
         </div>
       </header>
       <main
