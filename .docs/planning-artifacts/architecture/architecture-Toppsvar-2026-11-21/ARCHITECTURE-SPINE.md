@@ -67,8 +67,8 @@ flowchart TD
 | Module (`src/server/…`) | Owns | Writers exported to other modules | FRs |
 | --- | --- | --- | --- |
 | `auth` | `host`, `session` | `requireHost` (read) | FR-1 |
-| `games` | `game`, `game_counter`; retention purge | `lockForMutation`, `transition`, `reserveInviteLinks`, `acquireGroupingLease`, `bumpCounters` | FR-2, FR-3, FR-18 |
-| `questions` | `question` | `setReviewed`, `count` (read) | FR-4 |
+| `games` | `game`, `game_counter`; retention purge | `lockForMutation`, `transition`, `reserveInviteLinks`, `acquireGroupingLease`, `bumpCounters`, `find` (read, no owner check, for `/svar`) | FR-2, FR-3, FR-18 |
+| `questions` | `question` | `setReviewed`, `count` (read), `ofGame` (read) | FR-4 |
 | `grouping` | `answer`, `answer_group`, `grouping_result` | `insertAnswers`, `createGroup`, `moveAnswers`, `mergeGroups`, `setCustomLabel`, `setDiscarded`, `deleteIfEmpty`, `clearContributorData` | FR-13, FR-15 to FR-17, FR-20 |
 | `collection` | `invite_link`, `submission`; close | — | FR-5 to FR-11 |
 | `review` | `board_slot` | `getBoard` (read) | FR-19 to FR-21 |
@@ -162,7 +162,7 @@ stateDiagram-v2
   - **Token.** 32 bytes from `crypto.randomBytes`, base64url-encoded (`src/lib/token.ts`). Only `sha256(token)` is stored, in `invite_link.token_hash`, which is the primary key and unique across Games.
   - **Shell.** The server render of `/svar/[gameId]` is generic: `<title>Toppsvar</title>`, `noindex`, no Open Graph tags, no Game title and no Questions. It shows only the status: `unknown` (no such Game), `closed` (state is not `collecting`) or `open`. It sends `Referrer-Policy: no-referrer`, reads no session cookie and renders no Host chrome.
   - **Reads and writes.** The client reads the fragment. Questions and any saved Answer set come only from the Server Action `openInviteLink(gameId, token, editSecret?)`. Submits go through `submitAnswerSet`. No token ever appears in a GET URL or a query string.
-  - **Lookup order.** Find `invite_link` by `(token_hash, game_id)` with no lock; no row means `LINK_UNKNOWN`. Then `lockForMutation` the Game, and re-check the row and `collecting` under the lock, otherwise `COLLECTION_CLOSED`.
+  - **Lookup order.** The Game in the URL first: no Game means `LINK_UNKNOWN`, a state other than `collecting` means `COLLECTION_CLOSED` (close deletes every link, so closed must win over unknown). Then find `invite_link` by `(token_hash, game_id)` with no lock; no row means `LINK_UNKNOWN`. `openInviteLink` is a read and stops there. `submitAnswerSet` then does `lockForMutation` on the Game and re-checks the row and `collecting` under the lock, otherwise `COLLECTION_CLOSED`.
   - **Logging.** No code logs a token, hash, edit secret, Answer or `/svar` action argument (AD-17).
 
 ### AD-8 — Before close: one opaque Answer set per link, readable only on the submitting device
