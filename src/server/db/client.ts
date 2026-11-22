@@ -1,6 +1,7 @@
 import "server-only";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import type { ExtractTablesWithRelations } from "drizzle-orm";
 import type {
   PgDatabase,
   PgQueryResultHKT,
@@ -14,7 +15,11 @@ import { env } from "@/server/env";
 type Schema = typeof schema;
 
 export type Db = PgDatabase<PgQueryResultHKT, Schema>;
-export type Tx = PgTransaction<PgQueryResultHKT, Schema>;
+export type Tx = PgTransaction<
+  PgQueryResultHKT,
+  Schema,
+  ExtractTablesWithRelations<Schema>
+>;
 
 export type DatabaseTarget =
   | { driver: "pglite"; dataDir: string | null }
