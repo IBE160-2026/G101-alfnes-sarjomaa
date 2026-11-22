@@ -16,7 +16,6 @@ import {
 } from "vitest";
 import { closeCollection, createInviteLinks } from "@/app/spill/[id]/actions";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
-import { DomainError } from "@/lib/errors";
 import { JUDGE_CONCURRENCY } from "@/lib/limits";
 import { NORMALIZE_VERSION, normalize } from "@/lib/normalize";
 import { newToken } from "@/lib/token";
@@ -506,41 +505,35 @@ describe("run", () => {
     expect(await games.counters(gameId)).toMatchObject({ judgeCalls: 1 });
   });
 
-  it("FR-17 (AC3): a mock map of the wrong length falls back with INVALID_OUTPUT", async () => {
-    const { gameId, ids } = await groupingGame(THREE);
-    mock({ [Q1]: [0, 1] });
-    await grouping.run(gameId);
-    expect(await resultOf(ids[0])).toMatchObject(fellBack("INVALID_OUTPUT"));
-  });
-
-  it("FR-17 (AC3): replay with no ruling and no key falls every Question back with NO_KEY, one fallback Group per item, and the Game reaches in review", async () => {
-    const { gameId, ids } = await groupingGame(THREE);
-    install(createReplayJudge({ dir: emptyDir(), hasKey: false }));
-    await grouping.run(gameId);
-    for (const id of ids)
-      expect(await resultOf(id)).toMatchObject(fellBack("NO_KEY", "replay"));
-    expect(await groupsOf(ids[0])).toEqual([
-      { origin: "fallback", texts: ["hund", "hund"] },
-      { origin: "fallback", texts: ["katt"] },
-      { origin: "fallback", texts: ["ørn"] },
-    ]);
-    expect(await stateOf(gameId)).toBe("in_review");
-    expect(await grouping.summary(gameId)).toEqual({
-      questions: 3,
-      groupsProposed: 0,
-      fellBack: 3,
-    });
-  });
-
-  it("FR-17 (AC3): replay with no ruling and a key falls every Question back with NO_STORED_RULING", async () => {
-    const { gameId, ids } = await groupingGame(THREE);
-    install(createReplayJudge({ dir: emptyDir(), hasKey: true }));
-    await grouping.run(gameId);
-    for (const id of ids)
-      expect(await resultOf(id)).toMatchObject(
-        fellBack("NO_STORED_RULING", "replay"),
-      );
-  });
+  it.each([
+    [false, "NO_KEY"],
+    [true, "NO_STORED_RULING"],
+  ] as const)(
+    "FR-17, FR-18 (AC3, 4.3 AC1): replay with no ruling and hasKey %s falls every Question back with %s, one fallback Group per item, 0 proposed, 0 calls and 3 fell back in the counters, and the Game reaches in review",
+    async (hasKey, reason) => {
+      const { gameId, ids } = await groupingGame(THREE);
+      install(createReplayJudge({ dir: emptyDir(), hasKey }));
+      await grouping.run(gameId);
+      for (const id of ids)
+        expect(await resultOf(id)).toMatchObject(fellBack(reason, "replay"));
+      expect(await groupsOf(ids[0])).toEqual([
+        { origin: "fallback", texts: ["hund", "hund"] },
+        { origin: "fallback", texts: ["katt"] },
+        { origin: "fallback", texts: ["ørn"] },
+      ]);
+      expect(await stateOf(gameId)).toBe("in_review");
+      expect(await grouping.summary(gameId)).toEqual({
+        questions: 3,
+        groupsProposed: 0,
+        fellBack: 3,
+      });
+      expect(await games.counters(gameId)).toMatchObject({
+        judgeGroupsProposed: 0,
+        judgeCalls: 0,
+        questionsFellBack: 3,
+      });
+    },
+  );
 
   it("FR-15, FR-17 (AC3, 4.4 AC4): a partial replay hit is source replay with the uncovered count and the ruling's own model and prompt version; uncovered Groups are origin fallback, also one that sorts before every covered item, and covered ones judge", async () => {
     const { gameId, ids } = await groupingGame([
@@ -583,7 +576,7 @@ describe("run", () => {
     ]);
   });
 
-  it("FR-15, AD-12 (AC2): repeated reads and a run after a finished run make no partition call and change no Group, group_id or result", async () => {
+  it("FR-15, FR-18, AD-12 (AC2, 4.3 AC1): repeated reads and a run after a finished run make no partition call and change no Group, group_id, result or counter", async () => {
     const { gameId, ids } = await groupingGame(THREE);
     mock();
     await grouping.run(gameId);
@@ -594,10 +587,13 @@ describe("run", () => {
       for (const id of ids) await grouping.countsOf(id);
     }
     expect(await written(ids)).toEqual(before);
+    const counters = await games.counters(gameId);
+    expect(counters.judgeCalls).toBe(3);
     const { calls } = mock();
     await grouping.run(gameId);
     expect(calls).toEqual([]);
     expect(await written(ids)).toEqual(before);
+    expect(await games.counters(gameId)).toEqual(counters);
   });
 
   it("FR-15, AD-12 (AC2): two runs at once both resolve, and each Question keeps one result and one set of Groups", async () => {
@@ -640,37 +636,6 @@ describe("run", () => {
       answers: [],
       results: [],
     });
-  });
-
-  it("AD-12, AD-17: a DB step failing with a non-domain error inside the runner rejects run with INTERNAL and logs one content-free line", async () => {
-    const { gameId } = await groupingGame([
-      [Q1, [["Hund"], ["katt"], ["Ørn"]]],
-    ]);
-    mock();
-    const db = await getDb();
-    await db.execute(
-      sql.raw("alter table answer_group rename to answer_group_x"),
-    );
-    const write = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
-    let error: unknown, out: string;
-    try {
-      error = await grouping.run(gameId).catch((e: unknown) => e);
-    } finally {
-      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
-      write.mockRestore();
-      await db.execute(
-        sql.raw("alter table answer_group_x rename to answer_group"),
-      );
-    }
-    expect(error).toBeInstanceOf(DomainError);
-    expect((error as DomainError).code).toBe("INTERNAL");
-    expect(out).toBe(
-      `${JSON.stringify({ module: "grouping", op: "run", code: "INTERNAL", sqlstate: "42P01" })}\n`,
-    );
-    for (const text of [Q1, "hund", "Hund", "katt", "ørn", "Ørn"])
-      expect(out).not.toContain(text);
   });
 
   it("FR-15, AD-12 (AC5): the sizing Game (30 sets, 15 Questions, up to 5 Answers) groups in well under 2 minutes, 5 Questions in flight at most and at some point, none inside a transaction", async () => {

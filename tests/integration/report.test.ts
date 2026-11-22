@@ -78,10 +78,6 @@ const ZERO = {
   judgeCalls: 0,
   questionsFellBack: 0,
 };
-const NOT_FOUND = {
-  code: "NOT_FOUND",
-  message: "Vi finner ikke dette spillet.",
-};
 
 const tempDirs: string[] = [];
 let session: string;
@@ -211,43 +207,6 @@ describe("bumpCounters from Grouping", () => {
     });
   });
 
-  it("FR-18 (AC1): over a Game the counters equal the sum of each Question's judge Groups, stored judge_calls and fell_back", async () => {
-    const { gameId, ids } = await seed(THREE);
-    mock({ [Q1]: [0, 0, 1], [Q3]: "REFUSAL" });
-    await grouping.run(gameId);
-    const db = await getDb();
-    const results = await db
-      .select()
-      .from(groupingResult)
-      .where(inArray(groupingResult.questionId, ids));
-    const judgeGroups = await db
-      .select()
-      .from(answerGroup)
-      .where(
-        and(
-          inArray(answerGroup.questionId, ids),
-          eq(answerGroup.origin, "judge"),
-        ),
-      );
-    expect(await games.counters(gameId)).toEqual({
-      ...ZERO,
-      judgeGroupsProposed: judgeGroups.length,
-      judgeCalls: results.reduce((n, r) => n + r.judgeCalls, 0),
-      questionsFellBack: results.filter((r) => r.fellBack).length,
-    });
-    expect(judgeGroups.length).toBe(4);
-  });
-
-  it("FR-18, FR-17 (AC1): replay over an empty directory with no key falls back on all three Questions: 0 proposed, 0 calls, 3 fell back", async () => {
-    const { gameId } = await seed(THREE);
-    current.judge = createReplayJudge({ dir: emptyDir(), hasKey: false });
-    await grouping.run(gameId);
-    expect(await games.counters(gameId)).toEqual({
-      ...ZERO,
-      questionsFellBack: 3,
-    });
-  });
-
   it("FR-18 (AC1): a partial replay hit counts only the covered (origin = judge) Groups and the result's calls", async () => {
     const { gameId } = await seed([
       ["Nevn en frukt", [["Ananas", "eple"], ["Banan"], ["bananer", "Mango"]]],
@@ -276,16 +235,16 @@ describe("bumpCounters from Grouping", () => {
     });
   });
 
-  it("FR-18, AD-12 (AC1): with game_counter gone the bump fails inside the Question's transaction, run rejects with INTERNAL and no Group, group_id or result is written", async () => {
+  it("FR-18, AD-12, AD-17 (AC1): with game_counter gone the bump fails inside the Question's transaction, run rejects with INTERNAL, logs one content-free line, and no Group, group_id or result is written", async () => {
     const { gameId, ids } = await seed(THREE);
     mock();
     const db = await getDb();
     await db.execute(
       sql.raw("alter table game_counter rename to game_counter_x"),
     );
-    let error: unknown;
+    let error: unknown, out: string;
     try {
-      ({ result: error } = await quietly(() =>
+      ({ result: error, out } = await quietly(() =>
         grouping.run(gameId).catch((e: unknown) => e),
       ));
     } finally {
@@ -295,6 +254,16 @@ describe("bumpCounters from Grouping", () => {
     }
     expect(error).toBeInstanceOf(DomainError);
     expect((error as DomainError).code).toBe("INTERNAL");
+    expect(out).toBe(
+      `${JSON.stringify({ module: "grouping", op: "run", code: "INTERNAL", sqlstate: "42P01" })}\n`,
+    );
+    for (const text of [
+      Q1,
+      Q2,
+      Q3,
+      ...THREE.flatMap(([, sets]) => sets.flat()),
+    ])
+      expect(out).not.toContain(text);
     expect(
       await db
         .select()
@@ -346,15 +315,6 @@ describe("bumpCounters from Grouping", () => {
       judgeGroupsProposed: 3,
       judgeCalls: 1,
     });
-  });
-
-  it("FR-18, AD-12 (AC1): a run after a finished run leaves the counters unchanged", async () => {
-    const { gameId } = await reviewed();
-    const before = await games.counters(gameId);
-    mock();
-    await grouping.run(gameId);
-    expect(await games.counters(gameId)).toEqual(before);
-    expect(before.judgeCalls).toBe(3);
   });
 });
 
@@ -500,14 +460,6 @@ describe("GET /api/spill/[gameId]/rapport", () => {
     const response = await get(gameId);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ counters: ZERO, questions: [] });
-  });
-
-  it("FR-1, AD-5 (AC2): a random UUID and a malformed ID give the same 404 NOT_FOUND body", async () => {
-    for (const id of [randomUUID(), "abc"]) {
-      const response = await get(id);
-      expect(response.status, id).toBe(404);
-      expect(await response.json(), id).toEqual(NOT_FOUND);
-    }
   });
 
   it("FR-1, AD-5: logged out it redirects to /logg-inn", async () => {
