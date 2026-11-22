@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import SpillLayout from "@/app/spill/layout";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
-import { game, host } from "@/server/db/schema";
+import { game, host, session } from "@/server/db/schema";
 import * as games from "@/server/games";
 
 vi.mock("next/headers", () =>
@@ -99,6 +99,31 @@ describe("games.purgeExpired", () => {
     expect(await existing(all)).toEqual([playedRecently, idleRecently].sort());
     expect(await games.purgeExpired()).toEqual({ deleted: 0 });
     expect(await existing(all)).toEqual([playedRecently, idleRecently].sort());
+  });
+});
+
+describe("session purge", () => {
+  it("FR-1: purgeExpired also deletes sessions expired over 14 days ago, keeping newer expired and live ones", async () => {
+    const db = await getDb();
+    await db.insert(session).values(
+      (
+        [
+          ["old", now - 14 * DAY - SECOND],
+          ["recent", now - 13 * DAY],
+          ["live", now + DAY],
+        ] as const
+      ).map(([name, expiresAt]) => ({
+        tokenHash: `rydd-${name}`,
+        hostId,
+        expiresAt: new Date(expiresAt),
+      })),
+    );
+    await games.purgeExpired();
+    const left = (await db.select().from(session))
+      .map((row) => row.tokenHash)
+      .filter((hash) => hash.startsWith("rydd-"))
+      .sort();
+    expect(left).toEqual(["rydd-live", "rydd-recent"]);
   });
 });
 

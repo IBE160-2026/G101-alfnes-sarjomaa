@@ -44,9 +44,8 @@ describe("game-state", () => {
         );
   });
 
-  it("AD-4: PERMITTED names only known states, every state permits deleteGame, played nothing else", () => {
-    for (const states of Object.values(PERMITTED))
-      for (const state of states) expect(GAME_STATES).toContain(state);
+  // The integration test walks the table through lockForMutation; this pins its content.
+  it("AD-4: every state permits deleteGame, played nothing else", () => {
     expect([...PERMITTED.deleteGame]).toEqual([...GAME_STATES]);
     const playedOps = Object.entries(PERMITTED)
       .filter(([, states]) => states.includes("played"))

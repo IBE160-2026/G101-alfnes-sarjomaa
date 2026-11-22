@@ -8,6 +8,7 @@ import {
   RETENTION_IDLE_MS,
   RETENTION_PLAYED_MS,
 } from "@/lib/limits";
+import * as auth from "@/server/auth";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Tx } from "@/server/db/client";
 import { game } from "@/server/db/schema";
@@ -77,14 +78,20 @@ export function getOwned(hostId: string, gameId: string): Promise<GameSummary> {
 // The only way a Host or Player mutation locks a Game row. create, transition (called
 // after this in the same transaction) and the bulk purgeExpired write without it.
 // Host calls pass hostId: they are constrained to the owner and count as a Host change
-// (updated_at, for the purge).
+// (updated_at, for the purge); touch: false skips that write when the row is about to go.
 export async function lockForMutation(
   tx: Tx,
   {
     hostId,
     gameId,
     states,
-  }: { hostId?: string; gameId: string; states: readonly GameState[] },
+    touch = true,
+  }: {
+    hostId?: string;
+    gameId: string;
+    states: readonly GameState[];
+    touch?: boolean;
+  },
 ) {
   assertGameId(gameId);
   const [row] = await tx
@@ -98,7 +105,7 @@ export async function lockForMutation(
     .for("update");
   if (!row) throw new DomainError("NOT_FOUND");
   if (!states.includes(row.state)) throw new DomainError("WRONG_STATE");
-  if (hostId === undefined) return row;
+  if (hostId === undefined || !touch) return row;
   const updatedAt = new Date();
   await tx.update(game).set({ updatedAt }).where(eq(game.id, gameId));
   return { ...row, updatedAt };
@@ -133,6 +140,7 @@ export function deleteOwned(
         hostId,
         gameId,
         states: PERMITTED.deleteGame,
+        touch: false,
       });
       await tx.delete(game).where(eq(game.id, gameId));
       return { title };
@@ -141,6 +149,7 @@ export function deleteOwned(
 }
 
 // FR-3 retention: 30 days after played, 90 days after the last Host change otherwise.
+// Long-expired sessions go in the same run.
 // shortcut: one unbatched DELETE with no index on played_at/updated_at, fine at pilot scale; batch it and add an index if Games reach tens of thousands.
 export function purgeExpired(): Promise<{ deleted: number }> {
   return withBoundary("games", "purgeExpired", async () => {
@@ -161,6 +170,7 @@ export function purgeExpired(): Promise<{ deleted: number }> {
         ),
       )
       .returning({ id: game.id });
+    await auth.purgeExpiredSessions();
     return { deleted: rows.length };
   });
 }

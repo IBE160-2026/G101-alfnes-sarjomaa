@@ -20,6 +20,7 @@ import {
 import {
   SESSION_COOKIE,
   createSession,
+  deleteExpiredSessions,
   deleteSession,
   readSession,
   sessionCookieOptions,
@@ -173,6 +174,13 @@ export const requireHost = cache(async (): Promise<{ hostId: string }> => {
   if (result === "expired") redirect("/logg-inn?utlopt=1");
   return result;
 });
+
+// Called by the retention purge, so sessions never used again do not pile up.
+export function purgeExpiredSessions(): Promise<void> {
+  return withBoundary("auth", "purgeExpiredSessions", async () =>
+    deleteExpiredSessions(await getDb()),
+  );
+}
 
 // Cookie presence only, no DB read, so the 404 page renders with the DB down.
 export async function hasSessionCookie(): Promise<boolean> {

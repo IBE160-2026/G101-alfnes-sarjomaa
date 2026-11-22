@@ -1,15 +1,10 @@
 "use client";
 
-import { unstable_rethrow } from "next/navigation";
-import { useActionState, useEffect, useRef } from "react";
 import { deleteGame } from "@/app/spill/[id]/actions";
 import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Notice } from "@/components/Notice";
-
-type State = { message: string } | null;
-
-const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
+import { useFormAction } from "@/components/useFormAction";
 
 export function DeleteGame({
   gameId,
@@ -18,24 +13,9 @@ export function DeleteGame({
   gameId: string;
   title: string;
 }) {
-  const noticeRef = useRef<HTMLDivElement>(null);
-
-  // Success redirects, which rejects here with Next's redirect error: let it through.
-  const [state, submit, pending] = useActionState(
-    async (prev: State, formData: FormData): Promise<State> => {
-      try {
-        return await deleteGame(prev, formData);
-      } catch (error) {
-        unstable_rethrow(error);
-        return { message: NETWORK };
-      }
-    },
-    null,
-  );
-
-  useEffect(() => {
-    if (state) noticeRef.current?.focus();
-  }, [state]);
+  // No fields: every failure shows in the notice inside the dialog.
+  const { state, submit, pending, noticeRef, showNotice } =
+    useFormAction(deleteGame);
 
   return (
     <ConfirmDialog
@@ -57,9 +37,9 @@ export function DeleteGame({
       }
     >
       <p>Spørsmål, lenker, svar, brett og poeng slettes for godt.</p>
-      {state && (
+      {showNotice && (
         <Notice tone="danger" ref={noticeRef} tabIndex={-1}>
-          {state.message}
+          {state?.message}
         </Notice>
       )}
     </ConfirmDialog>

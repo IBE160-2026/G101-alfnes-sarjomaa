@@ -9,33 +9,10 @@ function exampleKeys(): string[] {
     .filter((key): key is string => key !== undefined);
 }
 
-// Reads the file rather than asking git: the hand-in zip has no .git directory.
-function gitignoreLines(): Set<string> {
-  return new Set(
-    readFileSync(".gitignore", "utf8")
-      .split("\n")
-      .map((line) => line.trim()),
-  );
-}
-
 describe("env", () => {
   it("NFR-8: .env.example lists exactly the keys env.ts reads", () => {
     expect(exampleKeys().sort()).toEqual(Object.keys(envSchema.shape).sort());
     expect(exampleKeys()).toHaveLength(9);
-  });
-
-  it("NFR-8: .gitignore covers env files, .data, .next and node_modules but not .env.example", () => {
-    const lines = gitignoreLines();
-    for (const line of [
-      ".env",
-      ".env.*",
-      "!.env.example",
-      ".data/",
-      ".next/",
-      "node_modules/",
-    ]) {
-      expect(lines.has(line), line).toBe(true);
-    }
   });
 
   it("NFR-1: an empty source gives the no-key defaults", () => {

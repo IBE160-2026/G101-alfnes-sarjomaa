@@ -1,16 +1,12 @@
 "use client";
 
-import { unstable_rethrow } from "next/navigation";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
 import { TextField } from "@/components/TextField";
-import type { FieldErrors, Failure } from "@/lib/errors";
+import { useFormAction } from "@/components/useFormAction";
+import type { Failure } from "@/lib/errors";
 import { GAME_TITLE_COUNTER_FROM, GAME_TITLE_MAX } from "@/lib/limits";
-
-type State = { message: string; fieldErrors?: FieldErrors } | null;
-
-const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
 
 export function CreateGameForm({
   action,
@@ -19,39 +15,24 @@ export function CreateGameForm({
 }) {
   // Controlled, so the typed title survives a failed submit and drives the counter.
   const [title, setTitle] = useState("");
-  const formRef = useRef<HTMLFormElement>(null);
-  const noticeRef = useRef<HTMLDivElement>(null);
+  const {
+    state,
+    submit,
+    pending,
+    formRef,
+    noticeRef,
+    fieldErrors,
+    showNotice,
+  } = useFormAction(action, ["title"]);
 
-  // Success redirects, which rejects here with Next's redirect error: let it through.
-  const [state, submit, pending] = useActionState(
-    async (prev: State, formData: FormData): Promise<State> => {
-      try {
-        return await action(prev, formData);
-      } catch (error) {
-        unstable_rethrow(error);
-        return { message: NETWORK };
-      }
-    },
-    null,
-  );
-
-  useEffect(() => {
-    if (!state) return;
-    const invalid = formRef.current?.querySelector<HTMLElement>(
-      '[aria-invalid="true"]',
-    );
-    (invalid ?? noticeRef.current)?.focus();
-  }, [state]);
-
-  const errors = state?.fieldErrors;
   // Trimmed, as the server counts it.
   const length = title.trim().length;
   const count = `${length} av ${GAME_TITLE_MAX} tegn`;
   return (
     <>
-      {state && !errors && (
+      {showNotice && (
         <Notice tone="danger" ref={noticeRef} tabIndex={-1} className="mt-6">
-          {state.message}
+          {state?.message}
         </Notice>
       )}
       <form
@@ -67,7 +48,7 @@ export function CreateGameForm({
           aria-required
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          error={errors?.title}
+          error={fieldErrors.title}
           counter={
             length >= GAME_TITLE_COUNTER_FROM && (
               <span aria-hidden="true">{count}</span>

@@ -1,8 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { loginForm } from "@/app/logg-inn/schema";
-import { toFailure, validate, type Failure } from "@/lib/errors";
+import { toFailure, type Failure } from "@/lib/errors";
 import * as auth from "@/server/auth";
 
 export async function logIn(
@@ -10,7 +9,7 @@ export async function logIn(
   formData: FormData,
 ): Promise<Failure> {
   try {
-    await auth.logIn(validate(loginForm, Object.fromEntries(formData)));
+    await auth.logIn(Object.fromEntries(formData)); // validated there
   } catch (error) {
     return toFailure(error);
   }

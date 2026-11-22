@@ -1,20 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { unstable_rethrow } from "next/navigation";
-import { useActionState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
 import { TextField } from "@/components/TextField";
-import type { FieldErrors, Failure } from "@/lib/errors";
-
-type State = {
-  message: string;
-  fieldErrors?: FieldErrors;
-  email: string;
-} | null;
-
-const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
+import { useFormAction } from "@/components/useFormAction";
+import type { Failure } from "@/lib/errors";
 
 const COPY = {
   register: {
@@ -51,38 +43,29 @@ export function AccountForm({
   action: (prev: unknown, formData: FormData) => Promise<Failure>;
 }) {
   const copy = COPY[mode];
-  const formRef = useRef<HTMLFormElement>(null);
-  const noticeRef = useRef<HTMLDivElement>(null);
-
-  // A successful action redirects, which rejects here with Next's redirect error:
-  // that one must propagate. Any other rejection means the request never made it.
-  const [state, submit, pending] = useActionState(
-    async (prev: State, formData: FormData): Promise<State> => {
-      const email = String(formData.get("email") ?? "");
-      try {
-        return { ...(await action(prev, formData)), email };
-      } catch (error) {
-        unstable_rethrow(error);
-        return { message: NETWORK, email };
-      }
-    },
-    null,
+  const askForCode = mode === "register" && askCode;
+  // Controlled, so the email survives the form reset after a failed submit.
+  const [email, setEmail] = useState("");
+  const {
+    state,
+    submit,
+    pending,
+    formRef,
+    noticeRef,
+    fieldErrors,
+    showNotice,
+  } = useFormAction(
+    action,
+    askForCode
+      ? ["email", "password", "registrationCode"]
+      : ["email", "password"],
   );
 
-  useEffect(() => {
-    if (!state) return;
-    const invalid = formRef.current?.querySelector<HTMLElement>(
-      '[aria-invalid="true"]',
-    );
-    (invalid ?? noticeRef.current)?.focus();
-  }, [state]);
-
-  const errors = state?.fieldErrors;
   return (
     <>
-      {state && !errors && (
+      {showNotice && (
         <Notice tone="danger" ref={noticeRef} tabIndex={-1} className="mt-6">
-          {state.message}
+          {state?.message}
         </Notice>
       )}
       <form ref={formRef} action={submit} noValidate className="mt-6">
@@ -92,8 +75,9 @@ export function AccountForm({
           type="email"
           autoComplete="email"
           aria-required
-          defaultValue={state?.email}
-          error={errors?.email}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          error={fieldErrors.email}
         />
         <TextField
           name="password"
@@ -102,17 +86,17 @@ export function AccountForm({
           autoComplete={copy.password}
           aria-required
           helper={mode === "register" ? "Minst 10 tegn." : undefined}
-          error={errors?.password}
+          error={fieldErrors.password}
           className="mt-5"
         />
-        {mode === "register" && askCode && (
+        {askForCode && (
           <TextField
             name="registrationCode"
             label="Registreringskode"
             type="text"
             autoComplete="off"
             aria-required
-            error={errors?.registrationCode}
+            error={fieldErrors.registrationCode}
             className="mt-5"
           />
         )}

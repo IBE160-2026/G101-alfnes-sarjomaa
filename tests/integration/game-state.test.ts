@@ -3,7 +3,6 @@ import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/lib/errors";
 import {
-  canTransition,
   GAME_STATES,
   PERMITTED,
   type GameState,
@@ -56,24 +55,24 @@ const codeOf = (p: Promise<unknown>) =>
   );
 
 describe("games.transition", () => {
-  it("AD-4: of all 49 (from, to) pairs only the six chain edges succeed; the rest are WRONG_STATE and leave the state", async () => {
-    let succeeded = 0;
-    for (const from of GAME_STATES)
-      for (const to of GAME_STATES) {
-        await setState(from);
-        const code = await codeOf(
-          inTx((tx) => games.transition(tx, gameId, from, to)),
-        );
-        if (canTransition(from, to)) {
-          expect(code, `${from}→${to}`).toBe("ok");
-          expect((await row()).state).toBe(to);
-          succeeded++;
-        } else {
-          expect(code, `${from}→${to}`).toBe("WRONG_STATE");
-          expect((await row()).state).toBe(from);
-        }
-      }
-    expect(succeeded).toBe(6);
+  // canTransition's 49 pairs are covered in the unit test; transition checks it first.
+  it("AD-4: a chain edge succeeds; a skipped or backward edge is WRONG_STATE and leaves the state", async () => {
+    await setState("draft");
+    expect(
+      await codeOf(
+        inTx((tx) => games.transition(tx, gameId, "draft", "collecting")),
+      ),
+    ).toBe("ok");
+    expect((await row()).state).toBe("collecting");
+    for (const to of ["in_review", "draft"] as const) {
+      expect(
+        await codeOf(
+          inTx((tx) => games.transition(tx, gameId, "collecting", to)),
+        ),
+        to,
+      ).toBe("WRONG_STATE");
+      expect((await row()).state).toBe("collecting");
+    }
   });
 
   it("AD-4: a stale from is WRONG_STATE (compare-and-set)", async () => {
@@ -121,12 +120,20 @@ describe("games.lockForMutation", () => {
     expect((await row()).updatedAt).toEqual(T0);
   });
 
-  it("AD-4, AD-23: sets updated_at to now on a Host call and leaves it without hostId", async () => {
+  it("AD-4, AD-23: sets updated_at to now on a Host call and leaves it without hostId or with touch: false", async () => {
     await setState("draft");
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(LATER);
     await inTx((tx) =>
       games.lockForMutation(tx, { gameId, states: ["draft"] }),
+    );
+    await inTx((tx) =>
+      games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: ["draft"],
+        touch: false,
+      }),
     );
     expect((await row()).updatedAt).toEqual(T0);
     const locked = await inTx((tx) =>

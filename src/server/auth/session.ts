@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, lt } from "drizzle-orm";
 import { SESSION_EXTEND_AFTER_MS, SESSION_TTL_MS } from "@/lib/limits";
 import type { Db, Tx } from "@/server/db/client";
 import { session } from "@/server/db/schema";
@@ -33,6 +33,14 @@ export async function createSession(tx: Tx, hostId: string): Promise<string> {
 
 export async function deleteSession(tx: Tx | Db, token: string): Promise<void> {
   await tx.delete(session).where(eq(session.tokenHash, sha256(token)));
+}
+
+// Rows past their expiry by more than another TTL. The browser's cookie outlives its
+// row by at most an hour, so none of these can still bring the ?utlopt=1 notice.
+export async function deleteExpiredSessions(db: Db): Promise<void> {
+  await db
+    .delete(session)
+    .where(lt(session.expiresAt, new Date(Date.now() - SESSION_TTL_MS)));
 }
 
 // "missing" for no row; "expired" deletes the row. A live row is extended at most hourly.

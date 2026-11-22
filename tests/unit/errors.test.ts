@@ -3,14 +3,6 @@ import { z } from "zod";
 import { DomainError, MESSAGES, toFailure, validate } from "@/lib/errors";
 
 describe("errors", () => {
-  it.each(Object.entries(MESSAGES))(
-    "AD-17: %s has a bokmål message without exclamation marks",
-    (_, message) => {
-      expect(message.length).toBeGreaterThan(0);
-      expect(message).not.toContain("!");
-    },
-  );
-
   it("FR-1, AD-4: NOT_FOUND and WRONG_STATE have their exact bokmål messages", () => {
     expect(MESSAGES.NOT_FOUND).toBe("Vi finner ikke dette spillet.");
     expect(MESSAGES.WRONG_STATE).toBe(

@@ -1,8 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { registerForm } from "@/app/registrer/schema";
-import { toFailure, validate, type Failure } from "@/lib/errors";
+import { toFailure, type Failure } from "@/lib/errors";
 import * as auth from "@/server/auth";
 
 export async function register(
@@ -10,7 +9,7 @@ export async function register(
   formData: FormData,
 ): Promise<Failure> {
   try {
-    await auth.register(validate(registerForm, Object.fromEntries(formData)));
+    await auth.register(Object.fromEntries(formData)); // validated there
   } catch (error) {
     return toFailure(error);
   }
