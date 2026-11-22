@@ -1,10 +1,23 @@
 import { unstable_rethrow } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
-import type { Failure } from "@/lib/errors";
+import type { ActionResult, Failure } from "@/lib/errors";
 
 type State = Pick<Failure, "message" | "fieldErrors"> | null;
 
 export const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
+
+// Calls an object-input Server Action. null means the request never made it (show
+// NETWORK); Next's login redirect still propagates.
+export async function callAction<T>(
+  action: () => Promise<ActionResult<T>>,
+): Promise<ActionResult<T> | null> {
+  try {
+    return await action();
+  } catch (error) {
+    unstable_rethrow(error);
+    return null;
+  }
+}
 
 // Runs a form's Server Action. Success redirects, which rejects here with Next's
 // redirect error and must propagate; any other rejection means the request never

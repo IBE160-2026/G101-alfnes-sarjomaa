@@ -23,7 +23,7 @@ vi.mock("next/cache", () => import("./next-mocks").then((m) => m.nextCache));
 vi.setConfig({ testTimeout: 30_000 });
 
 const COOKIE = "toppsvar_session";
-const OK = { ok: true, data: null };
+const OK = { ok: true, data: undefined };
 const LENGTH = "Spørsmålet må ha 1–200 tegn.";
 const T0 = new Date("2026-11-01T12:00:00Z");
 let token: string;

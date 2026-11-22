@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { INVITE_LINKS_MAX } from "@/lib/limits";
 
-const COUNT = "Skriv et tall fra 1 til 50.";
+const COUNT = `Skriv et tall fra 1 til ${INVITE_LINKS_MAX}.`;
 
 // Malformed gameIds are left to lockForMutation, which makes them NOT_FOUND (AD-5).
 export const createInviteLinksSchema = z.object({

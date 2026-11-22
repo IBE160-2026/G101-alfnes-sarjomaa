@@ -1,6 +1,5 @@
 "use client";
 
-import { unstable_rethrow } from "next/navigation";
 import {
   useEffect,
   useMemo,
@@ -14,6 +13,7 @@ import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
 import { TextField } from "@/components/TextField";
+import { callAction } from "@/components/useFormAction";
 import { ANSWER_MISSING, parseAnswerSet, toFields } from "@/lib/answer-set";
 import { DomainError, MESSAGES, type FieldErrors } from "@/lib/errors";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@/lib/invite-link";
 import {
   ANSWER_COUNTER_FROM,
+  ANSWER_FIELDS_DEFAULT,
   ANSWER_TEXT_MAX,
   ANSWERS_PER_QUESTION_MAX,
 } from "@/lib/limits";
@@ -41,7 +42,6 @@ const CLOSED =
   "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret.";
 const RETURNING =
   "Du har allerede sendt inn. Endringer lagres først når du trykker «Lagre endringer».";
-const DEFAULT_FIELDS = 2;
 const DRAFT_SAVE_MS = 500;
 
 // Field names are `${qid}.${i}`, the same keys parseAnswerSet reports field errors under.
@@ -226,19 +226,11 @@ export function AnswerForm({
     writeLinkStore(gameId, { ...stored, token, editSecret });
 
     setPending(true);
-    let result;
-    try {
-      result = await submitAnswerSet(gameId, token, {
-        answers: fields,
-        editSecret,
-      });
-    } catch (error) {
-      unstable_rethrow(error);
-      setFailure(NETWORK_SUBMIT);
-      return;
-    } finally {
-      setPending(false);
-    }
+    const result = await callAction(() =>
+      submitAnswerSet(gameId, token, { answers: fields, editSecret }),
+    );
+    setPending(false);
+    if (!result) return setFailure(NETWORK_SUBMIT);
 
     if (result.ok) {
       clearTimeout(draftTimer.current);
@@ -434,7 +426,8 @@ export function AnswerForm({
                         className="min-w-0 flex-1"
                       />
                     );
-                    if (i < DEFAULT_FIELDS) return <div key={i}>{field}</div>;
+                    if (i < ANSWER_FIELDS_DEFAULT)
+                      return <div key={i}>{field}</div>;
                     return (
                       <div key={i} className="flex items-start gap-2">
                         {field}

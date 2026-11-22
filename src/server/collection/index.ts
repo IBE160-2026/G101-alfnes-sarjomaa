@@ -9,7 +9,7 @@ import {
   revokeInviteLinkSchema,
   TOKEN_PATTERN,
 } from "@/lib/invite-link";
-import { SUBMISSIONS_MIN } from "@/lib/limits";
+import { FEWER_THAN_3, SUBMISSIONS_MIN } from "@/lib/limits";
 import { newToken, sha256 } from "@/lib/token";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Db, type Tx } from "@/server/db/client";
@@ -113,11 +113,9 @@ export function revokeInviteLink(
   });
 }
 
-export const FEWER_THAN_3 = "fewer-than-3";
-
 // A read: no lock, no write, never updated_at. The exact count below three never leaves
-// this function, so arrivals below three stay hidden; above it the Game page's silent
-// 30 s refresh only coarsens timing (FR-8, FR-12).
+// this function, so arrivals below three stay hidden. From three the count is exact
+// whenever the Host reloads, which FR-8 accepts (FR-8, FR-12).
 export function progress(
   hostId: string,
   gameId: string,

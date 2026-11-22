@@ -1,13 +1,15 @@
-// Static on purpose: no bar, live region or motion. The floor hides arrivals below three,
-// and the silent 30 s refresh coarsens timing above it (FR-8, UX-DR6).
+import { FEWER_THAN_3 } from "@/lib/limits";
+
+// Static on purpose: no bar, live region or motion. The floor hides arrivals below three;
+// from three the count is exact on any reload, which FR-8 accepts (UX-DR6).
 export function ProgressCount({
   active,
   submissions,
 }: {
   active: number;
-  submissions: number | "fewer-than-3";
+  submissions: number | typeof FEWER_THAN_3;
 }) {
-  const figure = typeof submissions === "number" ? submissions : "færre enn 3";
+  const figure = submissions === FEWER_THAN_3 ? "færre enn 3" : submissions;
   return (
     <>
       <p className="mt-4 text-body">

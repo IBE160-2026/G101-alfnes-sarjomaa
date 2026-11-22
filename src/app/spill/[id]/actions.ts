@@ -32,16 +32,18 @@ export async function deleteGame(
   redirect("/spill");
 }
 
-async function questionAction(
-  op: (hostId: string, input: unknown) => Promise<void>,
+// Every object-input Host action: session, the module call (which validates the input),
+// a refresh of the Game page, and any error as a Failure.
+async function hostAction<T>(
+  op: (hostId: string, input: unknown) => Promise<T>,
   input: unknown,
-): Promise<ActionResult<null>> {
+): Promise<ActionResult<T>> {
   try {
     const { hostId } = await auth.requireHost();
-    await op(hostId, input);
+    const data = await op(hostId, input);
     // op validated the input, so gameId is a string here.
     revalidatePath(`/spill/${(input as { gameId: string }).gameId}`);
-    return { ok: true, data: null };
+    return { ok: true, data };
   } catch (error) {
     unstable_rethrow(error); // the login redirect from requireHost
     return toFailure(error);
@@ -50,48 +52,30 @@ async function questionAction(
 
 export async function saveQuestion(
   input: unknown,
-): Promise<ActionResult<null>> {
-  return questionAction(questions.save, input);
+): Promise<ActionResult<void>> {
+  return hostAction(questions.save, input);
 }
 
 export async function moveQuestion(
   input: unknown,
-): Promise<ActionResult<null>> {
-  return questionAction(questions.move, input);
+): Promise<ActionResult<void>> {
+  return hostAction(questions.move, input);
 }
 
 export async function removeQuestion(
   input: unknown,
-): Promise<ActionResult<null>> {
-  return questionAction(questions.remove, input);
+): Promise<ActionResult<void>> {
+  return hostAction(questions.remove, input);
 }
 
 export async function createInviteLinks(
   input: unknown,
 ): Promise<ActionResult<{ links: string[] }>> {
-  try {
-    const { hostId } = await auth.requireHost();
-    const data = await collection.createInviteLinks(hostId, input);
-    // createInviteLinks validated the input, so gameId is a string here.
-    revalidatePath(`/spill/${(input as { gameId: string }).gameId}`);
-    return { ok: true, data };
-  } catch (error) {
-    unstable_rethrow(error); // the login redirect from requireHost
-    return toFailure(error);
-  }
+  return hostAction(collection.createInviteLinks, input);
 }
 
 export async function revokeInviteLink(
   input: unknown,
 ): Promise<ActionResult<{ link: string }>> {
-  try {
-    const { hostId } = await auth.requireHost();
-    const data = await collection.revokeInviteLink(hostId, input);
-    // revokeInviteLink validated the input, so gameId is a string here.
-    revalidatePath(`/spill/${(input as { gameId: string }).gameId}`);
-    return { ok: true, data };
-  } catch (error) {
-    unstable_rethrow(error); // the login redirect from requireHost
-    return toFailure(error);
-  }
+  return hostAction(collection.revokeInviteLink, input);
 }

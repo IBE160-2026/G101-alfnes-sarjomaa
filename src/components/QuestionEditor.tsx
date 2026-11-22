@@ -1,6 +1,6 @@
 "use client";
 
-import { unstable_rethrow, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   startTransition,
   useEffect,
@@ -15,6 +15,7 @@ import {
   saveQuestion,
 } from "@/app/spill/[id]/actions";
 import { Button } from "@/components/Button";
+import { callAction } from "@/components/useFormAction";
 import { MESSAGES, type ActionResult, type Failure } from "@/lib/errors";
 import {
   QUESTION_COUNTER_FROM,
@@ -32,18 +33,6 @@ type Status = {
 const EMPTY =
   "Ingen spørsmål ennå. Skriv det første, gjerne om noen dere kjenner, for eksempel «Hva gjør Jonas når han har forsovet seg?»";
 const FAILED = "Fikk ikke lagret. Prøv igjen.";
-
-// A rejection is the network (the request never made it), except Next's login redirect.
-async function call(
-  action: () => Promise<ActionResult<null>>,
-): Promise<ActionResult<null> | null> {
-  try {
-    return await action();
-  } catch (error) {
-    unstable_rethrow(error);
-    return null;
-  }
-}
 
 // Rows follow the `questions` prop (server truth after every revalidatePath), plus the
 // draft rows the server does not have yet, at the end.
@@ -237,13 +226,13 @@ function QuestionRow({
     }
     inFlight.current = true;
     startTransition(async () => {
-      const result = await call(() =>
+      const result = await callAction(() =>
         saveQuestion({ gameId, questionId: id, text: sent }),
       );
       inFlight.current = false;
       if (dropped.current) {
         if (result?.ok)
-          await call(() => removeQuestion({ gameId, questionId: id }));
+          await callAction(() => removeQuestion({ gameId, questionId: id }));
         return;
       }
       if (result?.ok) {
@@ -261,9 +250,9 @@ function QuestionRow({
     });
   }
 
-  function run(action: () => Promise<ActionResult<null>>, onDone: () => void) {
+  function run(action: () => Promise<ActionResult<void>>, onDone: () => void) {
     startBusy(async () => {
-      const result = await call(action);
+      const result = await callAction(action);
       if (result?.ok) onDone();
       else showFailure(result);
     });

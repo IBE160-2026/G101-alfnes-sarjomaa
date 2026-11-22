@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { QUESTION_TEXT_MAX } from "@/lib/limits";
 
-const TEXT_LENGTH = "Spørsmålet må ha 1–200 tegn.";
+const TEXT_LENGTH = `Spørsmålet må ha 1–${QUESTION_TEXT_MAX} tegn.`;
 
 // Malformed gameIds are left to lockForMutation, which makes them NOT_FOUND (AD-5).
 export const saveQuestionSchema = z.object({

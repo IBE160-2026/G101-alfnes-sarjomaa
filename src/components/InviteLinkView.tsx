@@ -1,6 +1,5 @@
 "use client";
 
-import { unstable_rethrow } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openInviteLink } from "@/app/svar/[gameId]/actions";
 import { AnswerForm } from "@/components/AnswerForm";
@@ -8,7 +7,7 @@ import { Button } from "@/components/Button";
 import { LinkStatus } from "@/components/LinkStatus";
 import { Notice } from "@/components/Notice";
 import { useDocumentTitle } from "@/components/useDocumentTitle";
-import { NETWORK } from "@/components/useFormAction";
+import { callAction, NETWORK } from "@/components/useFormAction";
 import { readLinkStore } from "@/lib/invite-link";
 
 type Question = { id: string; text: string };
@@ -29,20 +28,14 @@ type View =
 // edit secret goes along, so only this device gets its saved set back (AD-8).
 async function fetchView(gameId: string): Promise<View> {
   const token = location.hash.slice(1);
-  try {
-    const result = await openInviteLink(
-      gameId,
-      token,
-      readLinkStore(gameId, token)?.editSecret,
-    );
-    if (result.ok) return { kind: "open", token, ...result.data };
-    if (result.code === "LINK_UNKNOWN") return { kind: "unknown" };
-    if (result.code === "COLLECTION_CLOSED") return { kind: "closed" };
-    return { kind: "failed", message: result.message };
-  } catch (error) {
-    unstable_rethrow(error);
-    return { kind: "failed", message: NETWORK };
-  }
+  const result = await callAction(() =>
+    openInviteLink(gameId, token, readLinkStore(gameId, token)?.editSecret),
+  );
+  if (!result) return { kind: "failed", message: NETWORK };
+  if (result.ok) return { kind: "open", token, ...result.data };
+  if (result.code === "LINK_UNKNOWN") return { kind: "unknown" };
+  if (result.code === "COLLECTION_CLOSED") return { kind: "closed" };
+  return { kind: "failed", message: result.message };
 }
 
 export function InviteLinkView({ gameId }: { gameId: string }) {

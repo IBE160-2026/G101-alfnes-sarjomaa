@@ -1,6 +1,6 @@
 "use client";
 
-import { unstable_rethrow, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { createInviteLinks } from "@/app/spill/[id]/actions";
 import { Button } from "@/components/Button";
@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Notice } from "@/components/Notice";
 import { OnceLinkList } from "@/components/OnceLinkList";
 import { TextField } from "@/components/TextField";
-import { NETWORK } from "@/components/useFormAction";
+import { callAction, NETWORK } from "@/components/useFormAction";
 import { MESSAGES } from "@/lib/errors";
 import { INVITE_LINKS_MAX } from "@/lib/limits";
 
@@ -69,13 +69,9 @@ export function InviteLinkPanel({
     if (!checkCount()) return;
     setFailure(undefined);
     startTransition(async () => {
-      let result;
-      try {
-        result = await createInviteLinks({ gameId, count: Number(count) });
-      } catch (error) {
-        unstable_rethrow(error); // the login redirect
-        result = null;
-      }
+      const result = await callAction(() =>
+        createInviteLinks({ gameId, count: Number(count) }),
+      );
       if (result?.ok) {
         setFieldError(undefined);
         setLinks(result.data.links);

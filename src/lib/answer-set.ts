@@ -1,9 +1,13 @@
 import { z } from "zod";
 import { DomainError, MESSAGES, type FieldErrors } from "@/lib/errors";
-import { ANSWER_TEXT_MAX, ANSWERS_PER_QUESTION_MAX } from "@/lib/limits";
+import {
+  ANSWER_FIELDS_DEFAULT,
+  ANSWER_TEXT_MAX,
+  ANSWERS_PER_QUESTION_MAX,
+} from "@/lib/limits";
 
 export const ANSWER_MISSING = "Skriv minst ett svar.";
-export const ANSWER_TOO_LONG = "Svaret kan ha maks 80 tegn.";
+export const ANSWER_TOO_LONG = `Svaret kan ha maks ${ANSWER_TEXT_MAX} tegn.`;
 
 const INVALID = MESSAGES.INVALID_INPUT;
 
@@ -52,7 +56,7 @@ export function parseAnswerSet(
 }
 
 // Form state from a saved set or an untrusted stored draft: per known Question, at most
-// five string fields of at most 80 characters, padded to at least two. Never throws.
+// five string fields of at most 80 characters, padded to the default two. Never throws.
 export function toFields(
   set: unknown,
   questionIds: readonly string[],
@@ -64,13 +68,14 @@ export function toFields(
   return Object.fromEntries(
     questionIds.map((qid) => {
       const value = Object.hasOwn(raw, qid) ? raw[qid] : undefined;
-      const given = Array.isArray(value)
+      const given: string[] = Array.isArray(value)
         ? value
             .filter((v): v is string => typeof v === "string")
             .slice(0, ANSWERS_PER_QUESTION_MAX)
             .map((v) => v.slice(0, ANSWER_TEXT_MAX))
         : [];
-      return [qid, [...given, "", ""].slice(0, Math.max(2, given.length))];
+      while (given.length < ANSWER_FIELDS_DEFAULT) given.push("");
+      return [qid, given];
     }),
   );
 }

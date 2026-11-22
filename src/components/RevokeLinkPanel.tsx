@@ -1,6 +1,6 @@
 "use client";
 
-import { unstable_rethrow, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { revokeInviteLink } from "@/app/spill/[id]/actions";
 import { Button } from "@/components/Button";
@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Notice } from "@/components/Notice";
 import { OnceLinkList } from "@/components/OnceLinkList";
 import { TextField } from "@/components/TextField";
-import { NETWORK } from "@/components/useFormAction";
+import { callAction, NETWORK } from "@/components/useFormAction";
 import { MESSAGES } from "@/lib/errors";
 import { LINK_NOT_ACTIVE } from "@/lib/invite-link";
 import { INVITE_LINKS_MAX } from "@/lib/limits";
@@ -49,13 +49,9 @@ export function RevokeLinkPanel({
   function revoke() {
     setFailure(undefined);
     startTransition(async () => {
-      let result;
-      try {
-        result = await revokeInviteLink({ gameId, link: value });
-      } catch (error) {
-        unstable_rethrow(error); // the login redirect
-        result = null;
-      }
+      const result = await callAction(() =>
+        revokeInviteLink({ gameId, link: value }),
+      );
       if (result?.ok) {
         setValue("");
         setFieldError(undefined);
