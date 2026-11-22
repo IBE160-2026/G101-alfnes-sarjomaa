@@ -20,7 +20,7 @@ Implement {Story N.M: tittel} for Toppsvar, unattended.
    spines. Keep the story spec in .docs/implementation-artifacts/ and set the story to done in
    .docs/implementation-artifacts/sprint-status.yaml when it is complete.
 
-Project root: /Users/sondrealfnes/Documents/Molde/G101-alfnes-sarjomaa
+Project root: <prosjektrot>
 Branch: {epic-N-…} (already checked out, clean tree). Do not switch branches.
 Rules:
 - Commit messages in Norwegian (bokmål), short imperative subject, ending with the line

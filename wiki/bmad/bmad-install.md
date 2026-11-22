@@ -7,7 +7,7 @@
 
 ```bash
 npx -y bmad-method@6.12.0 install \
-  --directory /Users/sondrealfnes/Documents/Molde/G101-alfnes-sarjomaa \
+  --directory <prosjektrot> \
   --modules bmm,cis \
   --channel stable \
   --tools claude-code \

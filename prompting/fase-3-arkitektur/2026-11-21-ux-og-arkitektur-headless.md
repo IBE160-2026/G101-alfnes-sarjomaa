@@ -21,7 +21,7 @@ skill "bmad-ux" and treat this message as the headless payload (headless: true, 
 Follow the skill's references/headless.md for the whole run. Do not ask questions; record
 inferences as assumptions and real gaps as open questions.
 
-Project root: /Users/sondrealfnes/Documents/Molde/G101-alfnes-sarjomaa
+Project root: <prosjektrot>
 
 Driving inputs (read them):
 - PRD (canonical, final): .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md
@@ -69,7 +69,7 @@ tool with skill "bmad-architecture" and treat this message as the headless paylo
 skill's references/headless.md for the whole run, including the full Reviewer Gate with its
 parallel reviewer subagents.
 
-Project root: /Users/sondrealfnes/Documents/Molde/G101-alfnes-sarjomaa
+Project root: <prosjektrot>
 
 Driving inputs (read them):
 - PRD (canonical, final): .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md
