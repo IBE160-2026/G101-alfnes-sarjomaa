@@ -20,3 +20,53 @@ export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 export function storageKey(gameId: string, token: string): string {
   return `toppsvar:${gameId}:${token.slice(0, 16)}`;
 }
+
+// The key's value. The full Token is kept so that a cut-short link, which shares the
+// key, neither reads nor clears the real link's secret.
+export type LinkStore = { token: string; editSecret?: string };
+
+// Storage can be missing, blocked or full, so none of these ever throws.
+export function readLinkStore(gameId: string, token: string): LinkStore | null {
+  try {
+    const raw = localStorage.getItem(storageKey(gameId, token));
+    if (raw === null) return null;
+    const value: unknown = JSON.parse(raw);
+    return typeof value === "object" &&
+      value !== null &&
+      (value as LinkStore).token === token
+      ? (value as LinkStore)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLinkStore(gameId: string, store: LinkStore): void {
+  try {
+    localStorage.setItem(
+      storageKey(gameId, store.token),
+      JSON.stringify(store),
+    );
+  } catch {
+    // Without storage the submit still works; the device just cannot edit later.
+  }
+}
+
+export function clearLinkStore(gameId: string, token: string): void {
+  if (!readLinkStore(gameId, token)) return;
+  try {
+    localStorage.removeItem(storageKey(gameId, token));
+  } catch {
+    // Nothing to remove when storage is blocked.
+  }
+}
+
+// 32 random bytes as base64url, the Token's shape. getRandomValues and btoa, because
+// crypto.subtle is missing on plain http://<LAN-IP> and Uint8Array.toBase64 on older phones.
+export function newEditSecret(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}

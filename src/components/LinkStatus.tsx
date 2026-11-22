@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { storageKey } from "@/lib/invite-link";
+import { clearLinkStore } from "@/lib/invite-link";
 
 const COPY = {
   closed: [
@@ -14,15 +14,14 @@ const COPY = {
   ],
 } as const;
 
-// A closed or unknown link has nothing left to keep, so its saved draft and secret go.
+// A closed or unknown link has nothing left to keep, so its saved draft and secret go,
+// but only when they belong to exactly this Token (a cut-short link shares the key).
 export function LinkStatus({ status }: { status: keyof typeof COPY }) {
   useEffect(() => {
-    try {
-      const gameId = location.pathname.split("/")[2] ?? "";
-      localStorage.removeItem(storageKey(gameId, location.hash.slice(1)));
-    } catch {
-      // Storage can be blocked or unavailable; there is then nothing to remove.
-    }
+    clearLinkStore(
+      location.pathname.split("/")[2] ?? "",
+      location.hash.slice(1),
+    );
   }, []);
 
   const [heading, body] = COPY[status];
