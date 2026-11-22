@@ -24,17 +24,6 @@ if (!env.OPENROUTER_API_KEY) {
   process.exit(0);
 }
 
-// Remembers the last non-2xx status and the start of its body, so a wrong key, a wrong
-// JUDGE_MODEL or an unsupported parameter can be told apart. Never the request or its headers.
-let httpError: string | undefined;
-const realFetch = globalThis.fetch;
-globalThis.fetch = async (...args) => {
-  const response = await realFetch(...args);
-  if (!response.ok)
-    httpError = `HTTP ${response.status}: ${(await response.clone().text()).slice(0, 300)}`;
-  return response;
-};
-
 const usage: unknown[] = [];
 const judge = getLiveJudge((u) => usage.push(u));
 const started = performance.now();
@@ -57,10 +46,9 @@ try {
   console.log(`groups for "${QUESTION}":`);
   for (const group of groups) console.log(`  ${group.join(", ")}`);
 } catch (error) {
-  if (httpError) console.error(httpError);
   fail(
     error instanceof JudgeError
-      ? `The Judge failed with ${error.reason} after ${error.calls} calls.`
+      ? `The Judge failed with ${error.reason} after ${error.calls} calls${error.status ? ` (last HTTP status ${error.status})` : ""}.`
       : `judge:smoke failed: ${(error as Error).message}`,
   );
 }

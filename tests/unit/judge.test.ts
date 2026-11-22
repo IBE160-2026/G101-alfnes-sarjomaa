@@ -506,22 +506,24 @@ describe("openrouter provider", () => {
     },
   );
 
-  it("AD-13 (AC1): HTTP 500 twice is ERROR after 2 calls", async () => {
+  it("AD-13 (AC1): HTTP 500 twice is ERROR after 2 calls, carrying status 500", async () => {
     stubFetch(status(500), status(500));
-    expect(await failure(live().partition(INPUT, signal))).toEqual({
-      reason: "ERROR",
-      calls: 2,
-    });
+    expect(
+      await live()
+        .partition(INPUT, signal)
+        .catch((e) => e),
+    ).toMatchObject({ reason: "ERROR", calls: 2, status: 500 });
   });
 
   it.each([400, 401])(
     "AD-13 (AC1): HTTP %i is ERROR after 1 call, with no retry",
     async (code) => {
       const fetch = stubFetch(status(code), ok(VALID));
-      expect(await failure(live().partition(INPUT, signal))).toEqual({
-        reason: "ERROR",
-        calls: 1,
-      });
+      expect(
+        await live()
+          .partition(INPUT, signal)
+          .catch((e) => e),
+      ).toMatchObject({ reason: "ERROR", calls: 1, status: code });
       expect(fetch).toHaveBeenCalledTimes(1);
     },
   );

@@ -83,6 +83,7 @@ export function createOpenRouterJudge({
         provider: { require_parameters: true, data_collection: "deny" },
       });
 
+      let status: number | undefined;
       // Assignments, or the reason a retry is allowed for.
       const attempt = async (): Promise<number[] | FallbackReason> => {
         const response = await fetch(ENDPOINT, {
@@ -94,6 +95,7 @@ export function createOpenRouterJudge({
           body,
           signal,
         });
+        status = response.ok ? undefined : response.status;
         if (response.status === 429 || response.status >= 500) {
           await response.body?.cancel();
           // shortcut: retries at once and ignores Retry-After, so a 429 usually repeats; wait for Retry-After inside the signal if 429s show up in the pilot.
@@ -134,6 +136,7 @@ export function createOpenRouterJudge({
                 ? error.reason
                 : "ERROR",
             calls,
+            status,
           );
         });
         if (Array.isArray(outcome))
@@ -145,7 +148,7 @@ export function createOpenRouterJudge({
             model: info.model,
             promptVersion: info.promptVersion,
           };
-        if (calls === 2) throw new JudgeError(outcome, calls);
+        if (calls === 2) throw new JudgeError(outcome, calls, status);
       }
     },
   };

@@ -8,10 +8,12 @@ export type FallbackReason =
   | "INVALID_OUTPUT";
 
 // `calls` counts the requests a provider sent before failing, so a failed Question still reports its cost.
+// `status` is the last non-2xx HTTP status, so judge:smoke can tell a wrong key (401) from a bad request.
 export class JudgeError extends Error {
   constructor(
     readonly reason: FallbackReason,
     readonly calls = 0,
+    readonly status?: number,
   ) {
     super(reason);
     this.name = "JudgeError";
