@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache, type ReactNode } from "react";
+import { CollectingRefresh } from "@/components/CollectingRefresh";
 import { DeleteGame } from "@/components/DeleteGame";
 import { InviteLinkPanel } from "@/components/InviteLinkPanel";
+import { ProgressCount } from "@/components/ProgressCount";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
+import * as collection from "@/server/collection";
 import * as games from "@/server/games";
 import * as questions from "@/server/questions";
 
@@ -51,6 +54,7 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
   if (game.state === "draft" || game.state === "collecting") {
     const { hostId } = await auth.requireHost();
     const list = await questions.list(hostId, game.id);
+    const progress = await collection.progress(hostId, game.id);
     const draft = game.state === "draft";
     const links = (
       <section key="links" aria-labelledby="lenker" className="mt-10">
@@ -60,7 +64,7 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <InviteLinkPanel
           gameId={game.id}
           state={game.state}
-          issued={game.inviteLinksIssued}
+          issued={progress.issued}
           questionCount={list.length}
         />
       </section>
@@ -76,6 +80,20 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           links,
         ]
       : [
+          <section
+            key="progress"
+            aria-labelledby="innsamling"
+            className="mt-10"
+          >
+            <h2 id="innsamling" className="text-heading">
+              Innsamling
+            </h2>
+            <ProgressCount
+              active={progress.active}
+              submissions={progress.submissions}
+            />
+            <CollectingRefresh />
+          </section>,
           links,
           <section key="locked" aria-labelledby="sporsmal" className="mt-10">
             <h2 id="sporsmal" className="text-heading">

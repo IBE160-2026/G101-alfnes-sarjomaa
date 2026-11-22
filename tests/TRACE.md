@@ -94,8 +94,9 @@ Change a submitted Answer set.
 
 Collection progress.
 
-- None yet.
-- Pending: Story 2.6.
+- `tests/integration/collection.test.ts`: `collection.progress(hostId, gameId)` returns `{ active, issued, submissions }` with `submissions` `"fewer-than-3"` at 0, 1 and 2 sets and exact at 3 and 4; a changed set counts once; a revoked link with a set lowers `active` and the count but not `issued`, and can drop the count back below three; a _draft_ Game is `{ 0, 0, "fewer-than-3" }` (Story 2.6, AC1).
+- `tests/integration/authz.test.ts`: Host B's `collection.progress` on A's Game, a random UUID and `"abc"` rejects with the same `NOT_FOUND` (Story 2.6, AC1, AD-5).
+- `tests/e2e/progress.spec.ts`: at 360 px ProgressCount reads "færre enn 3 av 4 svar mottatt" through two sets and "4 av 4 svar mottatt" only after the next 30 s refresh, with "Du ser bare antallet, aldri hvem som har svart." below; no progress bar, `meter`, live region or motion; the once-only links survive the refresh; the locked Question list and "Flere lenker" are shown; no horizontal scroll, no serious axe violation (Story 2.6, AC2).
 
 ## FR-9
 
@@ -144,7 +145,8 @@ Nothing linkable in the Host's view.
 - `tests/integration/invite-links.test.ts`: after creating links, no column of any public table (a `row_to_json` scan of every row) contains a returned Token, `invite_link` holds only `token_hash` and `game_id`, and the _collecting_ Game page contains no Token and no `/svar/` (Story 2.2, AC5).
 - `tests/e2e/invite-links.spec.ts`: after "Jeg har kopiert lenkene" and a reload the page holds no link, Token or `/svar/` (Story 2.2, AC4, AC5).
 - `tests/integration/collection.test.ts`: `openInviteLink` with a wrong, missing, malformed or another link's edit secret returns exactly the unused-link response, so a link's holder cannot tell whether it was used (Story 2.5, AC1).
-- Pending: Stories 2.6, 3.3, 4.3, 5.1.
+- `tests/integration/collection.test.ts`: with 4 links, a first submit, a change of that set and a second submit leave the Game page HTML, the Game list HTML ("Sist endret") and the `game` row (`updated_at` included) identical; the third submit changes only "færre enn 3" to "3" on the Game page, and a later change leaves everything identical again (Story 2.6, AC3).
+- Pending: Stories 3.3, 4.3, 5.1.
 
 ## FR-13
 

@@ -8,6 +8,8 @@ import {
   moveQuestion,
 } from "@/app/spill/[id]/actions";
 import { openInviteLink, submitAnswerSet } from "@/app/svar/[gameId]/actions";
+import GamePage from "@/app/spill/[id]/page";
+import GamesPage from "@/app/spill/page";
 import InviteLinkPage from "@/app/svar/[gameId]/page";
 import { ANSWER_MISSING, ANSWER_TOO_LONG } from "@/lib/answer-set";
 import { MESSAGES } from "@/lib/errors";
@@ -601,5 +603,133 @@ describe("submitAnswerSet", () => {
       gameId,
     ])
       expect(out).not.toContain(secret);
+  });
+});
+
+describe("progress", () => {
+  const FEWER = collection.FEWER_THAN_3;
+  const setOf = (ids: string[], answer = "svar") =>
+    Object.fromEntries(ids.map((id) => [id, [answer]]));
+
+  // Returns the edit secret, so the same device can change its set later.
+  async function send(
+    gameId: string,
+    ids: string[],
+    token: string,
+    editSecret = newToken(),
+    answer = "svar",
+  ) {
+    const result = await submitAnswerSet(gameId, token, {
+      answers: setOf(ids, answer),
+      editSecret,
+    });
+    if (!result.ok) throw new Error(result.code);
+    return editSecret;
+  }
+
+  const progressOf = (gameId: string) => collection.progress(hostId, gameId);
+
+  it("FR-8: 4 links and no sets give active 4, issued 4 and fewer-than-3", async () => {
+    const { gameId } = await collectingGame("Ingen svar", 4);
+    expect(await progressOf(gameId)).toEqual({
+      active: 4,
+      issued: 4,
+      submissions: FEWER,
+    });
+  });
+
+  it("FR-8: one and two sets are fewer-than-3, three and four are exact, and a changed set does not count twice", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Fire svar", 4);
+    const counts = [];
+    const secrets = [];
+    for (const token of tokens) {
+      secrets.push(await send(gameId, ids, token));
+      counts.push((await progressOf(gameId)).submissions);
+    }
+    expect(counts).toEqual([FEWER, FEWER, 3, 4]);
+    await send(gameId, ids, tokens[0], secrets[0], "nytt svar");
+    expect(await progressOf(gameId)).toEqual({
+      active: 4,
+      issued: 4,
+      submissions: 4,
+    });
+  });
+
+  it("FR-8: a revoked link with a set lowers active and the count but not issued", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Tilbakekalt", 4);
+    for (const token of tokens) await send(gameId, ids, token);
+    await revoke(tokens[0]);
+    expect(await progressOf(gameId)).toEqual({
+      active: 3,
+      issued: 4,
+      submissions: 3,
+    });
+  });
+
+  it("FR-8: revoking a link with a set at three drops the count back to fewer-than-3", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Under tre", 4);
+    for (const token of tokens.slice(0, 3)) await send(gameId, ids, token);
+    await revoke(tokens[0]);
+    expect(await progressOf(gameId)).toEqual({
+      active: 3,
+      issued: 4,
+      submissions: FEWER,
+    });
+  });
+
+  it("FR-8: a draft Game has active 0, issued 0 and fewer-than-3", async () => {
+    const [{ id: gameId }] = await (
+      await getDb()
+    )
+      .insert(game)
+      .values({ hostId, title: "Utkast" })
+      .returning({ id: game.id });
+    expect(await progressOf(gameId)).toEqual({
+      active: 0,
+      issued: 0,
+      submissions: FEWER,
+    });
+  });
+
+  it("FR-12, FR-8: submitting or changing a set changes no Host-visible value, updated_at and the Game list included, except the count from three", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Ingen spor", 4);
+    const db = await getDb();
+    const snapshot = async () => ({
+      page: renderToStaticMarkup(
+        await GamePage({
+          params: Promise.resolve({ id: gameId }),
+          searchParams: Promise.resolve({}),
+        }),
+      ),
+      list: renderToStaticMarkup(await GamesPage()),
+      row: await db.select().from(game).where(eq(game.id, gameId)),
+    });
+    const text = (html: string) => html.replace(/<[^>]*>/g, "");
+
+    const before = await snapshot();
+    expect(text(before.page)).toContain("færre enn 3 av 4 svar mottatt");
+    expect(before.page).toContain(
+      "Du ser bare antallet, aldri hvem som har svart.",
+    );
+    for (const banned of ["aria-live", 'role="status"', "progressbar"])
+      expect(before.page).not.toContain(banned);
+
+    const first = await send(gameId, ids, tokens[0]);
+    expect(await snapshot()).toEqual(before);
+    await send(gameId, ids, tokens[0], first, "endret");
+    expect(await snapshot()).toEqual(before);
+    await send(gameId, ids, tokens[1]);
+    expect(await snapshot()).toEqual(before);
+
+    const third = await send(gameId, ids, tokens[2]);
+    const after = await snapshot();
+    expect(after).toEqual({
+      ...before,
+      page: before.page.replace("færre enn 3", "3"),
+    });
+    expect(text(after.page)).toContain("3 av 4 svar mottatt");
+
+    await send(gameId, ids, tokens[2], third, "endret igjen");
+    expect(await snapshot()).toEqual(after);
   });
 });
