@@ -2,6 +2,7 @@ import type { ReactNode, Ref } from "react";
 
 const TONES = {
   info: { role: "status", className: "bg-primary-soft text-ink" },
+  success: { role: "status", className: "bg-success-soft text-success" },
   danger: { role: "alert", className: "bg-danger-soft text-danger" },
 } as const;
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DeleteGame } from "@/components/DeleteGame";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
@@ -65,6 +66,10 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <StatusBadge state={game.state} />
       </div>
       {panel}
+      {/* Every state (FR-3), outside the switch. */}
+      <footer className="mt-16 border-t border-line pt-6">
+        <DeleteGame gameId={game.id} title={game.title} />
+      </footer>
     </>
   );
 }

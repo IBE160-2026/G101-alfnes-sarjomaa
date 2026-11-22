@@ -3,16 +3,23 @@
 import {
   useEffect,
   useState,
-  type ButtonHTMLAttributes,
+  type ComponentProps,
   type MouseEvent,
 } from "react";
 
 const VARIANTS = {
   primary: "bg-primary text-on-primary text-title hover:bg-primary-hover",
+  secondary:
+    "border border-line-strong bg-surface text-primary hover:bg-surface-sunken",
+  "secondary-danger":
+    "border border-danger bg-surface text-danger hover:bg-danger-soft",
+  // Only inside a ConfirmDialog. White on danger/90 stays above 4.5:1.
+  danger: "bg-danger text-on-primary text-title hover:bg-danger/90",
   ghost: "text-ink hover:bg-surface-sunken",
 };
 
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+// ComponentProps, not ButtonHTMLAttributes, so `ref` passes through (React 19).
+type Props = ComponentProps<"button"> & {
   variant: keyof typeof VARIANTS;
   pending?: boolean;
   pendingLabel?: string;

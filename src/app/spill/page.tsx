@@ -17,12 +17,18 @@ async function ownedGames(hostId: string) {
   }
 }
 
-export default async function GamesPage() {
+export default async function GamesPage({ searchParams }: PageProps<"/spill">) {
   const { hostId } = await auth.requireHost();
+  const { slettet } = await searchParams;
   const list = await ownedGames(hostId);
   return (
     <>
       <h1 className="text-display">Mine spill</h1>
+      {typeof slettet === "string" && (
+        <Notice tone="success" className="mt-6">
+          «{slettet}» er slettet.
+        </Notice>
+      )}
       <CreateGameForm action={createGame} />
       {list === null ? (
         <Notice tone="danger" className="mt-10">

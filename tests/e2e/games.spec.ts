@@ -27,15 +27,16 @@ async function createGame(page: Page, title: string): Promise<string> {
 
 async function expectFocusRingsAnd44px(page: Page) {
   const stops = await tabThrough(page);
-  const interactive = page.locator(
-    "a[href], button, input:not([type=hidden]), select, textarea",
-  );
+  // Visible only: a closed <dialog>'s buttons are not tab stops.
+  const interactive = page
+    .locator("a[href], button, input:not([type=hidden]), select, textarea")
+    .filter({ visible: true });
   expect(stops).toHaveLength(await interactive.count());
   for (const stop of stops) expect(stop.outline, stop.text).toBe(FOCUS_RING);
   // The skip link is 1 px until focused, so it is measured only in the header and main.
-  const controls = page.locator(
-    "header a, header button, main a, main button, main input",
-  );
+  const controls = page
+    .locator("header a, header button, main a, main button, main input")
+    .filter({ visible: true });
   for (const control of await controls.all())
     expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 }
