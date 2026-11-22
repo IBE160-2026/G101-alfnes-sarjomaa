@@ -43,7 +43,7 @@ development_status:
   1-5-delete-a-game-and-purge-expired-games: done
   epic-1-retrospective: optional
 
-  epic-2: in-progress
+  epic-2: done
   2-1-write-reorder-and-remove-questions-while-in-draft: done
   2-2-create-invite-links-and-open-collection: done
   2-3-invite-link-page-open-closed-and-unknown: done
