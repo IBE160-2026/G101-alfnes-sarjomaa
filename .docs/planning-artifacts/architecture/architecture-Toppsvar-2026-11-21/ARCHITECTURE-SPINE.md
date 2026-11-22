@@ -68,7 +68,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | `auth` | `host`, `session` | `requireHost` (read) | FR-1 |
 | `games` | `game`, `game_counter`; retention purge | `lockForMutation`, `transition`, `reserveInviteLinks`, `acquireGroupingLease`, `bumpCounters` | FR-2, FR-3, FR-18 |
-| `questions` | `question` | `setReviewed` | FR-4 |
+| `questions` | `question` | `setReviewed`, `count` (read) | FR-4 |
 | `grouping` | `answer`, `answer_group`, `grouping_result` | `insertAnswers`, `createGroup`, `moveAnswers`, `mergeGroups`, `setCustomLabel`, `setDiscarded`, `deleteIfEmpty`, `clearContributorData` | FR-13, FR-15 to FR-17, FR-20 |
 | `collection` | `invite_link`, `submission`; close | — | FR-5 to FR-11 |
 | `review` | `board_slot` | `getBoard` (read) | FR-19 to FR-21 |
