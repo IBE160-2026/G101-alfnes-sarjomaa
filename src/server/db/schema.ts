@@ -2,6 +2,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import {
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -69,4 +70,14 @@ export const inviteLink = pgTable("invite_link", {
   gameId: uuid("game_id")
     .notNull()
     .references(() => game.id, { onDelete: "cascade" }),
+});
+
+// One Answer set per link, gone with it. No timestamp, ordinal or other column, so
+// nothing tells when or in which order a set arrived (FR-12, AD-8).
+export const submission = pgTable("submission", {
+  tokenHash: text("token_hash")
+    .primaryKey()
+    .references(() => inviteLink.tokenHash, { onDelete: "cascade" }),
+  answers: jsonb("answers").$type<Record<string, string[]>>().notNull(),
+  editSecretHash: text("edit_secret_hash").notNull(),
 });

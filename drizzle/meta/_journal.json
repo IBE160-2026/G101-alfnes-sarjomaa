@@ -36,6 +36,13 @@
       "when": 1795363685510,
       "tag": "0004_medical_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795366837280,
+      "tag": "0005_shallow_dakota_north",
+      "breakpoints": true
     }
   ]
 }

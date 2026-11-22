@@ -23,6 +23,10 @@ export const QUESTION_COUNTER_FROM = 160;
 
 export const INVITE_LINKS_MAX = 50;
 
+export const ANSWER_TEXT_MAX = 80;
+export const ANSWER_COUNTER_FROM = 60;
+export const ANSWERS_PER_QUESTION_MAX = 5;
+
 // FR-3 retention: 30 days after played, 90 days after the last Host change otherwise.
 export const RETENTION_PLAYED_MS = 30 * DAY_MS;
 export const RETENTION_IDLE_MS = 90 * DAY_MS;

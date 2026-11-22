@@ -16,3 +16,17 @@ export async function openInviteLink(
     return toFailure(error);
   }
 }
+
+// Answers, Token and edit secret arrive only in this POST body. No session, no revalidate.
+export async function submitAnswerSet(
+  gameId: unknown,
+  token: unknown,
+  input: unknown,
+): Promise<ActionResult<null>> {
+  try {
+    await collection.submit(gameId, token, input);
+    return { ok: true, data: null };
+  } catch (error) {
+    return toFailure(error);
+  }
+}

@@ -1,12 +1,13 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
-import { validate, DomainError } from "@/lib/errors";
-import { PERMITTED } from "@/lib/game-state";
+import { parseAnswerSet } from "@/lib/answer-set";
+import { DomainError, MESSAGES, validate } from "@/lib/errors";
+import { PERMITTED, type GameState } from "@/lib/game-state";
 import { createInviteLinksSchema, TOKEN_PATTERN } from "@/lib/invite-link";
 import { newToken, sha256 } from "@/lib/token";
 import { withBoundary } from "@/server/boundary";
-import { getDb } from "@/server/db/client";
-import { inviteLink } from "@/server/db/schema";
+import { getDb, type Db } from "@/server/db/client";
+import { inviteLink, submission } from "@/server/db/schema";
 import { env } from "@/server/env";
 import * as games from "@/server/games";
 import * as questions from "@/server/questions";
@@ -55,32 +56,95 @@ export function linkStatus(
   });
 }
 
-// A read: no lock, no write, never updated_at. The state is checked before the Token,
+// The lookup both link entry points share (AD-7). The state is checked before the Token,
 // because close deletes every link and a closed Game must still say closed.
 // Unknown, foreign, revoked and malformed Tokens are one LINK_UNKNOWN.
+async function resolveLink(
+  gameId: unknown,
+  token: unknown,
+  states: readonly GameState[],
+) {
+  if (typeof gameId !== "string") throw new DomainError("LINK_UNKNOWN");
+  const found = await games.find(gameId);
+  if (!found) throw new DomainError("LINK_UNKNOWN");
+  if (!states.includes(found.state)) throw new DomainError("COLLECTION_CLOSED");
+  if (typeof token !== "string" || !TOKEN_PATTERN.test(token))
+    throw new DomainError("LINK_UNKNOWN");
+  const tokenHash = sha256(token);
+  if (!(await linkExists(await getDb(), tokenHash, gameId)))
+    throw new DomainError("LINK_UNKNOWN");
+  return { gameId, title: found.title, tokenHash };
+}
+
+async function linkExists(db: Db, tokenHash: string, gameId: string) {
+  const rows = await db
+    .select({ gameId: inviteLink.gameId })
+    .from(inviteLink)
+    .where(
+      and(eq(inviteLink.tokenHash, tokenHash), eq(inviteLink.gameId, gameId)),
+    );
+  return rows.length > 0;
+}
+
+// A read: no lock, no write, never updated_at.
 export function openInviteLink(
   gameId: unknown,
   token: unknown,
 ): Promise<{ title: string; questions: questions.Question[] }> {
   return withBoundary("collection", "openInviteLink", async () => {
-    if (typeof gameId !== "string") throw new DomainError("LINK_UNKNOWN");
-    const found = await games.find(gameId);
-    if (!found) throw new DomainError("LINK_UNKNOWN");
-    if (!PERMITTED.openInviteLink.includes(found.state))
-      throw new DomainError("COLLECTION_CLOSED");
-    if (typeof token !== "string" || !TOKEN_PATTERN.test(token))
-      throw new DomainError("LINK_UNKNOWN");
+    const link = await resolveLink(gameId, token, PERMITTED.openInviteLink);
+    return {
+      title: link.title,
+      questions: await questions.ofGame(link.gameId),
+    };
+  });
+}
+
+// Stores or replaces the link's one Answer set (AD-8). The lock has no hostId, so no
+// Host-visible value changes, game.updated_at included. Nothing is written on any failure.
+export function submit(
+  gameId: unknown,
+  token: unknown,
+  input: unknown,
+): Promise<void> {
+  return withBoundary("collection", "submit", async () => {
+    const link = await resolveLink(gameId, token, PERMITTED.submitAnswers);
+    const { editSecret, answers: rawAnswers } =
+      typeof input === "object" && input !== null
+        ? (input as { editSecret?: unknown; answers?: unknown })
+        : {};
+    if (typeof editSecret !== "string" || !TOKEN_PATTERN.test(editSecret))
+      throw new DomainError("INVALID_INPUT", {
+        editSecret: MESSAGES.INVALID_INPUT,
+      });
+    // Outside the transaction: Questions are frozen after draft, and a getDb() query
+    // inside a PGlite transaction deadlocks.
+    const ids = (await questions.ofGame(link.gameId)).map((q) => q.id);
+    const answers = parseAnswerSet(rawAnswers, ids);
     const db = await getDb();
-    const [link] = await db
-      .select({ gameId: inviteLink.gameId })
-      .from(inviteLink)
-      .where(
-        and(
-          eq(inviteLink.tokenHash, sha256(token)),
-          eq(inviteLink.gameId, gameId),
-        ),
-      );
-    if (!link) throw new DomainError("LINK_UNKNOWN");
-    return { title: found.title, questions: await questions.ofGame(gameId) };
+    await db.transaction(async (tx) => {
+      try {
+        await games.lockForMutation(tx, {
+          gameId: link.gameId,
+          states: PERMITTED.submitAnswers,
+        });
+      } catch (error) {
+        if (error instanceof DomainError && error.code === "NOT_FOUND")
+          throw new DomainError("LINK_UNKNOWN");
+        if (error instanceof DomainError && error.code === "WRONG_STATE")
+          throw new DomainError("COLLECTION_CLOSED");
+        throw error;
+      }
+      if (!(await linkExists(tx, link.tokenHash, link.gameId)))
+        throw new DomainError("LINK_UNKNOWN");
+      const editSecretHash = sha256(editSecret);
+      await tx
+        .insert(submission)
+        .values({ tokenHash: link.tokenHash, answers, editSecretHash })
+        .onConflictDoUpdate({
+          target: submission.tokenHash,
+          set: { answers, editSecretHash },
+        });
+    });
   });
 }

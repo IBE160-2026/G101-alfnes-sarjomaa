@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -7,14 +7,16 @@ import {
   deleteGame,
   moveQuestion,
 } from "@/app/spill/[id]/actions";
-import { openInviteLink } from "@/app/svar/[gameId]/actions";
+import { openInviteLink, submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import InviteLinkPage from "@/app/svar/[gameId]/page";
+import { ANSWER_MISSING, ANSWER_TOO_LONG } from "@/lib/answer-set";
+import { MESSAGES } from "@/lib/errors";
 import { GAME_STATES, type GameState } from "@/lib/game-state";
 import { newToken, sha256 } from "@/lib/token";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
 import { getDb } from "@/server/db/client";
-import { game, inviteLink, question } from "@/server/db/schema";
+import { game, inviteLink, question, submission } from "@/server/db/schema";
 import { cookieJar, NotFoundError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
@@ -268,5 +270,242 @@ describe("the /svar/[gameId] server shell", () => {
   it("FR-3, FR-9: for a missing or malformed Game it calls notFound()", async () => {
     for (const gameId of [randomUUID(), "abc"])
       await expect(render(gameId)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("submitAnswerSet", () => {
+  // Every Question answered; the first with a blank field between two Answers.
+  const fullSet = (ids: string[]) =>
+    Object.fromEntries(
+      ids.map((id, i) => [id, i === 0 ? [" a ", "", "c"] : [`svar ${i}`]]),
+    );
+
+  async function rowsOf(tokens: string[]) {
+    return (await getDb())
+      .select()
+      .from(submission)
+      .where(inArray(submission.tokenHash, tokens.map(sha256)));
+  }
+
+  const invalid = (fieldErrors: Record<string, string>) => ({
+    ok: false,
+    code: "INVALID_INPUT",
+    message: MESSAGES.INVALID_INPUT,
+    fieldErrors,
+  });
+
+  it("FR-6, FR-11, AD-8: a first submit stores one row of trimmed Answers in field order and sha256 of the secret, and leaves the game row untouched", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const db = await getDb();
+    const before = await db.select().from(game).where(eq(game.id, gameId));
+    const editSecret = newToken();
+    expect(
+      await submitAnswerSet(gameId, tokens[0], {
+        answers: fullSet(ids),
+        editSecret,
+      }),
+    ).toEqual({ ok: true, data: null });
+    expect(await rowsOf(tokens)).toEqual([
+      {
+        tokenHash: sha256(tokens[0]),
+        answers: {
+          [ids[0]]: ["a", "c"],
+          [ids[1]]: ["svar 1"],
+          [ids[2]]: ["svar 2"],
+        },
+        editSecretHash: sha256(editSecret),
+      },
+    ]);
+    expect(await db.select().from(game).where(eq(game.id, gameId))).toEqual(
+      before,
+    );
+  });
+
+  it("FR-7, AD-8: a second submit on the same link replaces the set and the secret hash, still one row", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    await submitAnswerSet(gameId, tokens[0], {
+      answers: fullSet(ids),
+      editSecret: newToken(),
+    });
+    const editSecret = newToken();
+    const answers = Object.fromEntries(ids.map((id) => [id, ["ny"]]));
+    expect(
+      await submitAnswerSet(gameId, tokens[0], { answers, editSecret }),
+    ).toEqual({ ok: true, data: null });
+    expect(await rowsOf(tokens)).toEqual([
+      {
+        tokenHash: sha256(tokens[0]),
+        answers,
+        editSecretHash: sha256(editSecret),
+      },
+    ]);
+  });
+
+  it("FR-6: a missing key or a Question with only blank fields is Skriv minst ett svar., and nothing is stored", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const editSecret = newToken();
+    const withoutSecond = fullSet(ids);
+    delete withoutSecond[ids[1]];
+    expect(
+      await submitAnswerSet(gameId, tokens[0], {
+        answers: withoutSecond,
+        editSecret,
+      }),
+    ).toEqual(invalid({ [ids[1]]: ANSWER_MISSING }));
+    expect(
+      await submitAnswerSet(gameId, tokens[0], {
+        answers: { ...fullSet(ids), [ids[2]]: ["", "   "] },
+        editSecret,
+      }),
+    ).toEqual(invalid({ [ids[2]]: ANSWER_MISSING }));
+    expect(await rowsOf(tokens)).toEqual([]);
+  });
+
+  it("FR-6: an Answer of 81 trimmed characters at field 1 is refused under that field; 80 is accepted", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const editSecret = newToken();
+    expect(
+      await submitAnswerSet(gameId, tokens[0], {
+        answers: { ...fullSet(ids), [ids[0]]: ["a", "x".repeat(81)] },
+        editSecret,
+      }),
+    ).toEqual(invalid({ [`${ids[0]}.1`]: ANSWER_TOO_LONG }));
+    expect(await rowsOf(tokens)).toEqual([]);
+    expect(
+      await submitAnswerSet(gameId, tokens[0], {
+        answers: { ...fullSet(ids), [ids[0]]: ["a", ` ${"x".repeat(80)} `] },
+        editSecret,
+      }),
+    ).toEqual({ ok: true, data: null });
+  });
+
+  it("FR-6: six Answers, an unknown Question ID, a malformed set, and a missing or malformed edit secret are INVALID_INPUT with no row", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const editSecret = newToken();
+    const cases: [string, unknown][] = [
+      [
+        "six Answers",
+        {
+          answers: { ...fullSet(ids), [ids[0]]: Array(6).fill("a") },
+          editSecret,
+        },
+      ],
+      [
+        "an unknown Question ID",
+        { answers: { ...fullSet(ids), [randomUUID()]: ["a"] }, editSecret },
+      ],
+      ["answers not an object", { answers: "a", editSecret }],
+      [
+        "a value not an array",
+        { answers: { ...fullSet(ids), [ids[0]]: "a" }, editSecret },
+      ],
+      ["no edit secret", { answers: fullSet(ids) }],
+      [
+        "a 42-character secret",
+        { answers: fullSet(ids), editSecret: editSecret.slice(1) },
+      ],
+      ["a number as secret", { answers: fullSet(ids), editSecret: 7 }],
+      ["no input", undefined],
+    ];
+    for (const [name, input] of cases)
+      expect(
+        await submitAnswerSet(gameId, tokens[0], input),
+        name,
+      ).toMatchObject({ ok: false, code: "INVALID_INPUT" });
+    expect(
+      await submitAnswerSet(gameId, tokens[0], { answers: fullSet(ids) }),
+    ).toEqual(invalid({ editSecret: MESSAGES.INVALID_INPUT }));
+    expect(await rowsOf(tokens)).toEqual([]);
+  });
+
+  it("FR-9: a non-string, malformed, unknown, foreign or revoked Token and a missing or malformed Game are LINK_UNKNOWN with no row", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const other = await collectingGame("Annet spill");
+    await revoke(tokens[1]);
+    const input = { answers: fullSet(ids), editSecret: newToken() };
+    const cases: [string, unknown, unknown][] = [
+      ["a number", gameId, 42],
+      ['"abc"', gameId, "abc"],
+      ["an unknown Token", gameId, newToken()],
+      ["another Game's Token", gameId, other.tokens[0]],
+      ["a revoked Token", gameId, tokens[1]],
+      ["a random UUID Game", randomUUID(), tokens[0]],
+      ['an "abc" Game', "abc", tokens[0]],
+      ["a non-string Game", 7, tokens[0]],
+    ];
+    for (const [name, g, t] of cases)
+      expect(await submitAnswerSet(g, t, input), name).toEqual(UNKNOWN);
+    expect(await rowsOf([...tokens, ...other.tokens])).toEqual([]);
+  });
+
+  it.each(NOT_COLLECTING)(
+    "FR-10: in %s a submit is COLLECTION_CLOSED with no row",
+    async (state) => {
+      const { gameId, ids, tokens } = await collectingGame();
+      await setState(gameId, state);
+      expect(
+        await submitAnswerSet(gameId, tokens[0], {
+          answers: fullSet(ids),
+          editSecret: newToken(),
+        }),
+      ).toEqual(CLOSED);
+      expect(await rowsOf(tokens)).toEqual([]);
+    },
+  );
+
+  it("FR-9, AD-8: deleting the invite_link row (revoke) removes its submission by cascade", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    for (const token of tokens.slice(0, 2))
+      await submitAnswerSet(gameId, token, {
+        answers: fullSet(ids),
+        editSecret: newToken(),
+      });
+    await revoke(tokens[0]);
+    expect((await rowsOf(tokens)).map((r) => r.tokenHash)).toEqual([
+      sha256(tokens[1]),
+    ]);
+  });
+
+  it("AD-17, FR-11: with submission renamed it is INTERNAL and logs one line with no Token, hash, secret or Answer", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const editSecret = newToken();
+    const db = await getDb();
+    await db.execute(sql`alter table submission rename to submission_x`);
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    let result, out;
+    try {
+      result = await submitAnswerSet(gameId, tokens[0], {
+        answers: fullSet(ids),
+        editSecret,
+      });
+    } finally {
+      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      write.mockRestore();
+      await db.execute(sql`alter table submission_x rename to submission`);
+    }
+    expect(result).toEqual({
+      ok: false,
+      code: "INTERNAL",
+      message: "Noe gikk galt hos oss. Prøv igjen om litt.",
+    });
+    const lines = out.trimEnd().split("\n");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0])).toEqual({
+      module: "collection",
+      op: "submit",
+      code: "INTERNAL",
+      sqlstate: "42P01",
+    });
+    for (const secret of [
+      tokens[0],
+      sha256(tokens[0]),
+      editSecret,
+      sha256(editSecret),
+      "svar 1",
+      gameId,
+    ])
+      expect(out).not.toContain(secret);
   });
 });
