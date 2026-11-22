@@ -203,7 +203,10 @@ Honest anonymity notice.
 Judge Grouping at close.
 
 - `tests/integration/collection.test.ts`: right after close the grouping panel shows the Judge sentence and not "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt."; once `grouping_lease_until` is in the past (DB time) it adds that sentence, the EXPERIENCE.md slow-or-interrupted state, until Grouping itself lands (Epic 3 review, impeccable M2).
-- Pending: Stories 4.1, 4.2, 4.4, 7.1.
+- `tests/unit/judge.test.ts`: the replay provider returns a stored ruling's clusters with `calls: 0` and `source: 'stored'` for a Question that differs only in case, spacing and trailing punctuation; `getJudge()` selects mock, replay, and replay when `JUDGE_PROVIDER` is unset with no key; with a key and `JUDGE_PROVIDER` unset it still selects replay until Story 4.4, and a miss is `NO_STORED_RULING` (Story 4.1, AC1, AC3).
+- `tests/unit/next-config.test.ts`: `outputFileTracingIncludes` traces `data/rulings/**` into every route (Story 4.1, AD-24).
+- `tests/unit/lint-zones.test.ts`: outside `src/server/judge`, importing `@/server/judge/providers/*` or naming `openrouter.ai` in any letter case fails lint; inside it passes (Story 4.1, AC1).
+- Pending: Stories 4.2, 4.4, 7.1.
 
 ## FR-16
 
@@ -218,7 +221,8 @@ Manual Grouping fallback.
 
 - `tests/unit/normalize.test.ts`: `NORMALIZE_VERSION` is 1; normalisation applies NFC, locale-free lower case (Æ, Ø, Å and a Turkish `İ`), trim, inner-whitespace collapse and removal of trailing `.,!?;:…` mixed with spaces, and falls back to the trimmed lower-cased text when nothing else is left (Story 3.1, AC1).
 - `tests/integration/collection.test.ts`: close stores `normalized_text` from `normalize()`, e.g. "Kari Nordmann!!" as "kari nordmann" with rank 1 (Story 3.1, AC3).
-- Pending: Stories 4.1, 4.2, 5.1.
+- `tests/unit/judge.test.ts`: replay numbers each uncovered item as its own cluster after the covered ones and reports the count; a miss throws `NO_KEY` without a key and `NO_STORED_RULING` with one, also when `data/rulings` is absent; two rulings for one Question never merge clusters, and when both cover an item the first file in name order wins (Story 4.1, AC3). Output of the wrong length, with non-integers or with holes is `INVALID_OUTPUT`, from `canonicalise` and from the mock, and valid output is renumbered in first-occurrence order (Story 4.1, AC2). A ruling file with bad JSON, no array, the wrong `kind`, unsorted, duplicate or non-normalised items, a length mismatch, a non-integer assignment or an extra key fails with a plain `Error` naming the file (Story 4.1, AC4).
+- Pending: Stories 4.2, 5.1.
 
 ## FR-18
 
@@ -325,7 +329,8 @@ Deployability.
 
 Tests without network.
 
-- `tests/unit/guards.test.ts`: Vitest rejects non-local sockets; the environment selects the `mock` Judge provider with no key and an in-memory database (no Judge runs yet).
+- `tests/unit/guards.test.ts`: Vitest rejects non-local sockets; the environment selects the `mock` Judge provider with no key and an in-memory database.
+- `tests/unit/judge.test.ts`: the mock provider does no I/O and returns the test's map canonicalised, or one cluster per item; replay reads the invented fixtures under `tests/fixtures/rulings` or temp dirs the test writes (Story 4.1, AC5).
 - `tests/e2e/smoke.spec.ts`: the browser aborts requests to any host but localhost.
 - `tests/integration/db.test.ts`: each integration file gets a fresh `pglite://:memory:` database.
 - Pending: every story with unit or integration proof.

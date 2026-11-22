@@ -269,6 +269,14 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Prompt.** The prompt and `PROMPT_VERSION` live only in `src/server/judge/prompt.ts`, with no real-person text. Any change to the prompt bumps the version.
 - **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. If it falls short, change `JUDGE_MODEL` (any OpenRouter model with `structured_outputs`) and re-record.
 - **Imports.** Nothing outside `src/server/judge` imports a provider or calls the model endpoint.
+- *Amended in Story 4.1:*
+  - `JudgeError`, `FallbackReason`, the `Judge` type and `canonicalise` live in `src/server/judge/core.ts`, which `index.ts` re-exports, so providers share them without an import cycle through `index.ts`.
+  - **Numbering.** `canonicalise` runs on raw output: stored assignments, mock maps and the model's reply. replay then numbers covered clusters `0..c-1` in first-occurrence order over the covered items, and uncovered items `c..k-1` in item order, so Grouping finds the uncovered singletons as the last `uncovered` cluster numbers. With several rulings for one Question, each item takes its cluster from the first matching ruling (files in name order) that covers it, and cluster identity is (ruling, stored cluster), so two rulings never merge clusters. Only rulings whose `normalizeVersion` equals `NORMALIZE_VERSION` match.
+  - **replay** loads every `*.json` once per instance. A missing `data/rulings` means no rulings, so every call is a miss. A malformed file (bad JSON, not an array, a record that breaks the AD-14 shape, non-normalised items, or an extra key) throws a plain `Error` naming the file, not a `JudgeError`, so Grouping counts it as `ERROR`.
+  - **info.** Static per provider: replay is `{ provider: 'replay', model: 'replay' }` and mock `{ provider: 'mock', model: 'mock' }`, both with `PROMPT_VERSION`. Each stored ruling keeps its own model and prompt version in its file.
+  - **mock** takes its map keyed by the exact Question text (`createMockJudge(map)`) and reports `calls: 1`, `source: 'live'`.
+  - **Imports.** "Or the SDK" becomes a ban on the endpoint: an ESLint rule rejects any string or template literal containing `openrouter.ai`, in any letter case, in `src/` outside `src/server/judge`. It catches literals only, not a host built from pieces at runtime.
+  - Until Story 4.4, `JUDGE_PROVIDER=openrouter` (the key-derived default) selects replay.
 
 ### AD-14 — Stored ruling format
 
@@ -534,7 +542,7 @@ flowchart LR
       env.ts  log.ts
       db/                   # schema.ts, client.ts, migrate.ts
       auth/ games/ questions/ grouping/ collection/ review/ play/
-      judge/                # index.ts, prompt.ts, providers/{openrouter,replay,mock}.ts
+      judge/                # index.ts, core.ts, prompt.ts, providers/{openrouter,replay,mock}.ts
     lib/                    # normalize, ranking, game-state, answer-set, errors, bcubed, shuffle, token, limits
     cli/                    # demo.ts, judge-eval.ts, judge-record.ts
   drizzle/                  # generated SQL migrations (committed)

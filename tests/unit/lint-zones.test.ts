@@ -25,6 +25,9 @@ const cases: [file: string, source: string, banned: boolean][] = [
   ["src/server/games/x.ts", "@/server/auth", false],
   ["src/server/games/x.ts", "@/server/judge/providers/mock", true],
   ["src/server/judge/x.ts", "@/server/games", true],
+  ["src/server/grouping/x.ts", "@/server/judge/providers/replay", true],
+  ["src/server/grouping/x.ts", "@/server/judge", false],
+  ["src/server/judge/x.ts", "@/server/judge/providers/mock", false],
   ["src/server/db/x.ts", "@/server/auth", true],
   ["src/server/games/x.ts", "@/app/page", true],
   ["src/cli/x.ts", "@/server/db/client", true],
@@ -39,6 +42,25 @@ describe("ESLint layer zones", () => {
       const ids = await ruleIds(file, `import "${source}";\n`);
       expect(ids.includes("no-restricted-imports")).toBe(banned);
       expect(ids).not.toContain("fatal");
+    },
+  );
+
+  it.each([
+    ["src/server/grouping/x.ts", true],
+    ["src/cli/x.ts", true],
+    ["src/server/judge/providers/x.ts", false],
+  ])(
+    "AD-13: naming openrouter.ai in %s is banned: %s",
+    async (file, banned) => {
+      for (const code of [
+        'fetch("https://openrouter.ai/api/v1/chat/completions");\n',
+        "const host = `openrouter.ai`;\n",
+        'fetch("https://OpenRouter.AI/api");\n',
+      ]) {
+        const ids = await ruleIds(file, code);
+        expect(ids.includes("no-restricted-syntax")).toBe(banned);
+        expect(ids).not.toContain("fatal");
+      }
     },
   );
 

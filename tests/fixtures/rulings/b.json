@@ -1,0 +1,11 @@
+[
+  {
+    "kind": "partition",
+    "promptVersion": "1",
+    "normalizeVersion": 1,
+    "model": "fixture/model",
+    "question": "nevn en frukt.",
+    "items": ["kiwi", "pære", "pærer"],
+    "assignments": [4, 9, 9]
+  }
+]
