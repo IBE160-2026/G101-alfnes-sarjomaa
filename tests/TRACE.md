@@ -178,7 +178,7 @@ Nothing linkable in the Host's view.
 - `tests/integration/host-view.test.ts`: `envSchema` has exactly its 9 keys, `game` exactly its 9 columns and `host` exactly its 6, so no setting or Host option exists that could weaken anonymity; checked to fail with an added env key and an added `game` column (Story 3.3, AC5).
 - `tests/e2e/host-anonymity.spec.ts`: as a logged-in Host on `next start`, every response body to `/`, `/spill`, the Game page and its 30 s refresh, recorded before and after a Participant submits and after three sets, holds no Token, edit secret or Answer; the Host page sends no request over 29 s of fake time and 1 s of real time after a submit; the count reads "3 av 4 svar mottatt" after three sets; and a used link reopens in a fresh browser as an empty form, like an unused one. That the output is identical before and after a submit is proven in `host-view.test.ts` (AC1), so the e2e no longer repeats it (Story 3.3, AC2; Epic 3 review, ponytail S2).
 - `tests/integration/report.test.ts`: the usage report for the owner holds exactly the counters and per-Question `source`, `fellBack` and per-Group `origin`, `editCount`, and no Answer text, Group label, Contributor key, rank, id, title or Question text (Story 4.3, AC2).
-- Pending: Story 5.1.
+- `tests/integration/review.test.ts`: `review.load` returns exactly the title, the Questions (`id`, `position`, `text`, `reviewed`, `fallbackReason`) and the current Question's Groups (`id`, `label`, `count`, `chips`); its JSON holds no `contributor`/`rank` key and none of the Question's Contributor keys (Story 5.1, AC2).
 
 ## FR-13
 
@@ -229,8 +229,9 @@ Judge Grouping at close.
 
 Ranking and labels.
 
-- None yet.
-- Pending: Stories 5.1, 5.3.
+- `tests/unit/ranking.test.ts`: `defaultLabel` takes the normalised text with the most Contributor keys, ties by the shortest, then code-unit order ("Zb" before "ab"); keeps 40 characters, cuts a longer text at the last word boundary (a space right after the 40th character keeps all 40) and cuts hard at 40 when the first 40 hold no space; `rankGroups` orders by Count, rank-1 count, label under `Intl.Collator('nb', { sensitivity: 'base' })` ("Eple" = "eple", decided by `groupId`; æ, ø, å after z) and `groupId`, with the effective label `customLabel ?? defaultLabel` used for the order; `boardCut` gives the top 8 non-discarded Groups, the rest below and the discarded apart, each in ranked order, so discarding a Board Group promotes the ninth (Story 5.1, AC1).
+- `tests/integration/review.test.ts`: with equal Counts the Group with more rank-1 Answers ranks first, before label order, so `rank1_count` comes from the SQL aggregate (Story 5.1, AC2).
+- Pending: Story 5.3.
 
 ## FR-17
 
@@ -241,7 +242,9 @@ Manual Grouping fallback.
 - `tests/unit/judge.test.ts`: replay numbers each uncovered item as its own cluster after the covered ones and reports the count; a miss throws `NO_KEY` without a key and `NO_STORED_RULING` with one, also when `data/rulings` is absent; two rulings for one Question never merge clusters, and when both cover an item the first file in name order wins (Story 4.1, AC3). Output of the wrong length, with non-integers or with holes is `INVALID_OUTPUT`, from `canonicalise` and from the mock, and valid output is renumbered in first-occurrence order (Story 4.1, AC2). A ruling file with bad JSON, no array, the wrong `kind`, unsorted, duplicate or non-normalised items, a length mismatch, a non-integer assignment or an extra key fails with a plain `Error` naming the file (Story 4.1, AC4).
 - `tests/integration/grouping.test.ts`: a Question whose Judge times out falls back with `TIMEOUT` (its signal not aborted at 29 999 ms, aborted at 30 000 ms, both for the mock that waits for the signal and for a Judge that ignores it; checked to fail with the timer one millisecond late), a `JudgeError` `ERROR`, `REFUSAL` or `INVALID_OUTPUT` with that reason, a plain `Error` with `ERROR` and exactly one `grouping`/`partition`/`INTERNAL` log line holding none of its message (Epic 4 review, finding 2); a wrong-length map is `INVALID_OUTPUT` in `judge.test.ts`, so the runner tests that reason once, as a `JudgeError`; a fallen-back Question gets one `origin = fallback` Group per item, `source = fallback`, `judge_calls` 0 (the `JudgeError`'s call count since Story 4.4) and `uncovered_items` 0, while the other Questions keep their Judge Groups. Replay over an empty directory gives every Question `NO_KEY` without a key and `NO_STORED_RULING` with one, and the Game still reaches _in review_ with 0 Groups proposed and the counters at 0 proposed, 0 calls and 3 fell back (Story 4.3, AC1); a partial replay hit is `source = replay` with `uncovered_items` 2, its uncovered Groups `origin = fallback` (also one that sorts before every covered item, checked to fail with first-occurrence numbering) and the covered ones `judge` (Story 4.2, AC3).
 - `tests/unit/judge.test.ts`: a mock map value that is a reason throws `JudgeError` with it; `TIMEOUT` throws only once the signal aborts; an `Error` is thrown as is (Story 4.2, 4.1 carry-over).
-- Pending: Story 5.1.
+- `tests/unit/review.test.ts`: `fallbackNotice` is null with no fallback Question and once every fallback Question is reviewed; every Question `NO_KEY` outside Demo mode gives the key sentence; Demo mode, a partial `NO_KEY` (some Question has Judge Groups) and `NO_STORED_RULING` give "Det finnes ingen lagret avgjørelse for spørsmål {N} …" with "det"/"de"; `TIMEOUT`, `ERROR`, `REFUSAL` and `INVALID_OUTPUT` give "Dommeren fikk ikke gruppert spørsmål {N}. …"; both sentences together with `Intl.ListFormat('nb')` lists ("1, 2 og 3", "4 og 7") (Story 5.1, AC4).
+- `tests/integration/review.test.ts`: the rendered Review page shows the key sentence after replay with no key and no rulings, the no-stored-ruling sentence for Questions 1 and 2 with a key, "Dommeren fikk ikke gruppert spørsmål 2. …" after a mock `REFUSAL`, the no-stored-ruling wording (never the key) in Demo mode, and no warning Notice when the Judge grouped every Question (Story 5.1, AC4). The e2e server (replay, no key, no rulings) can only produce `NO_KEY`.
+- `tests/e2e/review.spec.ts`: after a real close without a key, Review shows "Ingen KI-nøkkel er satt opp, så alle spørsmålene starter med én gruppe per ulikt svar." and the rail marks the Question "Manuell" (Story 5.1, AC4).
 
 ## FR-18
 
@@ -257,8 +260,10 @@ Content-free usage counters.
 
 Review display.
 
-- None yet.
-- Pending: Story 5.1.
+- `tests/unit/review.test.ts`: `collapseChips` turns equal normalised texts into one chip in the most common written form (ties: the first in SQL order) with `n` Answers, and keeps the given alphabetical order (Story 5.1, AC3).
+- `tests/integration/review.test.ts`: `review.load` gives a merged Group Count 3 from five Answers of three sets, chips "Kari" (3) and "Ola" (2) in alphabetical order, and every Answer under exactly one Group; a bad position (`NaN`, 99, 0, none) opens the first unreviewed Question, else the first; a Game in _draft_, _collecting_, _grouping_, _ready_, _playing_ or _played_ is `WRONG_STATE` and the page redirects to `/spill/{id}` (Story 5.1, AC2, AC5). The rendered page for nine Groups has breadcrumb `Mine spill › Hyttetur › Gjennomgang`, one visually hidden `<h1>`, "0 av 1 gjennomgått", "Spørsmål 1 av 1", `<h3>` "På brettet (8 grupper)", the divider, `<h3>` "Ikke på brettet (1 gruppe)" with its sentence and one dashed card, nine compact rows in rank order and no confidence word; three Groups have no divider or _Ikke på brettet_; a multi-chip card shows "Kari · 3 svar" between "Bo" and "Ola"; a discarded Group sits under "Forkastet (1 gruppe)" with a struck label and its raw Answers as plain text, never on the Board and never a compact row; a custom label ranks and shows as itself with the raw Answer after it; a one-chip Group of "Kari", "kari", "Kari" is a compact row reading "kari" then "Kari · 3 svar"; a singleton renamed to its own raw Answer shows it once; "Lås brettet" (rail and page foot) and "Marker som gjennomgått" are `aria-disabled`, the lock reason tied by `aria-describedby`; the rail's "Lås brettet" sits after the `nav` landmark, not inside it; the narrow-screen select is a GET form with no `onchange` and with `?q=2` starts on `option value="2"`; the rail marks the current Question with `aria-current`, shows "✓ Gjennomgått" and "Manuell", keeps "Ikke gjennomgått" screen-reader only and carries the full text in `title`; the Game page in _in review_ links "Gå til gjennomgangen" (Story 5.1, AC3, AC5).
+- `tests/integration/authz.test.ts`: Host B's `review.load` and Review page on A's _in review_ Game, a random UUID and a malformed ID give one identical `NOT_FOUND` and `notFound()`, and the page's `generateMetadata` gives `{ title: "Vi finner ikke dette spillet" }` for all three, so no title leaks (Story 5.1, AD-5).
+- `tests/e2e/review.spec.ts`: Review for a _collecting_ Game redirects to the Game page; after a real close (3 sets, 9 distinct normalised Answers with "Kari" written in two cases, replay without key) "Gå til gjennomgangen" opens Review titled "Gjennomgang – Hyttetur – Toppsvar" with one `<h1>`, the rail count, a row named with "Ikke gjennomgått" and "Manuell" and `aria-current`, "Marker som gjennomgått" right of the Question, eight ranked compact rows under "På brettet (8 grupper)", the first 52 px high and reading "1. kari Kari · 3 svar 3 personer", "Lås brettet" outside the rail's `nav`, the 2 px `line-strong` divider and one dashed row 9 under "Ikke på brettet (1 gruppe)" (Story 5.1, AC3, AC5).
 
 ## FR-20
 
@@ -364,6 +369,7 @@ Devices.
 - `tests/e2e/invite-link-page.spec.ts`: at 360 px the open, closed and unknown link pages have no horizontal scroll (Story 2.3).
 - `tests/e2e/answer-form.spec.ts`: the answer form with four fields in Question 1 and a visible counter has no horizontal scroll at 360 px and at 320 px (Story 2.4, AC2).
 - `tests/manual/checklist.md`: A4, 360 px, 320 px and 200 % zoom on a real phone (Story 2.4, AC6).
+- `tests/e2e/review.spec.ts`: Review works on a laptop at 1280 and 1100 px and, with the select and the narrow-screen notice, at 900 and 700 px without horizontal scroll (Story 5.1, AC5).
 
 ## NFR-6
 
@@ -379,6 +385,7 @@ Accessibility (WCAG 2.1 AA).
 - `tests/e2e/answer-form.spec.ts`: axe finds no serious or critical violations on the answer form at 360 px; the error summary takes focus and its links move focus to the field; an aborted submit POST shows the danger alert "Fikk ikke sendt svarene. Sjekk nettet og prøv igjen. Utkastet ditt ligger fortsatt på denne enheten." and keeps every typed value (Story 2.4, AC3, AC6).
 - `tests/manual/checklist.md`: A2 keyboard only, A3 screen reader, A4 reflow and zoom (Story 2.4, AC6).
 - `tests/e2e/close.spec.ts`: when the poll moves the Game from _grouping_ to _in review_, focus moves from the gone "Gruppering" heading to "Grupperingen er ferdig", and axe finds no serious or critical violations on the summary at 360 px (Story 4.2, AC6).
+- `tests/e2e/review.spec.ts`: Review at 1280, 1100, 900 and 700 px has a 288 px rail, a 240 px rail, a `<select>` above the main pane with "Lås brettet" at the foot (choosing does not navigate until "Vis", WCAG 3.2.2), and the narrow-screen notice; "Lås brettet" is `aria-disabled` with "Gjennomgå alle spørsmålene først (1 igjen)." as its accessible description; no horizontal scroll and no serious or critical axe violation at any width (Story 5.1, AC5).
 - Pending: every story that builds a screen.
 
 ## NFR-7

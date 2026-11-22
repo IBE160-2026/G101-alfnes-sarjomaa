@@ -82,6 +82,8 @@ export const question = pgTable(
       .references(() => game.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
     text: text("text").notNull(),
+    // Set by "Marker som gjennomgått", cleared by any edit of the Question's Groups (FR-20, FR-21).
+    reviewed: boolean("reviewed").notNull().default(false),
   },
   (t) => [uniqueIndex("question_game_position_key").on(t.gameId, t.position)],
 );
@@ -130,6 +132,9 @@ export const answerGroup = pgTable("answer_group", {
   origin: groupOrigin("origin").notNull(),
   // Review edits of this Group (Epic 5); the usage report reads it (AD-18).
   editCount: integer("edit_count").notNull().default(0),
+  // The Host's rename; null means the default label (AD-11).
+  customLabel: text("custom_label"),
+  discarded: boolean("discarded").notNull().default(false),
 });
 
 // One per Question once the Judge or the fallback has grouped it (AD-12, AD-14).

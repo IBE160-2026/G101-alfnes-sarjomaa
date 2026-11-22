@@ -172,7 +172,6 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
     const result = await grouping.summary(game.id);
     // Numbers only, no key sentence: it must read right for every fallback reason and in
     // Demo mode. The reason-specific Notice belongs to Review (Epic 5).
-    // shortcut: no way forward from in review until Epic 5, add the primary "Gå til gjennomgangen" link here in Story 5.1.
     const rows: [string, number][] = [
       ["Spørsmål i alt", result.questions],
       ["Grupper foreslått", result.groupsProposed],
@@ -194,6 +193,12 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
             </div>
           ))}
         </dl>
+        <Link
+          href={`/spill/${game.id}/gjennomgang`}
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover"
+        >
+          Gå til gjennomgangen
+        </Link>
       </section>,
     ];
   }

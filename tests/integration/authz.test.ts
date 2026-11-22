@@ -12,6 +12,9 @@ import {
   revokeInviteLink,
   saveQuestion,
 } from "@/app/spill/[id]/actions";
+import ReviewPage, {
+  generateMetadata as reviewMetadata,
+} from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
 import { createGame } from "@/app/spill/actions";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
@@ -29,6 +32,7 @@ import {
   submission,
 } from "@/server/db/schema";
 import * as games from "@/server/games";
+import * as review from "@/server/review";
 import { afterTasks, cookieJar, NotFoundError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
@@ -215,6 +219,40 @@ describe("Host B against Host A's Game", () => {
         code: "NOT_FOUND",
         message: "Vi finner ikke dette spillet.",
       });
+    }
+  });
+
+  it("FR-19, AD-5 (AC2): B's review.load, Review page and its title on A's in review Game, a random UUID and a malformed ID give one identical NOT_FOUND, notFound() and the not-found title", async () => {
+    const db = await getDb();
+    const [{ id: reviewOfA }] = await db
+      .insert(game)
+      .values({ hostId: hosts.A, title: "As brett", state: "in_review" })
+      .returning({ id: game.id });
+    await db
+      .insert(question)
+      .values({ id: randomUUID(), gameId: reviewOfA, position: 1, text: "?" });
+    as("A");
+    expect((await review.load(hosts.A, reviewOfA)).title).toBe("As brett");
+    as("B");
+    for (const id of [reviewOfA, randomUUID(), "abc"]) {
+      const error = await rejection(review.load(hosts.B, id));
+      expect((error as DomainError).code, id).toBe("NOT_FOUND");
+      expect(
+        await rejection(
+          ReviewPage({
+            params: Promise.resolve({ id }),
+            searchParams: Promise.resolve({}),
+          }),
+        ),
+        id,
+      ).toBeInstanceOf(NotFoundError);
+      expect(
+        await reviewMetadata({
+          params: Promise.resolve({ id }),
+          searchParams: Promise.resolve({}),
+        }),
+        id,
+      ).toEqual({ title: "Vi finner ikke dette spillet" });
     }
   });
 

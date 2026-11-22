@@ -49,7 +49,8 @@ export function HostChrome({
         tabIndex={-1}
         className="mx-auto max-w-320 px-4 py-12 sm:px-8"
       >
-        <div className="max-w-200">{children}</div>
+        {/* Review marks itself data-wide to use the full 1280 px host width. */}
+        <div className="max-w-200 has-[[data-wide]]:max-w-none">{children}</div>
       </main>
     </>
   );

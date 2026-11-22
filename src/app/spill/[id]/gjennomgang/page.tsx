@@ -1,0 +1,299 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
+import { Button } from "@/components/Button";
+import { GroupCard } from "@/components/GroupCard";
+import { Notice } from "@/components/Notice";
+import { DomainError } from "@/lib/errors";
+import { BOARD_SIZE } from "@/lib/limits";
+import { fallbackNotice } from "@/lib/review";
+import * as auth from "@/server/auth";
+import { env } from "@/server/env";
+import * as review from "@/server/review";
+
+const codeOf = (error: unknown) =>
+  error instanceof DomainError ? error.code : undefined;
+
+// cache(): generateMetadata and the page share one owner-checked read per request.
+const loadReview = cache(async (gameId: string, q: unknown) => {
+  const { hostId } = await auth.requireHost();
+  // Anything but a Question's number falls back to the first unreviewed one.
+  return review.load(hostId, gameId, typeof q === "string" ? Number(q) : NaN);
+});
+
+// A foreign Game gets the not-found title too, so its title never leaks (AD-5).
+export async function generateMetadata({
+  params,
+  searchParams,
+}: PageProps<"/spill/[id]/gjennomgang">): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const { title } = await loadReview(id, (await searchParams).q);
+    return { title: `Gjennomgang – ${title}` };
+  } catch (error) {
+    const code = codeOf(error);
+    if (code === "NOT_FOUND") return { title: "Vi finner ikke dette spillet" };
+    if (code === "WRONG_STATE") return {};
+    throw error;
+  }
+}
+
+const groups = (n: number) => (n === 1 ? "1 gruppe" : `${n} grupper`);
+
+function LockBoard({ id, remaining }: { id: string; remaining: number }) {
+  return (
+    <>
+      {/* shortcut: always aria-disabled and never opens the ConfirmDialog, Story 5.5 adds locking (the epic branch merges after it). */}
+      <Button
+        type="button"
+        variant="primary"
+        aria-disabled="true"
+        aria-describedby={remaining > 0 ? id : undefined}
+        className="w-full"
+      >
+        Lås brettet
+      </Button>
+      {remaining > 0 && (
+        <p id={id} className="mt-2 text-body-sm">
+          Gjennomgå alle spørsmålene først ({remaining} igjen).
+        </p>
+      )}
+    </>
+  );
+}
+
+export default async function ReviewPage({
+  params,
+  searchParams,
+}: PageProps<"/spill/[id]/gjennomgang">) {
+  const { id } = await params;
+  let data;
+  try {
+    data = await loadReview(id, (await searchParams).q);
+  } catch (error) {
+    // Missing, foreign and malformed IDs all land on one page (AD-5).
+    if (codeOf(error) === "NOT_FOUND") notFound();
+    if (codeOf(error) === "WRONG_STATE") redirect(`/spill/${id}`);
+    throw error;
+  }
+  const { title, questions, current } = data;
+  const total = questions.length;
+  const remaining = questions.filter((q) => !q.reviewed).length;
+  const question = questions.find((q) => q.position === current.position)!;
+  const next = questions.find((q) => q.position === current.position + 1);
+  const notice = fallbackNotice(questions, env.DEMO_MODE);
+  const href = (position: number) => `/spill/${id}/gjennomgang?q=${position}`;
+
+  return (
+    // data-wide lets HostChrome drop its 800 px column for the 1280 px host width.
+    <div data-wide="">
+      <nav aria-label="Brødsmulesti">
+        <ol className="flex flex-wrap items-center gap-x-2 text-body-sm">
+          <li>
+            <Link
+              href="/spill"
+              className="inline-flex min-h-11 items-center text-primary underline"
+            >
+              Mine spill
+            </Link>
+          </li>
+          <li className="flex min-w-0 items-center gap-2">
+            <span aria-hidden="true" className="text-ink-muted">
+              ›
+            </span>
+            <Link
+              href={`/spill/${id}`}
+              className="inline-flex min-h-11 items-center break-words text-primary underline"
+            >
+              {title}
+            </Link>
+          </li>
+          <li className="flex items-center gap-2">
+            <span aria-hidden="true" className="text-ink-muted">
+              ›
+            </span>
+            <span aria-current="page">Gjennomgang</span>
+          </li>
+        </ol>
+      </nav>
+      <h1 className="sr-only">Gjennomgang</h1>
+
+      {notice && (
+        <Notice tone="warning" className="mt-4">
+          {notice}
+        </Notice>
+      )}
+      <Notice tone="info" className="mt-4 md:hidden">
+        Gjennomgangen er laget for større skjerm. Den virker her, men blir
+        trang.
+      </Notice>
+
+      <div className="mt-6 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start lg:gap-8 xl:grid-cols-[288px_minmax(0,1fr)]">
+        {/* The lock sits after the nav, never inside a navigation landmark. */}
+        <div className="hidden rounded-md border border-line bg-surface p-4 lg:block">
+          <nav aria-label="Spørsmål">
+            <h2 className="text-label">
+              {total - remaining} av {total} gjennomgått
+            </h2>
+            <ol className="mt-3 flex flex-col gap-1">
+              {questions.map((q) => (
+                <li key={q.id}>
+                  <Link
+                    href={href(q.position)}
+                    title={q.text}
+                    aria-current={
+                      q.position === current.position ? "page" : undefined
+                    }
+                    className="block min-h-11 rounded-sm border-2 border-transparent px-2 py-1.5 text-body-sm hover:bg-surface-sunken aria-[current=page]:border-primary aria-[current=page]:bg-primary-soft"
+                  >
+                    <span className="block truncate">
+                      <span className="tabular-nums">{q.position}</span>{" "}
+                      {q.text}
+                    </span>
+                    {q.reviewed ? (
+                      <span className="block font-semibold text-success">
+                        {" "}
+                        <span aria-hidden="true">✓</span> Gjennomgått
+                      </span>
+                    ) : (
+                      <span className="sr-only"> Ikke gjennomgått</span>
+                    )}
+                    {q.fallbackReason && (
+                      <span className="block text-ink-muted"> Manuell</span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </nav>
+          <div className="mt-4 border-t border-line pt-4">
+            <LockBoard id="las-grunn-rail" remaining={remaining} />
+          </div>
+        </div>
+
+        {/* Below 1024 px the rail is a select; a GET form, so changing it never navigates (WCAG 3.2.2). */}
+        <form
+          method="get"
+          action={`/spill/${id}/gjennomgang`}
+          className="mb-6 flex flex-wrap items-end gap-2 lg:hidden"
+        >
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <label htmlFor="sporsmal-velger" className="text-label">
+              Spørsmål
+            </label>
+            <select
+              id="sporsmal-velger"
+              name="q"
+              defaultValue={current.position}
+              className="min-h-12 w-full rounded-sm border border-line-strong bg-surface px-3"
+            >
+              {questions.map((q) => (
+                <option key={q.id} value={q.position}>
+                  Spørsmål {q.position} av {total} –{" "}
+                  {q.reviewed ? "Gjennomgått" : "Ikke gjennomgått"}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button type="submit" variant="secondary">
+            Vis
+          </Button>
+        </form>
+
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <h2 className="min-w-0 text-heading break-words">
+              <span className="block font-sans text-label">
+                Spørsmål {current.position} av {total}
+              </span>{" "}
+              {question.text}
+            </h2>
+            {question.reviewed ? (
+              <div className="flex shrink-0 items-center gap-4">
+                <span className="font-semibold text-success">
+                  <span aria-hidden="true">✓</span> Gjennomgått
+                </span>
+                {next && (
+                  <Link
+                    href={href(next.position)}
+                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-primary hover:bg-surface-sunken"
+                  >
+                    Neste spørsmål
+                  </Link>
+                )}
+              </div>
+            ) : (
+              // shortcut: aria-disabled and inert, Story 5.5 adds marking (the epic branch merges after it).
+              <Button
+                type="button"
+                variant="primary"
+                aria-disabled="true"
+                className="shrink-0"
+              >
+                Marker som gjennomgått
+              </Button>
+            )}
+          </div>
+
+          {current.board.length > 0 && (
+            <section aria-labelledby="pa-brettet" className="mt-8">
+              <h3 id="pa-brettet" className="text-title">
+                På brettet ({groups(current.board.length)})
+              </h3>
+              <ol className="mt-3 flex flex-col gap-2">
+                {current.board.map((g, i) => (
+                  <GroupCard key={g.id} rank={i + 1} look="board" {...g} />
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {current.below.length > 0 && (
+            <>
+              <p className="mt-8 border-t-2 border-line-strong pt-2 text-label">
+                Alt under streken vises ikke i spillet
+              </p>
+              <section aria-labelledby="ikke-pa-brettet" className="mt-6">
+                <h3 id="ikke-pa-brettet" className="text-title">
+                  Ikke på brettet ({groups(current.below.length)})
+                </h3>
+                <p className="mt-1 max-w-prose">
+                  Vises ikke i spillet. Slå dem sammen med en gruppe over for at
+                  de skal telle.
+                </p>
+                <ol className="mt-3 flex flex-col gap-2">
+                  {current.below.map((g, i) => (
+                    <GroupCard
+                      key={g.id}
+                      rank={BOARD_SIZE + i + 1}
+                      look="below"
+                      {...g}
+                    />
+                  ))}
+                </ol>
+              </section>
+            </>
+          )}
+
+          {current.discarded.length > 0 && (
+            <section aria-labelledby="forkastet" className="mt-8">
+              <h3 id="forkastet" className="text-title">
+                Forkastet ({groups(current.discarded.length)})
+              </h3>
+              <ul className="mt-3 flex flex-col gap-2">
+                {current.discarded.map((g) => (
+                  <GroupCard key={g.id} look="discarded" {...g} />
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-12 border-t border-line pt-6 lg:hidden">
+        <LockBoard id="las-grunn-fot" remaining={remaining} />
+      </div>
+    </div>
+  );
+}
