@@ -14,6 +14,7 @@ import { createGame } from "@/app/spill/actions";
 import GamesPage from "@/app/spill/page";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
+import * as collection from "@/server/collection";
 import { getDb } from "@/server/db/client";
 import { game, inviteLink, question } from "@/server/db/schema";
 import * as games from "@/server/games";
@@ -307,6 +308,15 @@ describe("Invite links across Hosts", () => {
       inviteLinksIssued: 0,
       updatedAt: T0,
     });
+  });
+
+  it("FR-8, AD-5: B's collection.progress on A's Game, a random UUID and a malformed ID rejects with the same NOT_FOUND", async () => {
+    for (const id of [gameOfA, randomUUID(), "abc"]) {
+      const error = await rejection(collection.progress(hosts.B, id));
+      expect(error, id).toBeInstanceOf(DomainError);
+      expect((error as DomainError).code, id).toBe("NOT_FOUND");
+      expect((error as DomainError).fieldErrors, id).toBeUndefined();
+    }
   });
 });
 

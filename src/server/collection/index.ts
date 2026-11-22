@@ -1,9 +1,10 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { parseAnswerSet } from "@/lib/answer-set";
 import { DomainError, MESSAGES, validate } from "@/lib/errors";
 import { PERMITTED, type GameState } from "@/lib/game-state";
 import { createInviteLinksSchema, TOKEN_PATTERN } from "@/lib/invite-link";
+import { SUBMISSIONS_MIN } from "@/lib/limits";
 import { newToken, sha256 } from "@/lib/token";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Db } from "@/server/db/client";
@@ -42,6 +43,36 @@ export function createInviteLinks(
         links: tokens.map((token) => `${BASE_URL}/svar/${gameId}#${token}`),
       };
     });
+  });
+}
+
+export const FEWER_THAN_3 = "fewer-than-3";
+
+// A read: no lock, no write, never updated_at. The exact count below three never leaves
+// this function, so a single arrival cannot be timed against a message (FR-8, FR-12).
+export function progress(
+  hostId: string,
+  gameId: string,
+): Promise<{
+  active: number;
+  issued: number;
+  submissions: number | typeof FEWER_THAN_3;
+}> {
+  return withBoundary("collection", "progress", async () => {
+    const { inviteLinksIssued: issued } = await games.getOwned(hostId, gameId);
+    const [row] = await (
+      await getDb()
+    )
+      .select({ active: count(), submitted: count(submission.tokenHash) })
+      .from(inviteLink)
+      .leftJoin(submission, eq(submission.tokenHash, inviteLink.tokenHash))
+      .where(eq(inviteLink.gameId, gameId));
+    return {
+      active: row.active,
+      issued,
+      submissions:
+        row.submitted < SUBMISSIONS_MIN ? FEWER_THAN_3 : row.submitted,
+    };
   });
 }
 

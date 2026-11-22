@@ -22,6 +22,9 @@ export const QUESTION_TEXT_MAX = 200;
 export const QUESTION_COUNTER_FROM = 160;
 
 export const INVITE_LINKS_MAX = 50;
+// The FR-8 count floor, and the FR-10 close floor Story 3.1 reuses.
+export const SUBMISSIONS_MIN = 3;
+export const COLLECTING_REFRESH_MS = 30_000; // AD-17
 
 export const ANSWER_TEXT_MAX = 80;
 export const ANSWER_COUNTER_FROM = 60;
