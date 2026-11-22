@@ -1440,6 +1440,31 @@ describe("close", () => {
     expect(rows.filter((r) => r.text.startsWith("S3 "))).toHaveLength(6);
   });
 
+  it("FR-15, AD-9: the grouping panel adds the slow-state sentence only once the Grouping lease has run out", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Treg gruppering", 3);
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    expect(await closeCollection({ gameId })).toEqual({ ok: true });
+    const SLOW =
+      "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt.";
+    const page = async () =>
+      renderToStaticMarkup(
+        await GamePage({
+          params: Promise.resolve({ id: gameId }),
+          searchParams: Promise.resolve({}),
+        }),
+      );
+    const fresh = await page();
+    expect(fresh).toContain("Det tar vanligvis under to minutter.");
+    expect(fresh).not.toContain(SLOW);
+    await (
+      await getDb()
+    )
+      .update(game)
+      .set({ groupingLeaseUntil: sql`now() - interval '1 second'` })
+      .where(eq(game.id, gameId));
+    expect(await page()).toContain(SLOW);
+  });
+
   it("FR-10, FR-17: the dialog's no-key sentence shows only with neither a model key nor Demo mode", async () => {
     const { gameId, ids, tokens } = await collectingGame("Nøkkel", 3);
     for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));

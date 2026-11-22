@@ -6,6 +6,7 @@ import { closeCollection } from "@/app/spill/[id]/actions";
 import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Notice } from "@/components/Notice";
+import { focusHeading } from "@/components/RouteFocus";
 import { callAction, NETWORK } from "@/components/useFormAction";
 import { MESSAGES } from "@/lib/errors";
 
@@ -25,23 +26,33 @@ export function CloseCollection({
 }) {
   const router = useRouter();
   const reasonId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const [failure, setFailure] = useState<string>();
   const [pending, startTransition] = useTransition();
   // After an action this panel unmounts when the page changes state, and the trigger the
-  // dialog would return focus to goes with it, so focus moves to the <h1> instead.
+  // dialog would return focus to goes with it, so focus moves to the new state's heading.
   const acted = useRef(false);
+  const shown = useRef(canClose);
 
   useEffect(() => {
     if (failure) noticeRef.current?.focus();
   }, [failure]);
 
+  // A refresh swaps the disabled trigger for the dialog's, or back after a refused close,
+  // and the control that held focus goes with it. The panel survived, so nothing is armed.
+  useEffect(() => {
+    if (shown.current === canClose) return;
+    shown.current = canClose;
+    acted.current = false;
+    if (document.activeElement === document.body)
+      rootRef.current?.querySelector("button")?.focus();
+  }, [canClose]);
+
   useEffect(
     () => () => {
-      if (!acted.current) return;
-      const h1 = document.querySelector("h1");
-      h1?.setAttribute("tabindex", "-1");
-      h1?.focus();
+      if (acted.current)
+        focusHeading(document.getElementById("gruppering") ?? undefined);
     },
     [],
   );
@@ -54,8 +65,10 @@ export function CloseCollection({
         acted.current = true;
         return;
       }
-      // A rejected call may still have committed on the server.
-      if (!result || REFRESH_ON.has(result.code)) {
+      // A rejected call may still have committed on the server, so the page refreshes;
+      // but offline the dialog stays, with the notice, so the focus move is not armed.
+      if (!result) router.refresh();
+      else if (REFRESH_ON.has(result.code)) {
         acted.current = true;
         router.refresh();
       }
@@ -65,7 +78,7 @@ export function CloseCollection({
 
   if (!canClose)
     return (
-      <div className="mt-6">
+      <div ref={rootRef} className="mt-6">
         <Button
           type="button"
           variant="primary"
@@ -81,7 +94,7 @@ export function CloseCollection({
     );
 
   return (
-    <div className="mt-6">
+    <div ref={rootRef} className="mt-6">
       <ConfirmDialog
         triggerLabel="Steng innsamlingen"
         triggerVariant="primary"
@@ -90,12 +103,13 @@ export function CloseCollection({
           setFailure(undefined);
           return true;
         }}
+        busy={pending}
         confirm={
           <Button
             type="button"
             variant="primary"
             pending={pending}
-            pendingLabel="Stenger …"
+            pendingLabel={"Stenger\u00a0…"}
             onClick={close}
           >
             Steng innsamlingen

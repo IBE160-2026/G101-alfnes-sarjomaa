@@ -68,12 +68,17 @@ export function listOwned(hostId: string): Promise<GameSummary[]> {
 export function getOwned(
   hostId: string,
   gameId: string,
-): Promise<GameSummary & { inviteLinksIssued: number }> {
+): Promise<GameSummary & { inviteLinksIssued: number; leaseExpired: boolean }> {
   return withBoundary("games", "getOwned", async () => {
     assertGameId(gameId);
     const db = await getDb();
     const [row] = await db
-      .select({ ...summary, inviteLinksIssued: game.inviteLinksIssued })
+      .select({
+        ...summary,
+        inviteLinksIssued: game.inviteLinksIssued,
+        // DB time, as the Grouping runner compares the lease (AD-9).
+        leaseExpired: sql<boolean>`coalesce(${game.groupingLeaseUntil} < now(), false)`,
+      })
       .from(game)
       .where(and(eq(game.id, gameId), eq(game.hostId, hostId)));
     if (!row) throw new DomainError("NOT_FOUND");

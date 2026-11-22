@@ -118,6 +118,7 @@ export function InviteLinkPanel({
           setFailure(undefined);
           return checkCount();
         }}
+        busy={pending}
         confirm={
           <Button
             type="button"

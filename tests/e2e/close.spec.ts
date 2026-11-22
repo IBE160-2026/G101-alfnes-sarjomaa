@@ -153,7 +153,10 @@ test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reas
   await dialog.getByRole("button", { name: "Steng innsamlingen" }).click();
   await expect(page.getByText("Grupperer", { exact: true })).toBeVisible();
   await expect(page.getByText(GROUPING, { exact: true })).toBeVisible();
-  await expect(page.locator("h1")).toBeFocused();
+  // The new state's heading, so a screen reader hears what changed.
+  await expect(
+    page.getByRole("heading", { name: "Gruppering", level: 2 }),
+  ).toBeFocused();
   await expect(page.getByRole("region", { name: "Innsamling" })).toHaveCount(0);
   expect(await noHorizontalScroll(page)).toBe(true);
   // The action's re-render sets the head again; axe would flag the moment in between.
@@ -168,17 +171,33 @@ test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reas
   await late.context.close();
 });
 
-test("FR-10, UX-DR23: an aborted close request keeps the dialog open with the focused network message, and the Game keeps collecting", async ({
+test("FR-10, UX-DR23: while close runs neither Esc nor Avbryt dismisses the dialog, an aborted request then shows the focused network message in it, and the Game keeps collecting", async ({
   page,
   browser,
   baseURL,
 }) => {
   const dialog = await openCloseDialog(page, browser, baseURL);
   const gamePath = new URL(page.url()).pathname;
-  await page.route(`**${gamePath}`, (route) =>
-    route.request().method() === "POST" ? route.abort() : route.continue(),
-  );
-  await dialog.getByRole("button", { name: "Steng innsamlingen" }).click();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route(`**${gamePath}`, async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    await held;
+    return route.abort();
+  });
+  const confirm = dialog.getByRole("button", { name: "Steng innsamlingen" });
+  await confirm.click();
+  await expect(confirm).toHaveAttribute("aria-busy", "true");
+  // Twice: Chrome closes a dialog on a second Esc with no click in between.
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  const cancel = dialog.getByRole("button", { name: "Avbryt" });
+  await expect(cancel).toHaveAttribute("aria-disabled", "true");
+  // Playwright waits for an aria-disabled button to enable, so the click is forced.
+  await cancel.click({ force: true });
+  await expect(dialog).toBeVisible();
+  release();
   const alert = dialog.getByRole("alert");
   await expect(alert).toHaveText(NETWORK);
   await expect(alert).toBeFocused();

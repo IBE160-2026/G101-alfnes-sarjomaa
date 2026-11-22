@@ -8,14 +8,16 @@ import {
 } from "react";
 
 const VARIANTS = {
-  primary: "bg-primary text-on-primary text-title hover:bg-primary-hover",
+  primary:
+    "bg-primary text-on-primary text-title hover:not-aria-disabled:bg-primary-hover",
   secondary:
-    "border border-line-strong bg-surface text-primary hover:bg-surface-sunken",
+    "border border-line-strong bg-surface text-primary hover:not-aria-disabled:bg-surface-sunken",
   "secondary-danger":
-    "border border-danger bg-surface text-danger hover:bg-danger-soft",
+    "border border-danger bg-surface text-danger hover:not-aria-disabled:bg-danger-soft",
   // Only inside a ConfirmDialog. White on danger/90 stays above 4.5:1.
-  danger: "bg-danger text-on-primary text-title hover:bg-danger/90",
-  ghost: "text-ink hover:bg-surface-sunken",
+  danger:
+    "bg-danger text-on-primary text-title hover:not-aria-disabled:bg-danger/90",
+  ghost: "text-ink hover:not-aria-disabled:bg-surface-sunken",
 };
 
 // ComponentProps, not ButtonHTMLAttributes, so `ref` passes through (React 19).

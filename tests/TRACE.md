@@ -138,11 +138,11 @@ Close Collection.
 - `tests/integration/collection.test.ts`: from three sets the Game page changes only in the count and the close control, which loses `aria-disabled` and gets the dialog (Story 3.1, AC5).
 - `tests/integration/collection.test.ts`: a real `collection.close` started right after submit's Game lock, while submit's transaction is open, waits for it; submit is ok and its set is among the closed Answers. The dialog's no-key sentence shows with neither `OPENROUTER_API_KEY` nor Demo mode, and not with either (Story 3.1 review).
 - `tests/integration/purge.test.ts`: every retention purge runs `VACUUM (FULL, SKIP_LOCKED) submission, invite_link`, after an idle _collecting_ Game and after an idle _draft_ Game alike, so a VACUUM skipped at close is retried within the hour; run by a role that does not own the tables, it logs exactly `{ module: "games", op: "vacuum", code: "VACUUM_SKIPPED" }` (Story 3.1 review; Epic 3 review, finding 1).
-- `tests/e2e/close.spec.ts`: an aborted close POST keeps the dialog open with the focused alert "Fikk ikke kontakt. Sjekk nettet og prøv igjen." and the Game stays _collecting_; confirming in a tab whose Game another tab already closed refreshes it to "Grupperer" (Story 3.1 review).
+- `tests/e2e/close.spec.ts`: while the close POST is held, two real Esc presses and a click on "Avbryt" (now `aria-disabled`) leave the dialog open; the shared `ConfirmDialog` `busy` state is also passed by the open-collection, revoke and delete dialogs (Epic 3 review, impeccable M1). The aborted close POST then keeps the dialog open with the focused alert "Fikk ikke kontakt. Sjekk nettet og prøv igjen." and the Game stays _collecting_; confirming in a tab whose Game another tab already closed refreshes it to "Grupperer" (Story 3.1 review).
 - `tests/integration/authz.test.ts`: Host B's `closeCollection` on A's closable Game, a random UUID and `"abc"` is one identical `NOT_FOUND`, and A's Game, links, sets and the `answer` table are unchanged (Story 3.1).
 - `tests/integration/game-state.test.ts`: `collection.close` is `WRONG_STATE` in every state but _collecting_, and the Game row and links are unchanged (Story 3.1).
 - `tests/integration/delete.test.ts`: deleting a _collecting_ Game runs `VACUUM (FULL, SKIP_LOCKED) submission, invite_link` after commit, a forced VACUUM failure still deletes and logs one `games`/`vacuum` line with only the SQLSTATE, and deleting a _draft_ Game runs no VACUUM (Story 3.1, AC3).
-- `tests/e2e/close.spec.ts`: at 360 px "Steng innsamlingen" is `aria-disabled` with the reason as its accessible description at two sets and opens no dialog; at three it opens "Stenge innsamlingen?" with the consequence and the no-key sentence, focus on "Avbryt"; Esc closes it and focus returns to the trigger; confirming shows "Grupperer", the Judge sentence and focuses the `<h1>`; a form opened before close then submits, shows "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." and its `localStorage` key is gone; axe finds no serious violations in the disabled, dialog and _grouping_ states (Story 3.1, AC5).
+- `tests/e2e/close.spec.ts`: at 360 px "Steng innsamlingen" is `aria-disabled` with the reason as its accessible description at two sets and opens no dialog; at three it opens "Stenge innsamlingen?" with the consequence and the no-key sentence, focus on "Avbryt"; Esc closes it and focus returns to the trigger; confirming shows "Grupperer", the Judge sentence and focuses the "Gruppering" heading (Epic 3 review, impeccable S1); a form opened before close then submits, shows "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." and its `localStorage` key is gone; axe finds no serious violations in the disabled, dialog and _grouping_ states (Story 3.1, AC5).
 
 ## FR-11
 
@@ -202,7 +202,7 @@ Honest anonymity notice.
 
 Judge Grouping at close.
 
-- None yet.
+- `tests/integration/collection.test.ts`: right after close the grouping panel shows the Judge sentence and not "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt."; once `grouping_lease_until` is in the past (DB time) it adds that sentence, the EXPERIENCE.md slow-or-interrupted state, until Grouping itself lands (Epic 3 review, impeccable M2).
 - Pending: Stories 4.1, 4.2, 4.4, 7.1.
 
 ## FR-16

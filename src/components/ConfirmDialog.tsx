@@ -5,6 +5,7 @@ import { Button } from "@/components/Button";
 
 // Native modal <dialog>: focus starts on cancel, Esc cancels, focus returns to
 // the trigger (UX-DR8). The caller supplies the confirm control and its form.
+// While `busy` (the confirmed action runs) nothing dismisses it, so its outcome shows.
 export function ConfirmDialog({
   triggerLabel,
   triggerVariant,
@@ -12,6 +13,7 @@ export function ConfirmDialog({
   children,
   confirm,
   beforeOpen,
+  busy = false,
 }: {
   triggerLabel: string;
   triggerVariant: ComponentProps<typeof Button>["variant"];
@@ -20,6 +22,7 @@ export function ConfirmDialog({
   confirm: ReactNode;
   // false keeps the dialog closed, e.g. when a field next to the trigger is invalid.
   beforeOpen?: () => boolean;
+  busy?: boolean;
 }) {
   const id = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -46,7 +49,14 @@ export function ConfirmDialog({
         ref={dialogRef}
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-body`}
-        onClose={() => triggerRef.current?.focus()}
+        onCancel={(event) => {
+          if (busy) event.preventDefault();
+        }}
+        onClose={() => {
+          // Chrome closes anyway on a repeated Esc with no click in between.
+          if (busy) dialogRef.current?.showModal();
+          else triggerRef.current?.focus();
+        }}
         className="m-auto w-[calc(100%-2rem)] max-w-120 rounded-lg bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/55"
       >
         <h2 id={`${id}-title`} className="text-heading">
@@ -60,7 +70,10 @@ export function ConfirmDialog({
             ref={cancelRef}
             type="button"
             variant="secondary"
-            onClick={() => dialogRef.current?.close()}
+            aria-disabled={busy || undefined}
+            onClick={() => {
+              if (!busy) dialogRef.current?.close();
+            }}
           >
             Avbryt
           </Button>

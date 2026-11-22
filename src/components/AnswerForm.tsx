@@ -12,6 +12,7 @@ import {
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
+import { focusHeading } from "@/components/RouteFocus";
 import { TextField } from "@/components/TextField";
 import { callAction } from "@/components/useFormAction";
 import { ANSWER_MISSING, parseAnswerSet, toFields } from "@/lib/answer-set";
@@ -279,9 +280,7 @@ export function AnswerForm({
           className="mt-6"
           onClick={() => {
             setPhase("form");
-            const h1 = document.querySelector("h1");
-            h1?.setAttribute("tabindex", "-1");
-            h1?.focus();
+            focusHeading();
           }}
         >
           Se eller endre svarene

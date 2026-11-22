@@ -111,6 +111,7 @@ export function RevokeLinkPanel({
               focusNext.current = "field";
               return false;
             }}
+            busy={pending}
             confirm={
               <Button
                 type="button"

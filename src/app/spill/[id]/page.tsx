@@ -140,6 +140,12 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           Dommeren, en KI-modell, grupperer svarene&nbsp;… Det tar vanligvis
           under to minutter.
         </p>
+        {/* Past the lease Grouping is slow or interrupted (AD-9), so the Host gets the way on. */}
+        {game.leaseExpired && (
+          <p className="mt-2 max-w-prose">
+            Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt.
+          </p>
+        )}
       </section>,
     ];
   }
