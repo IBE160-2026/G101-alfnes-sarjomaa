@@ -18,6 +18,8 @@ const VARIANTS = {
   danger:
     "bg-danger text-on-primary text-title hover:not-aria-disabled:bg-danger/90",
   ghost: "text-ink hover:not-aria-disabled:bg-surface-sunken",
+  // Only on the dark SelectionBar, which sets the inverse focus ring.
+  inverse: "bg-surface text-ink hover:not-aria-disabled:bg-surface-sunken",
 };
 
 // ComponentProps, not ButtonHTMLAttributes, so `ref` passes through (React 19).

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   afterAll,
@@ -14,6 +14,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { mergeGroups } from "@/app/spill/[id]/actions";
 import ReviewPage from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
 import { DomainError } from "@/lib/errors";
@@ -23,6 +24,7 @@ import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import { answer, answerGroup, game, question } from "@/server/db/schema";
 import { env } from "@/server/env";
+import * as games from "@/server/games";
 import * as grouping from "@/server/grouping";
 import type { Judge } from "@/server/judge";
 import {
@@ -31,7 +33,7 @@ import {
 } from "@/server/judge/providers/mock";
 import { createReplayJudge } from "@/server/judge/providers/replay";
 import * as review from "@/server/review";
-import { cookieJar, RedirectError } from "./next-mocks";
+import { cookieJar, nextCache, RedirectError } from "./next-mocks";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -45,6 +47,12 @@ const current = vi.hoisted(() => ({ judge: undefined as Judge | undefined }));
 vi.mock("@/server/judge", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/server/judge")>();
   return { ...real, getJudge: () => current.judge ?? real.getJudge() };
+});
+
+// The real counter writer, watched, so a test can make it fail after the merge's writes.
+vi.mock("@/server/games", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/server/games")>();
+  return { ...real, bumpCounters: vi.fn(real.bumpCounters) };
 });
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -385,7 +393,7 @@ describe("Review page", () => {
     const html = await render(gameId);
     const screen = text(html);
     expect(html).toMatch(/<h3[^>]*>Forkastet \(1 gruppe\)<\/h3>/);
-    expect(html).toMatch(/<h4 class="[^"]*line-through[^"]*">kari<\/h4>/);
+    expect(html).toMatch(/<h4 [^>]*class="[^"]*line-through[^"]*">kari<\/h4>/);
     expect(html).toMatch(/<h3[^>]*>På brettet \(3 grupper\)<\/h3>/);
     // Per's rename sorts before anne ("aa" would be å in nb); its raw Answer follows the label.
     expect(screen).toMatch(/1\. Alle per Per 1 person 2\. anne/);
@@ -561,5 +569,286 @@ describe("Game page in review", () => {
         `<a class="[^"]*bg-primary[^"]*" href="/spill/${gameId}/gjennomgang">Gå til gjennomgangen</a>`,
       ),
     );
+  });
+});
+
+describe("review.merge", () => {
+  // Kari: three keys (1, 2, 3). Ola: two keys (1, 4), one shared with Kari.
+  const SHARED: Spec = [
+    [Q1, [["Kari", "Ola"], ["Kari"], ["kari"], ["Ola"]]],
+    [Q2, [["a"], ["b"], ["c"], ["d"]]],
+  ];
+
+  // Everything a merge may write: Answers, Groups, the reviewed marks and the counters.
+  async function snapshot(gameId: string, questionIds: string[]) {
+    const db = await getDb();
+    const rows = [];
+    for (const id of questionIds)
+      rows.push({
+        answers: await db
+          .select({ id: answer.id, groupId: answer.groupId })
+          .from(answer)
+          .where(eq(answer.questionId, id))
+          .orderBy(asc(answer.id)),
+        groups: await db
+          .select()
+          .from(answerGroup)
+          .where(eq(answerGroup.questionId, id))
+          .orderBy(asc(answerGroup.id)),
+        reviewed: (
+          await db
+            .select({ reviewed: question.reviewed })
+            .from(question)
+            .where(eq(question.id, id))
+        )[0].reviewed,
+      });
+    return { rows, counters: await games.counters(gameId) };
+  }
+
+  const groupRow = async (id: string) =>
+    (
+      await (
+        await getDb()
+      )
+        .select()
+        .from(answerGroup)
+        .where(eq(answerGroup.id, id))
+    )[0];
+
+  it("FR-20, AD-11, AD-15 (AC1): a shared Contributor key gives a Count below the sum; the highest-ranked source keeps its ID and frozen label, every Answer moves to it, the other is deleted, reviewed is cleared, edit_count and groups_merged go up by one", async () => {
+    const { gameId, ids } = await reviewGame(SHARED);
+    const kari = await groupIdOf(ids[0], "kari");
+    const ola = await groupIdOf(ids[0], "ola");
+    const db = await getDb();
+    await db
+      .update(question)
+      .set({ reviewed: true })
+      .where(eq(question.id, ids[0]));
+    const answersBefore = (await snapshot(gameId, [ids[0]])).rows[0].answers;
+
+    // Lowest-ranked first: the order of the IDs does not pick the target.
+    const result = await review.merge(hostId, {
+      gameId,
+      groupIds: [ola, kari],
+    });
+
+    expect(result).toEqual({
+      groupId: kari,
+      label: "kari",
+      count: 4,
+      position: 1,
+    });
+    expect(result.count).toBeLessThan(3 + 2);
+    const { rows, counters } = await snapshot(gameId, [ids[0]]);
+    expect(rows[0].groups).toEqual([
+      expect.objectContaining({ id: kari, customLabel: "kari", editCount: 1 }),
+    ]);
+    expect(await groupRow(ola)).toBeUndefined();
+    expect(rows[0].answers).toEqual(
+      answersBefore.map((a) => ({ ...a, groupId: kari })),
+    );
+    expect(rows[0].reviewed).toBe(false);
+    expect(counters.groupsMerged).toBe(1);
+    const { current } = await review.load(hostId, gameId, 1);
+    expect(current.board).toEqual([
+      {
+        id: kari,
+        label: "kari",
+        count: 4,
+        chips: [
+          { text: "Kari", n: 3 },
+          { text: "Ola", n: 2 },
+        ],
+      },
+    ]);
+  });
+
+  it("FR-20, FR-18 (AC1): merging three Groups through the action leaves one, counts two in groups_merged, bumps edit_count once and refreshes the Game and Review pages", async () => {
+    const { gameId, ids } = await reviewGame(SHARED);
+    const groupIds = await Promise.all(
+      ["a", "b", "c"].map((t) => groupIdOf(ids[1], t)),
+    );
+    nextCache.revalidatePath.mockClear();
+    const result = await mergeGroups({ gameId, groupIds });
+    expect(result).toEqual({
+      ok: true,
+      data: { groupId: groupIds[0], label: "a", count: 3, position: 1 },
+    });
+    const { rows, counters } = await snapshot(gameId, [ids[1]]);
+    const d = await groupIdOf(ids[1], "d");
+    expect(
+      Object.fromEntries(rows[0].groups.map((g) => [g.id, g.editCount])),
+    ).toEqual({ [groupIds[0]]: 1, [d]: 0 });
+    expect(counters.groupsMerged).toBe(2);
+    expect(nextCache.revalidatePath.mock.calls).toEqual([
+      [`/spill/${gameId}`],
+      [`/spill/${gameId}/gjennomgang`],
+    ]);
+  });
+
+  it("FR-20, AD-11 (AC1): a source below the line merged with a Board Group takes the Board Group's ID and rank", async () => {
+    const { gameId, ids } = await reviewGame([
+      [
+        Q1,
+        [
+          ["Kari", "Ola", "Per"],
+          ["Anne", "Bjørn", "Cato"],
+          ["Dina", "Erik", "Frida"],
+        ],
+      ],
+    ]);
+    const per = await groupIdOf(ids[0], "per");
+    const anne = await groupIdOf(ids[0], "anne");
+    expect(
+      (await review.load(hostId, gameId)).current.below.map((g) => g.id),
+    ).toEqual([per]);
+    expect(
+      await review.merge(hostId, { gameId, groupIds: [per, anne] }),
+    ).toEqual({ groupId: anne, label: "anne", count: 2, position: 1 });
+    const { current } = await review.load(hostId, gameId);
+    expect(current.board).toHaveLength(8);
+    expect(current.below).toEqual([]);
+    expect(await groupRow(per)).toBeUndefined();
+  });
+
+  it("FR-20, AD-11 (AC1): a renamed highest-ranked source keeps its custom label", async () => {
+    const { gameId, ids } = await reviewGame(SHARED);
+    const kari = await groupIdOf(ids[0], "kari");
+    await (
+      await getDb()
+    )
+      .update(answerGroup)
+      .set({ customLabel: "X" })
+      .where(eq(answerGroup.id, kari));
+    const result = await review.merge(hostId, {
+      gameId,
+      groupIds: [kari, await groupIdOf(ids[0], "ola")],
+    });
+    expect(result.label).toBe("X");
+    expect((await groupRow(kari)).customLabel).toBe("X");
+  });
+
+  it("FR-20, AD-5 (AC2): Groups of two Questions, a discarded Group, a random UUID or a malformed ID are NOT_FOUND, and nothing changes", async () => {
+    const { gameId, ids } = await reviewGame(SHARED);
+    const kari = await groupIdOf(ids[0], "kari");
+    const ola = await groupIdOf(ids[0], "ola");
+    const a = await groupIdOf(ids[1], "a");
+    const b = await groupIdOf(ids[1], "b");
+    const db = await getDb();
+    await db
+      .update(answerGroup)
+      .set({ discarded: true })
+      .where(eq(answerGroup.id, b));
+    await db
+      .update(question)
+      .set({ reviewed: true })
+      .where(eq(question.gameId, gameId));
+    const before = await snapshot(gameId, ids);
+    for (const groupIds of [
+      [kari, a],
+      [a, b],
+      [kari, ola, randomUUID()],
+      [kari, "abc"],
+    ]) {
+      const error = await review
+        .merge(hostId, { gameId, groupIds })
+        .catch((e: unknown) => e);
+      expect((error as DomainError).code, String(groupIds)).toBe("NOT_FOUND");
+    }
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20 (AC2): one ID, a duplicate ID or no list is INVALID_INPUT, and nothing changes", async () => {
+    const { gameId, ids } = await reviewGame(SHARED);
+    const kari = await groupIdOf(ids[0], "kari");
+    const before = await snapshot(gameId, ids);
+    for (const groupIds of [[kari], [kari, kari], undefined]) {
+      const error = await review
+        .merge(hostId, { gameId, groupIds })
+        .catch((e: unknown) => e);
+      expect((error as DomainError).code, String(groupIds)).toBe(
+        "INVALID_INPUT",
+      );
+    }
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it.each(["ready", "draft"])(
+    "FR-20, AD-4 (AC2): a Game in %s is WRONG_STATE, and nothing changes",
+    async (state) => {
+      const { gameId, ids } = await reviewGame(SHARED);
+      const groupIds = [
+        await groupIdOf(ids[0], "kari"),
+        await groupIdOf(ids[0], "ola"),
+      ];
+      await (
+        await getDb()
+      )
+        .update(game)
+        .set({ state: state as GameState })
+        .where(eq(game.id, gameId));
+      const before = await snapshot(gameId, ids);
+      const error = await review
+        .merge(hostId, { gameId, groupIds })
+        .catch((e: unknown) => e);
+      expect((error as DomainError).code).toBe("WRONG_STATE");
+      expect(await snapshot(gameId, ids)).toEqual(before);
+    },
+  );
+
+  it("FR-20, AD-15 (AC1): a write failing after the Answers moved rolls the whole merge back", async () => {
+    const { gameId, ids } = await reviewGame(SHARED);
+    const groupIds = [
+      await groupIdOf(ids[0], "kari"),
+      await groupIdOf(ids[0], "ola"),
+    ];
+    await (
+      await getDb()
+    )
+      .update(question)
+      .set({ reviewed: true })
+      .where(eq(question.id, ids[0]));
+    const before = await snapshot(gameId, ids);
+    vi.mocked(games.bumpCounters).mockRejectedValueOnce(new Error("disk full"));
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const error = await review
+      .merge(hostId, { gameId, groupIds })
+      .catch((e: unknown) => e);
+    expect((error as DomainError).code).toBe("INTERNAL");
+    expect(games.bumpCounters).toHaveBeenCalled();
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20, UX-DR12 (AC3): the page renders a checkbox named Velg «label» on every Board and Ikke på brettet card and none under Forkastet", async () => {
+    const { gameId, ids } = await reviewGame([
+      [
+        Q1,
+        [
+          ["Kari", "Ola", "Per"],
+          ["Anne", "Bjørn", "Cato"],
+          ["Dina", "Erik", "Frida", "Geir"],
+        ],
+      ],
+    ]);
+    await (
+      await getDb()
+    )
+      .update(answerGroup)
+      .set({ discarded: true })
+      .where(eq(answerGroup.id, await groupIdOf(ids[0], "geir")));
+    const html = await render(gameId);
+    expect(html.match(/type="checkbox"/g)).toHaveLength(9);
+    expect(html).toContain('aria-label="Velg «per»"');
+    const forkastet = html.slice(html.indexOf(">Forkastet"));
+    expect(forkastet).toContain(">geir</h4>");
+    expect(forkastet).not.toContain('type="checkbox"');
+    // No selection yet, so no SelectionBar.
+    expect(html).not.toContain("valgt");
+  });
+
+  it("FR-19, FR-13: two written forms once each (Kari, kari) give the chip in SQL order, Kari", async () => {
+    const { gameId } = await reviewGame([[Q1, [["Kari"], ["kari"], ["Ola"]]]]);
+    const { current } = await review.load(hostId, gameId);
+    expect(current.board[0].chips).toEqual([{ text: "Kari", n: 2 }]);
   });
 });

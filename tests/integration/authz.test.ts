@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GET as reportRoute } from "@/app/api/spill/[gameId]/rapport/route";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +7,7 @@ import {
   closeCollection,
   createInviteLinks,
   deleteGame,
+  mergeGroups,
   moveQuestion,
   removeQuestion,
   revokeInviteLink,
@@ -26,6 +27,7 @@ import * as collection from "@/server/collection";
 import { getDb } from "@/server/db/client";
 import {
   answer,
+  answerGroup,
   game,
   inviteLink,
   question,
@@ -254,6 +256,58 @@ describe("Host B against Host A's Game", () => {
         id,
       ).toEqual({ title: "Vi finner ikke dette spillet" });
     }
+  });
+
+  it("FR-20, AD-5 (AC2): B's review.merge and mergeGroups action on A's Groups, with A's Game, B's own in review Game, a random UUID or a malformed Game ID, give NOT_FOUND, and A's Groups stay as they were", async () => {
+    const db = await getDb();
+    const [{ id: reviewOfA }, { id: reviewOfB }] = await db
+      .insert(game)
+      .values([
+        { hostId: hosts.A, title: "As grupper", state: "in_review" },
+        { hostId: hosts.B, title: "Bs grupper", state: "in_review" },
+      ])
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: reviewOfA, position: 1, text: "?" });
+    const groupIds = [randomUUID(), randomUUID()];
+    await db
+      .insert(answerGroup)
+      .values(
+        groupIds.map((id) => ({ id, questionId, origin: "fallback" as const })),
+      );
+    await db.insert(answer).values(
+      groupIds.map((groupId, i) => ({
+        questionId,
+        contributorKey: randomUUID(),
+        rank: 1,
+        text: `svar ${i}`,
+        normalizedText: `svar ${i}`,
+        groupId,
+      })),
+    );
+    const groupsOfA = () =>
+      db
+        .select()
+        .from(answerGroup)
+        .where(inArray(answerGroup.id, groupIds))
+        .orderBy(asc(answerGroup.id));
+    const before = await groupsOfA();
+    as("B");
+    for (const gameId of [reviewOfA, reviewOfB, randomUUID(), "abc"]) {
+      const error = await rejection(
+        review.merge(hosts.B, { gameId, groupIds }),
+      );
+      expect((error as DomainError).code, gameId).toBe("NOT_FOUND");
+      expect(await mergeGroups({ gameId, groupIds }), gameId).toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    }
+    expect(await groupsOfA()).toEqual(before);
+    expect((await games.counters(reviewOfA)).groupsMerged).toBe(0);
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {

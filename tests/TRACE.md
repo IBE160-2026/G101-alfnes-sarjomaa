@@ -269,8 +269,11 @@ Review display.
 
 Correct the Grouping.
 
-- None yet.
-- Pending: Stories 5.2, 5.3, 5.4.
+- `tests/unit/review.test.ts`: `mergeGroupsSchema` takes 2 to 250 distinct Group IDs (`INVITE_LINKS_MAX * ANSWERS_PER_QUESTION_MAX`) and refuses none, one, 251, a duplicate, a non-string and a non-list (Story 5.2, AC2).
+- `tests/integration/review.test.ts`: `review.merge` of two Groups sharing a Contributor key keeps the higher-ranked Group's ID whatever the ID order, freezes its label as `custom_label`, gives Count 4 (below 3 + 2), deletes the other Group, keeps every Answer of the Question under the target, clears `reviewed`, sets `edit_count` 1 and `groups_merged` 1; three Groups through the `mergeGroups` action leave one with `edit_count` 1, count 2 in `groups_merged` and revalidate `/spill/{id}` and `/spill/{id}/gjennomgang`; a rank-9 Group merged with a Board Group takes the Board Group's ID at place 1; a renamed highest-ranked source keeps "X"; Groups of two Questions, a discarded Group, a random UUID and `abc` are `NOT_FOUND`, one ID, a duplicate and no list `INVALID_INPUT`, a _ready_ or _draft_ Game `WRONG_STATE`, nothing changed each time; `bumpCounters` failing after the move rolls the whole merge back (`INTERNAL`); the page renders a checkbox named "Velg «label»" on all nine Board and _Ikke på brettet_ cards and none under _Forkastet_ (Story 5.2, AC1, AC2, AC3).
+- `tests/integration/authz.test.ts`: Host B's `review.merge` and `mergeGroups` action on A's Group IDs with A's Game, B's own _in review_ Game, a random UUID and `abc` all give `NOT_FOUND`, and A's Groups and counters stay unchanged (Story 5.2, AC2, AD-5).
+- `tests/e2e/review.spec.ts`: one ticked Group shows "1 gruppe valgt" and "Velg minst to grupper for å slå sammen.", two show "Slå sammen 2 grupper", the selected card gets the `primary-soft` fill at the same height; an aborted merge POST shows "Endringen ble ikke lagret. Prøv igjen." inside the bar above its actions with both boxes still ticked and the Groups unchanged; while the POST is held the two cards are `aria-busy` and the button reads "Slår sammen …"; after the merge (Frida + Per below the line) the list re-sorts with "frida" at 2, _Ikke på brettet_ is gone, focus is on the "frida" heading, the live region reads "Slått sammen til «frida», nå 2 personer, plass 2." and the card shows the chips "Frida" and "Per"; Esc clears the selection; "Fjern valg" clears it and returns focus to the first ticked checkbox (Story 5.2, AC3).
+- Pending: Stories 5.3, 5.4.
 
 ## FR-21
 
@@ -371,6 +374,13 @@ Devices.
 - `tests/manual/checklist.md`: A4, 360 px, 320 px and 200 % zoom on a real phone (Story 2.4, AC6).
 - `tests/e2e/review.spec.ts`: Review works on a laptop at 1280 and 1100 px and, with the select and the narrow-screen notice, at 900 and 700 px without horizontal scroll (Story 5.1, AC5).
 
+## NFR-5
+
+Responsiveness: every Host action in Review and play shows its result within one second.
+
+- `tests/manual/checklist.md`: T1, merge timing on the sizing Game (Story 5.2, AC4). Timed by hand, not in CI, so no flaky timing test.
+- Pending: Stories 5.3, 5.4, 5.5 and Epic 6.
+
 ## NFR-6
 
 Accessibility (WCAG 2.1 AA).
@@ -386,6 +396,8 @@ Accessibility (WCAG 2.1 AA).
 - `tests/manual/checklist.md`: A2 keyboard only, A3 screen reader, A4 reflow and zoom (Story 2.4, AC6).
 - `tests/e2e/close.spec.ts`: when the poll moves the Game from _grouping_ to _in review_, focus moves from the gone "Gruppering" heading to "Grupperingen er ferdig", and axe finds no serious or critical violations on the summary at 360 px (Story 4.2, AC6).
 - `tests/e2e/review.spec.ts`: Review at 1280, 1100, 900 and 700 px has a 288 px rail, a 240 px rail, a `<select>` above the main pane with "Lås brettet" at the foot (choosing does not navigate until "Vis", WCAG 3.2.2), and the narrow-screen notice; "Lås brettet" is `aria-disabled` with "Gjennomgå alle spørsmålene først (1 igjen)." as its accessible description; no horizontal scroll and no serious or critical axe violation at any width (Story 5.1, AC5).
+- `tests/e2e/review.spec.ts`: axe finds no serious or critical violations with the SelectionBar open; Space ticks a Group checkbox, Tab moves from the last card to "Slå sammen 2 grupper" and "Fjern valg", each with the inverse focus ring (3 px white) and at least 44 px high, and the checkbox target is 44 px (Story 5.2, AC3).
+- `tests/manual/checklist.md`: A10, the focus ring on every SelectionBar control by keyboard (Story 5.2).
 - Pending: every story that builds a screen.
 
 ## NFR-7

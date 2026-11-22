@@ -71,6 +71,7 @@ export const test = base.extend({
 export { expect };
 
 export const FOCUS_RING = "3px solid rgb(30, 26, 34)";
+export const FOCUS_RING_INVERSE = "3px solid rgb(255, 255, 255)";
 export const PASSWORD = "riktig-passord-123";
 
 // Each spec registers its own Host on a reserved domain.

@@ -56,6 +56,19 @@ export async function count(tx: Tx, gameId: string): Promise<number> {
   return row.n;
 }
 
+// The only question write outside draft (AD-15): Review edits clear the mark, 5.5 sets it.
+// The caller holds the Game lock and has resolved questionId inside the owned Game.
+export async function setReviewed(
+  tx: Tx,
+  questionId: string,
+  reviewed: boolean,
+): Promise<void> {
+  await tx
+    .update(question)
+    .set({ reviewed })
+    .where(eq(question.id, questionId));
+}
+
 // No owner check: callers have already resolved the Game (owned, or by a valid Invite link).
 export async function ofGame(gameId: string): Promise<Question[]> {
   const db = await getDb();

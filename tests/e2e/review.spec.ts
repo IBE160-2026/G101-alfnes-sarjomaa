@@ -1,6 +1,7 @@
 import type { Browser, Page } from "@playwright/test";
 import {
   expect,
+  FOCUS_RING_INVERSE,
   localOnly,
   registerHost,
   seriousViolations,
@@ -73,6 +74,24 @@ async function collectingGame(page: Page) {
   return { gamePath: new URL(page.url()).pathname, links };
 }
 
+// Closes the collecting Game on its page and follows "Gå til gjennomgangen".
+async function closeAndOpenReview(page: Page, gamePath: string) {
+  await page.reload();
+  await page
+    .getByRole("region", { name: "Innsamling" })
+    .getByRole("button", { name: "Steng innsamlingen", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Stenge innsamlingen?" })
+    .getByRole("button", { name: "Steng innsamlingen" })
+    .click();
+  await expect(page.getByText("Til gjennomgang", { exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.getByRole("link", { name: "Gå til gjennomgangen" }).click();
+  await expect(page).toHaveURL(`${gamePath}/gjennomgang`);
+}
+
 const noHorizontalScroll = (page: Page) =>
   page.evaluate(
     () =>
@@ -94,20 +113,7 @@ test("FR-17 (AC4), FR-19 (AC3), UX-DR10, UX-DR11, UX-DR17 (AC5), NFR-4, NFR-6: a
   await expect(page.getByText("Samler inn", { exact: true })).toBeVisible();
 
   await submitSets(browser, baseURL, links);
-  await page.reload();
-  await page
-    .getByRole("region", { name: "Innsamling" })
-    .getByRole("button", { name: "Steng innsamlingen", exact: true })
-    .click();
-  await page
-    .getByRole("dialog", { name: "Stenge innsamlingen?" })
-    .getByRole("button", { name: "Steng innsamlingen" })
-    .click();
-  await expect(page.getByText("Til gjennomgang", { exact: true })).toBeVisible({
-    timeout: 10_000,
-  });
-  await page.getByRole("link", { name: "Gå til gjennomgangen" }).click();
-  await expect(page).toHaveURL(`${gamePath}/gjennomgang`);
+  await closeAndOpenReview(page, gamePath);
   await expect(page).toHaveTitle("Gjennomgang – Hyttetur – Toppsvar");
 
   const breadcrumb = page.getByRole("navigation", { name: "Brødsmulesti" });
@@ -253,4 +259,149 @@ test("FR-17 (AC4), FR-19 (AC3), UX-DR10, UX-DR11, UX-DR17 (AC5), NFR-4, NFR-6: a
   await expect(select).toBeVisible();
   expect(await noHorizontalScroll(page)).toBe(true);
   expect(await seriousViolations(page)).toEqual([]);
+});
+
+test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, two the merge button; a failed merge keeps Groups and selection with the message in the bar; the merge re-sorts the list, focuses the merged heading and announces it; Esc clears; bar controls have the white focus ring and axe is clean with the bar open", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { gamePath, links } = await collectingGame(page);
+  await submitSets(browser, baseURL, links);
+  await closeAndOpenReview(page, gamePath);
+
+  const board = page.getByRole("region", { name: "På brettet (8 grupper)" });
+  const bar = page.locator("[data-selection-bar]");
+  const box = (label: string) =>
+    page.getByRole("checkbox", { name: `Velg «${label}»` });
+  const card = (label: string) =>
+    page.getByRole("listitem").filter({
+      has: page.getByRole("heading", { level: 4, name: label, exact: true }),
+    });
+  await expect(bar).toHaveCount(0);
+
+  // One Group: the hint, no merge button. Per sits below the line, rank 9.
+  await box("per").check();
+  await expect(bar).toContainText("1 gruppe valgt");
+  await expect(
+    bar.getByText("Velg minst to grupper for å slå sammen.", { exact: true }),
+  ).toBeVisible();
+  await expect(bar.getByRole("button", { name: /Slå sammen/ })).toHaveCount(0);
+  const plain = await card("frida").evaluate(
+    (el) => el.getBoundingClientRect().height,
+  );
+
+  // Two Groups: the merge button; the selected card changes fill but not size.
+  await box("frida").check();
+  await expect(bar).toContainText("2 grupper valgt");
+  const merge = bar.getByRole("button", { name: "Slå sammen 2 grupper" });
+  await expect(merge).toBeVisible();
+  expect(
+    await card("frida").evaluate((el) => [
+      getComputedStyle(el).backgroundColor,
+      el.getBoundingClientRect().height,
+    ]),
+  ).toEqual(["rgb(245, 231, 240)", plain]);
+
+  // A failed request: the message inside the bar above its actions, nothing else changes.
+  const isAction = (url: URL) => url.pathname === `${gamePath}/gjennomgang`;
+  await page.route(isAction, (route) =>
+    route.request().method() === "POST" ? route.abort() : route.fallback(),
+  );
+  await merge.click();
+  const failure = bar.getByRole("alert");
+  await expect(failure).toHaveText("Endringen ble ikke lagret. Prøv igjen.");
+  expect((await failure.boundingBox())!.y).toBeLessThan(
+    (await merge.boundingBox())!.y,
+  );
+  await expect(box("per")).toBeChecked();
+  await expect(box("frida")).toBeChecked();
+  await expect(
+    page.getByRole("region", { name: "Ikke på brettet (1 gruppe)" }),
+  ).toBeVisible();
+  await page.unroute(isAction);
+
+  // Pessimistic: the selected cards are busy until the server answers.
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  await page.route(isAction, async (route) => {
+    if (route.request().method() === "POST") await gate;
+    await route.fallback();
+  });
+  await merge.click();
+  await expect(failure).toHaveCount(0);
+  await expect(card("frida")).toHaveAttribute("aria-busy", "true");
+  await expect(card("per")).toHaveAttribute("aria-busy", "true");
+  await expect(card("kari")).not.toHaveAttribute("aria-busy");
+  await expect(merge).toContainText("Slår sammen");
+  release();
+
+  // Frida and Per came from two sets: Count 2, so the merged Group moves from 7 to 2.
+  await expect(bar).toHaveCount(0);
+  await expect(board.getByRole("heading", { level: 4 })).toHaveText([
+    "kari",
+    "frida",
+    "anne",
+    "dina",
+    "bjørn",
+    "cato",
+    "erik",
+    "ola",
+  ]);
+  await expect(page.getByText("Ikke på brettet")).toHaveCount(0);
+  await expect(
+    board.getByRole("heading", { level: 4, name: "frida" }),
+  ).toBeFocused();
+  await expect(page.locator('p[aria-live="polite"]')).toHaveText(
+    "Slått sammen til «frida», nå 2 personer, plass 2.",
+  );
+  // The merged Group is a multi-chip card, chips in alphabetical order.
+  await expect(card("frida")).toHaveText(
+    /^2\.\s*frida\s*2 personer\s*Frida\s*Per$/,
+  );
+  await expect(card("frida").getByRole("listitem")).toHaveText([
+    "Frida",
+    "Per",
+  ]);
+  await page.unroute(isAction);
+
+  // Esc clears the selection.
+  await box("anne").check();
+  await box("dina").check();
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+  await expect(box("anne")).not.toBeChecked();
+  await expect(box("dina")).not.toBeChecked();
+
+  // Keyboard: Space ticks, Tab goes from the last card to the bar, whose controls ring white.
+  await box("kari").check();
+  await box("ola").focus();
+  await page.keyboard.press("Space");
+  await expect(box("ola")).toBeChecked();
+  const outline = () =>
+    page.evaluate(() => {
+      const s = getComputedStyle(document.activeElement!);
+      return `${s.outlineWidth} ${s.outlineStyle} ${s.outlineColor}`;
+    });
+  await page.keyboard.press("Tab");
+  await expect(
+    bar.getByRole("button", { name: "Slå sammen 2 grupper" }),
+  ).toBeFocused();
+  expect(await outline()).toBe(FOCUS_RING_INVERSE);
+  await page.keyboard.press("Tab");
+  await expect(bar.getByRole("button", { name: "Fjern valg" })).toBeFocused();
+  expect(await outline()).toBe(FOCUS_RING_INVERSE);
+  for (const button of await bar.getByRole("button").all())
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await box("kari").locator("..").boundingBox())!.height).toBe(44);
+  // The title streams in with the action's re-render; under load it can lag the list.
+  await expect(page).toHaveTitle("Gjennomgang – Hyttetur – Toppsvar");
+  expect(await seriousViolations(page)).toEqual([]);
+
+  // Fjern valg clears, and focus goes back to the first ticked checkbox.
+  await page.keyboard.press("Enter");
+  await expect(bar).toHaveCount(0);
+  await expect(box("kari")).toBeFocused();
+  await expect(box("kari")).not.toBeChecked();
 });

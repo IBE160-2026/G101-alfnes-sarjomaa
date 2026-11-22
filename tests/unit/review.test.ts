@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { collapseChips, fallbackNotice } from "@/lib/review";
+import { ANSWERS_PER_QUESTION_MAX, INVITE_LINKS_MAX } from "@/lib/limits";
+import { collapseChips, fallbackNotice, mergeGroupsSchema } from "@/lib/review";
 
 const KEY =
   "Ingen KI-nøkkel er satt opp, så alle spørsmålene starter med én gruppe per ulikt svar.";
@@ -115,5 +116,26 @@ describe("fallbackNotice", () => {
       ),
     ).toBeNull();
     expect(fallbackNotice([q(1, "NO_KEY", true)], false)).toBeNull();
+  });
+});
+
+describe("mergeGroupsSchema", () => {
+  const ok = (groupIds: unknown) =>
+    mergeGroupsSchema.safeParse({ gameId: "g", groupIds }).success;
+  const ids = (n: number) => Array.from({ length: n }, (_, i) => `id-${i}`);
+  const MAX = INVITE_LINKS_MAX * ANSWERS_PER_QUESTION_MAX;
+
+  it("FR-20 (AC2): takes 2 to one Group per possible Answer, all distinct", () => {
+    expect(ok(ids(2))).toBe(true);
+    expect(ok(ids(MAX))).toBe(true);
+  });
+
+  it("FR-20 (AC2): refuses fewer than two, more than the cap, duplicates and non-strings", () => {
+    expect(ok([])).toBe(false);
+    expect(ok(ids(1))).toBe(false);
+    expect(ok(ids(MAX + 1))).toBe(false);
+    expect(ok(["a", "a"])).toBe(false);
+    expect(ok(["a", 1])).toBe(false);
+    expect(ok("a,b")).toBe(false);
   });
 });

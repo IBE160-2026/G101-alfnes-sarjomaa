@@ -1,4 +1,19 @@
-// Review's pure helpers: Answer chips and the fallback Notice (FR-17, FR-19).
+// Review's pure helpers and input schemas: Answer chips, the fallback Notice and merge (FR-17, FR-19, FR-20).
+import { z } from "zod";
+import { ANSWERS_PER_QUESTION_MAX, INVITE_LINKS_MAX } from "@/lib/limits";
+
+const MERGE_IDS = "Velg minst to ulike grupper.";
+
+// Malformed IDs are left to review.merge, which makes them NOT_FOUND (AD-5). The cap is
+// the most Groups a Question can have: one per Answer.
+export const mergeGroupsSchema = z.object({
+  gameId: z.string(),
+  groupIds: z
+    .array(z.string())
+    .min(2, MERGE_IDS)
+    .max(INVITE_LINKS_MAX * ANSWERS_PER_QUESTION_MAX, MERGE_IDS)
+    .refine((ids) => new Set(ids).size === ids.length, MERGE_IDS),
+});
 
 // Answers come in SQL order (normalized_text, then text). Equal normalised texts become
 // one chip in its most common written form (ties: the first), keeping that order.

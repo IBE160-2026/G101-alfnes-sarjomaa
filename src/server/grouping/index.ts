@@ -40,6 +40,27 @@ export async function insertAnswers(tx: Tx, rows: AnswerRow[]): Promise<void> {
   await tx.insert(answer).values(rows);
 }
 
+// Review's merge (FR-20, AD-11). The caller holds the Game lock and resolved every ID in
+// one Question. Answers move before the delete, since deleting a Group cascades to its Answers.
+export async function mergeGroups(
+  tx: Tx,
+  {
+    targetId,
+    sourceIds,
+    label,
+  }: { targetId: string; sourceIds: string[]; label: string },
+): Promise<void> {
+  await tx
+    .update(answer)
+    .set({ groupId: targetId })
+    .where(inArray(answer.groupId, sourceIds));
+  await tx.delete(answerGroup).where(inArray(answerGroup.id, sourceIds));
+  await tx
+    .update(answerGroup)
+    .set({ customLabel: label, editCount: sql`${answerGroup.editCount} + 1` })
+    .where(eq(answerGroup.id, targetId));
+}
+
 // A Game deleted or already past grouping: the run stops without a trace (AD-12).
 const isGone = (error: unknown) =>
   error instanceof DomainError &&

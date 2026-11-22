@@ -5,8 +5,8 @@ import { cache } from "react";
 import { Button } from "@/components/Button";
 import { GroupCard } from "@/components/GroupCard";
 import { Notice } from "@/components/Notice";
+import { ReviewGroups } from "@/components/ReviewGroups";
 import { DomainError } from "@/lib/errors";
-import { BOARD_SIZE } from "@/lib/limits";
 import { fallbackNotice } from "@/lib/review";
 import * as auth from "@/server/auth";
 import { env } from "@/server/env";
@@ -236,58 +236,25 @@ export default async function ReviewPage({
             )}
           </div>
 
-          {current.board.length > 0 && (
-            <section aria-labelledby="pa-brettet" className="mt-8">
-              <h3 id="pa-brettet" className="text-title">
-                På brettet ({groups(current.board.length)})
-              </h3>
-              <ol className="mt-3 flex flex-col gap-2">
-                {current.board.map((g, i) => (
-                  <GroupCard key={g.id} rank={i + 1} look="board" {...g} />
-                ))}
-              </ol>
-            </section>
-          )}
-
-          {current.below.length > 0 && (
-            <>
-              <p className="mt-8 border-t-2 border-line-strong pt-2 text-label">
-                Alt under streken vises ikke i spillet
-              </p>
-              <section aria-labelledby="ikke-pa-brettet" className="mt-6">
-                <h3 id="ikke-pa-brettet" className="text-title">
-                  Ikke på brettet ({groups(current.below.length)})
+          <ReviewGroups
+            key={current.position}
+            gameId={id}
+            board={current.board}
+            below={current.below}
+          >
+            {current.discarded.length > 0 && (
+              <section aria-labelledby="forkastet" className="mt-8">
+                <h3 id="forkastet" className="text-title">
+                  Forkastet ({groups(current.discarded.length)})
                 </h3>
-                <p className="mt-1 max-w-prose">
-                  Vises ikke i spillet. Slå dem sammen med en gruppe over for at
-                  de skal telle.
-                </p>
-                <ol className="mt-3 flex flex-col gap-2">
-                  {current.below.map((g, i) => (
-                    <GroupCard
-                      key={g.id}
-                      rank={BOARD_SIZE + i + 1}
-                      look="below"
-                      {...g}
-                    />
+                <ul className="mt-3 flex flex-col gap-2">
+                  {current.discarded.map((g) => (
+                    <GroupCard key={g.id} look="discarded" {...g} />
                   ))}
-                </ol>
+                </ul>
               </section>
-            </>
-          )}
-
-          {current.discarded.length > 0 && (
-            <section aria-labelledby="forkastet" className="mt-8">
-              <h3 id="forkastet" className="text-title">
-                Forkastet ({groups(current.discarded.length)})
-              </h3>
-              <ul className="mt-3 flex flex-col gap-2">
-                {current.discarded.map((g) => (
-                  <GroupCard key={g.id} look="discarded" {...g} />
-                ))}
-              </ul>
-            </section>
-          )}
+            )}
+          </ReviewGroups>
         </div>
       </div>
 
