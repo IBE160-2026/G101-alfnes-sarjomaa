@@ -140,6 +140,7 @@ No identity in the answering flow.
 - `tests/integration/collection.test.ts`: a first submit leaves the `game` row, `updated_at` included, unchanged; with `submission` renamed it returns `INTERNAL` and stderr holds one line `{ module: "collection", op: "submit", code: "INTERNAL", sqlstate: "42P01" }` with no Token, hash, edit secret, its hash, Answer or gameId (Story 2.4, AD-8, AD-17).
 - `tests/e2e/answer-form.spec.ts`: opened in the Host's own browser, the answer form shows no "Logg ut", "Mine spill" or `@` (Story 2.4, AC6).
 - `tests/unit/lint-zones.test.ts`: `AnswerForm.tsx` may not import `@/server/auth` (Story 2.4, AD-6).
+- `tests/unit/next-config.test.ts`: `next.config.ts` sets `logging.serverFunctions` and `logging.browserToTerminal` to `false`, so `next dev` never prints a Server Function's arguments (Token, edit secret) or a guest's browser console (Epic 2 review, H1).
 - Pending: Stories 3.2, 3.3, 6.5.
 
 ## FR-12
