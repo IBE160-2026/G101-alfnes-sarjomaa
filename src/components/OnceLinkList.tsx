@@ -92,11 +92,7 @@ export function OnceLinkList({
     try {
       await navigator.clipboard.writeText(text);
       setCopied(which);
-      setStatus(
-        which === "all" && links.length > 1
-          ? "Lenkene kopiert."
-          : "Lenke kopiert.",
-      );
+      setStatus(which === "all" ? "Lenkene kopiert." : "Lenke kopiert.");
       clearTimeout(timer.current); // another copy may have started meanwhile
       timer.current = setTimeout(() => setCopied(null), COPIED_MS);
     } catch {
@@ -117,14 +113,16 @@ export function OnceLinkList({
         Av hensyn til anonymiteten lagrer vi ikke lenkene, så de kan ikke vises
         igjen. Send én lenke til hver deltaker.
       </Notice>
-      <Button
-        type="button"
-        variant="primary"
-        className="mt-4"
-        onClick={() => copy("all")}
-      >
-        {copied === "all" ? "Kopiert" : "Kopier alle"}
-      </Button>
+      {links.length > 1 && (
+        <Button
+          type="button"
+          variant="primary"
+          className="mt-4"
+          onClick={() => copy("all")}
+        >
+          {copied === "all" ? "Kopiert" : "Kopier alle"}
+        </Button>
+      )}
       <ol ref={listRef} className="mt-4 flex flex-col divide-y divide-line">
         {links.map((link, i) => (
           <li

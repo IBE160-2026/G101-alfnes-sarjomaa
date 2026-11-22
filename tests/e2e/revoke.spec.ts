@@ -81,6 +81,10 @@ test("FR-9, UX-DR8: at 360 px the Host pastes a used and an unused link, gets th
     await dialog.getByRole("button", { name: ACTION }).click();
     await expect(dialog).toBeHidden();
     await expect(page.locator("[data-link]")).toHaveCount(1);
+    // One link needs no "Kopier alle" beside its own "Kopier".
+    await expect(page.getByRole("button", { name: "Kopier alle" })).toHaveCount(
+      0,
+    );
     const [link1] = await page.locator("[data-link]").allTextContents();
     expect(old).not.toContain(link1);
     expect(fresh).not.toContain(link1);

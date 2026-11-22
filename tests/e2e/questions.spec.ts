@@ -92,6 +92,9 @@ test("FR-4, NFR-6: the counter starts at 160, and 201 characters show the field 
   await expect(field(page, 1)).toHaveAttribute("aria-invalid", "true");
   await expect(field(page, 1)).toHaveAccessibleDescription(`Feil: ${LENGTH}`);
   await expect(row(page, 1).getByText(LENGTH)).toHaveCSS("color", DANGER);
+  await expect(
+    row(page, 1).locator("span[aria-hidden]", { hasText: "201 av 200 tegn" }),
+  ).toHaveCSS("color", DANGER);
   await expect(editor(page).getByText("0 av 20 spørsmål")).toBeVisible();
 });
 

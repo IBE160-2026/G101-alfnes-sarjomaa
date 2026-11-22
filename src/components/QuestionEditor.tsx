@@ -309,7 +309,10 @@ function QuestionRow({
           </Button>
         )}
         {length >= QUESTION_COUNTER_FROM && (
-          <span aria-hidden="true" className="ml-auto text-ink-muted">
+          <span
+            aria-hidden="true"
+            className={`ml-auto ${length > QUESTION_TEXT_MAX ? "text-danger" : "text-ink-muted"}`}
+          >
             {count}
           </span>
         )}
