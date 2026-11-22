@@ -13,6 +13,7 @@ const QUESTION = "Hvem sovner først på hytta?";
 const BODY =
   "Alt som er sendt inn via den, slettes. Du får én ny lenke, som vises bare én gang.";
 const ACTION = "Trekk tilbake og lag ny";
+const NETWORK = "Fikk ikke kontakt. Sjekk nettet og prøv igjen.";
 
 test.use({ viewport: { width: 360, height: 740 } });
 
@@ -93,6 +94,13 @@ test("FR-9, UX-DR8: at 360 px the Host pastes a used and an unused link, gets th
   }
   expect(dialogTexts[1]).toBe(dialogTexts[0]);
 
+  // A blank field is the one client-side check: the dialog stays closed.
+  await field.fill("   ");
+  await trigger.click();
+  await expect(dialog).toBeHidden();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveAccessibleDescription(`Feil: ${LINK_NOT_ACTIVE}`);
+
   await field.fill("abc");
   await trigger.click();
   await dialog.getByRole("button", { name: ACTION }).click();
@@ -104,6 +112,21 @@ test("FR-9, UX-DR8: at 360 px the Host pastes a used and an unused link, gets th
   await expect(field).toHaveAttribute("aria-invalid", "true");
   expect(page.url()).toBe(gameUrl);
   await expect(page.locator("h1")).toHaveText(TITLE);
+
+  // An aborted request shows the network message in the dialog and no new link.
+  const gamePath = new URL(gameUrl).pathname;
+  await page.route(`**${gamePath}`, (route) =>
+    route.request().method() === "POST" ? route.abort() : route.continue(),
+  );
+  await field.fill(fresh[1]);
+  await trigger.click();
+  await dialog.getByRole("button", { name: ACTION }).click();
+  await expect(dialog.getByRole("alert")).toHaveText(NETWORK);
+  await expect(dialog.getByRole("alert")).toBeFocused();
+  await expect(page.locator("[data-link]")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Avbryt" }).click();
+  await page.unroute(`**${gamePath}`);
+
   expect(await noHorizontalScroll(page)).toBe(true);
   expect(await seriousViolations(page)).toEqual([]);
 

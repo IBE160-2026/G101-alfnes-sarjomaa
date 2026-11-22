@@ -40,7 +40,8 @@ export function RevokeLinkPanel({
     const target = focusNext.current;
     if (!target) return;
     focusNext.current = null;
-    if (target === "notice") noticeRef.current?.focus();
+    // A cap refresh unmounts the dialog and its notice, so the cap sentence takes focus.
+    if (target === "notice") (noticeRef.current ?? capRef.current)?.focus();
     // At the cap the field is gone, so the cap sentence takes focus.
     else (rootRef.current?.querySelector("input") ?? capRef.current)?.focus();
   });

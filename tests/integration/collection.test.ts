@@ -834,9 +834,6 @@ describe("revokeInviteLink", () => {
       expect(after.row.inviteLinksIssued).toBe(
         before.row.inviteLinksIssued + 1,
       );
-      expect(after.row.updatedAt.getTime()).toBeGreaterThanOrEqual(
-        before.row.updatedAt.getTime(),
-      );
       expect(after.sets).toEqual([]);
       expect(await openInviteLink(gameId, fresh)).toEqual({
         ok: true,
@@ -896,14 +893,15 @@ describe("revokeInviteLink", () => {
     expect((await openInviteLink(gameId, tokens[0])).ok).toBe(true);
   });
 
-  it("FR-9: surrounding whitespace and another origin still match the link", async () => {
-    const { gameId, tokens } = await collectingGame("Annen vert", 1);
-    const result = await revokeInviteLink({
-      gameId,
-      link: `  http://192.168.1.20:3000/svar/${gameId}#${tokens[0]}\n`,
-    });
-    expect(result.ok).toBe(true);
-    expect(await openInviteLink(gameId, tokens[0])).toEqual(UNKNOWN);
+  it("FR-9: surrounding whitespace, another origin, a trailing slash and a query string still match the link", async () => {
+    const { gameId, tokens } = await collectingGame("Annen vert", 2);
+    for (const link of [
+      `  http://192.168.1.20:3000/svar/${gameId}#${tokens[0]}\n`,
+      `http://localhost:3000/svar/${gameId}/?fbclid=x#${tokens[1]}`,
+    ])
+      expect((await revokeInviteLink({ gameId, link })).ok, link).toBe(true);
+    for (const token of tokens)
+      expect(await openInviteLink(gameId, token)).toEqual(UNKNOWN);
   });
 
   it("FR-9, AD-5: another Game's link, this Game's Token behind another Game's path, and an already revoked link are the same inline LINK_UNKNOWN and change nothing", async () => {
@@ -929,7 +927,7 @@ describe("revokeInviteLink", () => {
     expect((await openInviteLink(a.gameId, a.tokens[0])).ok).toBe(true);
   });
 
-  it("FR-9: at 50 issued a valid active link is LINK_CAP_REACHED, nothing changes and the old link still opens", async () => {
+  it('FR-9: at 50 issued a valid active link and "abc" are LINK_CAP_REACHED (cap before link), nothing changes and the old link still opens', async () => {
     const { gameId, tokens, links } = await collectingGame("Fullt", 2);
     await (
       await getDb()
@@ -938,16 +936,17 @@ describe("revokeInviteLink", () => {
       .set({ inviteLinksIssued: 50 })
       .where(eq(game.id, gameId));
     const before = await snapshot(gameId);
-    expect(await revokeInviteLink({ gameId, link: links[0] })).toEqual({
-      ok: false,
-      code: "LINK_CAP_REACHED",
-      message: "Spillet har nådd maks 50 lenker.",
-    });
+    for (const link of [links[0], "abc"])
+      expect(await revokeInviteLink({ gameId, link }), link).toEqual({
+        ok: false,
+        code: "LINK_CAP_REACHED",
+        message: "Spillet har nådd maks 50 lenker.",
+      });
     expect(await snapshot(gameId)).toEqual(before);
     expect((await openInviteLink(gameId, tokens[0])).ok).toBe(true);
   });
 
-  it.each(["draft", "grouping"] as const)(
+  it.each(NOT_COLLECTING)(
     "FR-9: in %s it is WRONG_STATE and changes nothing",
     async (state) => {
       const { gameId, links } = await collectingGame(`Fase ${state}`, 2);

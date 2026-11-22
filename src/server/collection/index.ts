@@ -60,14 +60,17 @@ async function issueLinks(
 }
 
 // The Token of a pasted link of this Game, or null. The origin is not compared, since
-// APP_BASE_URL may differ between localhost and a LAN IP.
+// APP_BASE_URL may differ between localhost and a LAN IP, and one trailing slash and a
+// query string (e.g. ?fbclid= added by a messenger) are ignored, as the link page does.
 function tokenOf(link: string, gameId: string): string | null {
   const trimmed = link.trim();
   const hash = trimmed.lastIndexOf("#");
   if (hash < 0) return null;
   const token = trimmed.slice(hash + 1);
-  return trimmed.slice(0, hash).endsWith(`/svar/${gameId}`) &&
-    TOKEN_PATTERN.test(token)
+  return trimmed
+    .slice(0, hash)
+    .replace(/\/?(\?.*)?$/, "")
+    .endsWith(`/svar/${gameId}`) && TOKEN_PATTERN.test(token)
     ? token
     : null;
 }
