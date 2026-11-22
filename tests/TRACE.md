@@ -94,9 +94,9 @@ Change a submitted Answer set.
 
 Collection progress.
 
-- `tests/integration/collection.test.ts`: `collection.progress(hostId, gameId)` returns `{ active, issued, submissions }` with `submissions` `"fewer-than-3"` at 0, 1 and 2 sets and exact at 3 and 4; a changed set counts once; a revoked link with a set lowers `active` and the count but not `issued`, and can drop the count back below three; a _draft_ Game is `{ 0, 0, "fewer-than-3" }` (Story 2.6, AC1).
+- `tests/integration/collection.test.ts`: `collection.progress(hostId, gameId)` returns `{ active, issued, submissions }` with `submissions` `"fewer-than-3"` at 0, 1 and 2 sets and exact at 3 and 4; a changed set counts once; a revoked link with a set lowers `active` and the count but not `issued`, and can drop the count back below three; a _draft_ Game is `{ 0, 0, "fewer-than-3" }` and its page has no Innsamling section (Story 2.6, AC1).
 - `tests/integration/authz.test.ts`: Host B's `collection.progress` on A's Game, a random UUID and `"abc"` rejects with the same `NOT_FOUND` (Story 2.6, AC1, AD-5).
-- `tests/e2e/progress.spec.ts`: at 360 px ProgressCount reads "færre enn 3 av 4 svar mottatt" through two sets and "4 av 4 svar mottatt" only after the next 30 s refresh, with "Du ser bare antallet, aldri hvem som har svart." below; no progress bar, `meter`, live region or motion; the once-only links survive the refresh; the locked Question list and "Flere lenker" are shown; no horizontal scroll, no serious axe violation (Story 2.6, AC2).
+- `tests/e2e/progress.spec.ts`: at 360 px ProgressCount reads "færre enn 3 av 4 svar mottatt" through three sets while the once-only links are shown (the 30 s refresh is skipped then, and the links stay), and changes only on the refresh exactly 30 s after the previous tick, not 29 s: to "3 av 4 svar mottatt", then after a fourth set to "4 av 4 svar mottatt"; "Du ser bare antallet, aldri hvem som har svart." below; no progress bar, `meter`, live region or motion; the locked Question list and "Flere lenker" are shown; no horizontal scroll, no serious axe violation (Story 2.6, AC2).
 
 ## FR-9
 

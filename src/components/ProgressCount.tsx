@@ -1,5 +1,5 @@
-// Static on purpose: no bar, live region or motion, so an arrival cannot be timed
-// against a message the Host sent (FR-8, UX-DR6).
+// Static on purpose: no bar, live region or motion. The floor hides arrivals below three,
+// and the silent 30 s refresh coarsens timing above it (FR-8, UX-DR6).
 export function ProgressCount({
   active,
   submissions,

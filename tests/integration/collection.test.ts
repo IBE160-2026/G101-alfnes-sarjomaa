@@ -677,7 +677,7 @@ describe("progress", () => {
     });
   });
 
-  it("FR-8: a draft Game has active 0, issued 0 and fewer-than-3", async () => {
+  it("FR-8, AD-17: a draft Game has active 0, issued 0 and fewer-than-3, and its page has no Innsamling section or refresh", async () => {
     const [{ id: gameId }] = await (
       await getDb()
     )
@@ -689,6 +689,15 @@ describe("progress", () => {
       issued: 0,
       submissions: FEWER,
     });
+    const html = renderToStaticMarkup(
+      await GamePage({
+        params: Promise.resolve({ id: gameId }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(html).toContain("Lag invitasjonslenker");
+    expect(html).not.toContain("Innsamling");
+    expect(html).not.toContain("svar mottatt");
   });
 
   it("FR-12, FR-8: submitting or changing a set changes no Host-visible value, updated_at and the Game list included, except the count from three", async () => {

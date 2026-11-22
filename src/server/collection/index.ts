@@ -49,7 +49,8 @@ export function createInviteLinks(
 export const FEWER_THAN_3 = "fewer-than-3";
 
 // A read: no lock, no write, never updated_at. The exact count below three never leaves
-// this function, so a single arrival cannot be timed against a message (FR-8, FR-12).
+// this function, so arrivals below three stay hidden; above it the Game page's silent
+// 30 s refresh only coarsens timing (FR-8, FR-12).
 export function progress(
   hostId: string,
   gameId: string,

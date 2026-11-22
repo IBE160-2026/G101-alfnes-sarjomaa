@@ -8,7 +8,10 @@ import { COLLECTING_REFRESH_MS } from "@/lib/limits";
 export function CollectingRefresh() {
   const router = useRouter();
   useEffect(() => {
-    const id = setInterval(() => router.refresh(), COLLECTING_REFRESH_MS);
+    const id = setInterval(() => {
+      // A failed or redirected refresh would wipe OnceLinkList's links, their only copy.
+      if (!document.querySelector("[data-link]")) router.refresh();
+    }, COLLECTING_REFRESH_MS);
     return () => clearInterval(id);
   }, [router]);
   return null;
