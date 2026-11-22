@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-22-2026 00:10
-last_updated: 11-22-2026 19:30
+last_updated: 11-22-2026 20:15
 project: Toppsvar
 project_key: NOKEY
 tracking_system: file-system
@@ -49,7 +49,7 @@ development_status:
   2-3-invite-link-page-open-closed-and-unknown: done
   2-4-answer-form-and-first-submission: done
   2-5-return-on-the-same-device-change-answers-and-keep-unsent-dra: done
-  2-6-collection-progress-on-the-game-page: backlog
+  2-6-collection-progress-on-the-game-page: done
   2-7-revoke-and-replace-a-lost-invite-link: backlog
   epic-2-retrospective: optional
 
