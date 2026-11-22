@@ -201,9 +201,18 @@ test("FR-5, NFR-6: count 0 is a field error with no request; 50 in one batch rea
   expect(selected).not.toContain("Kopier");
 
   await page.getByRole("button", { name: "Jeg har kopiert lenkene" }).click();
+  // The revoke panel shows the cap sentence too (Story 2.7).
   await expect(
-    page.getByText("Spillet har nådd maks 50 lenker."),
+    page
+      .getByRole("region", { name: "Flere lenker" })
+      .getByText("Spillet har nådd maks 50 lenker."),
   ).toBeFocused();
+  await expect(
+    page
+      .getByRole("region", { name: "Erstatt en tapt lenke" })
+      .getByText("Spillet har nådd maks 50 lenker."),
+  ).toBeVisible();
+  await expect(page.getByLabel("Lim inn lenken")).toHaveCount(0);
   await expect(page.getByText("50 av maks 50 lenker brukt.")).toBeVisible();
   await expect(countField(page)).toHaveCount(0);
   await expect(createButton(page)).toHaveCount(0);

@@ -1005,4 +1005,28 @@ describe("revokeInviteLink", () => {
     for (const secret of [tokens[0], sha256(tokens[0]), links[0], gameId])
       expect(out).not.toContain(secret);
   });
+
+  it("FR-9: the collecting Game page has the Erstatt en tapt lenke panel; a draft page does not", async () => {
+    const page = async (id: string) =>
+      renderToStaticMarkup(
+        await GamePage({
+          params: Promise.resolve({ id }),
+          searchParams: Promise.resolve({}),
+        }),
+      );
+    const { gameId } = await collectingGame("Med panel", 1);
+    const collecting = await page(gameId);
+    expect(collecting).toContain("Erstatt en tapt lenke");
+    expect(collecting).toContain("Lim inn lenken");
+    expect(collecting).toContain("Trekk tilbake og lag ny");
+    const [{ id: draftId }] = await (
+      await getDb()
+    )
+      .insert(game)
+      .values({ hostId, title: "Uten panel" })
+      .returning({ id: game.id });
+    const draft = await page(draftId);
+    expect(draft).not.toContain("Erstatt en tapt lenke");
+    expect(draft).not.toContain("Lim inn lenken");
+  });
 });

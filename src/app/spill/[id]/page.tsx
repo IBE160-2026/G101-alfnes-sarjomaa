@@ -7,6 +7,7 @@ import { DeleteGame } from "@/components/DeleteGame";
 import { InviteLinkPanel } from "@/components/InviteLinkPanel";
 import { ProgressCount } from "@/components/ProgressCount";
 import { QuestionEditor } from "@/components/QuestionEditor";
+import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
@@ -95,6 +96,12 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
             <CollectingRefresh />
           </section>,
           links,
+          <section key="revoke" aria-labelledby="erstatt" className="mt-10">
+            <h2 id="erstatt" className="text-heading">
+              Erstatt en tapt lenke
+            </h2>
+            <RevokeLinkPanel gameId={game.id} issued={progress.issued} />
+          </section>,
           <section key="locked" aria-labelledby="sporsmal" className="mt-10">
             <h2 id="sporsmal" className="text-heading">
               Spørsmål (låst)
