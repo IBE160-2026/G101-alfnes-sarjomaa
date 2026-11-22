@@ -22,8 +22,13 @@ export function storageKey(gameId: string, token: string): string {
 }
 
 // The key's value. The full Token is kept so that a cut-short link, which shares the
-// key, neither reads nor clears the real link's secret.
-export type LinkStore = { token: string; editSecret?: string };
+// key, neither reads nor clears the real link's secret. `draft` is the unsent raw field
+// values per Question ID; it never leaves the device before a submit.
+export type LinkStore = {
+  token: string;
+  editSecret?: string;
+  draft?: Record<string, string[]>;
+};
 
 // Storage can be missing, blocked or full, so none of these ever throws.
 export function readLinkStore(gameId: string, token: string): LinkStore | null {

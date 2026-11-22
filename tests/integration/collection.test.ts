@@ -156,6 +156,45 @@ describe("openInviteLink", () => {
     ).toEqual(links);
   });
 
+  it("FR-7, FR-12: only the matching edit secret returns the saved Answers; a wrong, missing or malformed one is identical to an unused link", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const editSecret = newToken();
+    const answers = Object.fromEntries(ids.map((id, i) => [id, [`svar ${i}`]]));
+    await submitAnswerSet(gameId, tokens[0], { answers, editSecret });
+    const unused = await openInviteLink(gameId, tokens[1]);
+    expect(unused.ok && "answers" in unused.data).toBe(false);
+
+    expect(await openInviteLink(gameId, tokens[0], editSecret)).toEqual({
+      ok: true,
+      data: { ...(unused.ok && unused.data), answers },
+    });
+    const misses: [string, unknown][] = [
+      ["a wrong secret", newToken()],
+      ["no secret", undefined],
+      ['"abc"', "abc"],
+      ["a number", 7],
+      ["the Token itself", tokens[0]],
+    ];
+    for (const [name, secret] of misses)
+      expect(await openInviteLink(gameId, tokens[0], secret), name).toEqual(
+        unused,
+      );
+    expect(await openInviteLink(gameId, tokens[0])).toEqual(unused);
+  });
+
+  it("FR-7, FR-12: another link's secret returns no Answers, whether that link has no row or its own", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const answers = Object.fromEntries(ids.map((id) => [id, ["a"]]));
+    const secretA = newToken();
+    const secretC = newToken();
+    await submitAnswerSet(gameId, tokens[0], { answers, editSecret: secretA });
+    await submitAnswerSet(gameId, tokens[2], { answers, editSecret: secretC });
+    const unused = await openInviteLink(gameId, tokens[1]);
+    expect(await openInviteLink(gameId, tokens[1], secretA)).toEqual(unused);
+    expect(await openInviteLink(gameId, tokens[2], secretA)).toEqual(unused);
+    expect(await openInviteLink(gameId, tokens[0], secretC)).toEqual(unused);
+  });
+
   it("FR-9: a Token of another Game is LINK_UNKNOWN, because lookup is by (token_hash, game_id)", async () => {
     const a = await collectingGame("A");
     const b = await collectingGame("B");
@@ -339,6 +378,60 @@ describe("submitAnswerSet", () => {
         editSecretHash: sha256(editSecret),
       },
     ]);
+  });
+
+  it("FR-7, AD-8: a same-device resubmit and then a submit from a device without the secret each replace the one row; the old secret then gets no Answers, the new one the new set", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const first = newToken();
+    const second = newToken();
+    await submitAnswerSet(gameId, tokens[0], {
+      answers: fullSet(ids),
+      editSecret: first,
+    });
+    const edited = Object.fromEntries(ids.map((id) => [id, ["endret"]]));
+    await submitAnswerSet(gameId, tokens[0], {
+      answers: edited,
+      editSecret: first,
+    });
+    expect(await rowsOf(tokens)).toEqual([
+      {
+        tokenHash: sha256(tokens[0]),
+        answers: edited,
+        editSecretHash: sha256(first),
+      },
+    ]);
+    const reopened = await openInviteLink(gameId, tokens[0], first);
+    expect(reopened.ok && reopened.data.answers).toEqual(edited);
+
+    const answers = Object.fromEntries(ids.map((id) => [id, ["annen enhet"]]));
+    expect(
+      await submitAnswerSet(gameId, tokens[0], { answers, editSecret: second }),
+    ).toEqual({ ok: true, data: null });
+    expect(await rowsOf(tokens)).toEqual([
+      { tokenHash: sha256(tokens[0]), answers, editSecretHash: sha256(second) },
+    ]);
+    const unused = await openInviteLink(gameId, tokens[1]);
+    expect(await openInviteLink(gameId, tokens[0], first)).toEqual(unused);
+    const opened = await openInviteLink(gameId, tokens[0], second);
+    expect(opened.ok && opened.data.answers).toEqual(answers);
+  });
+
+  it("FR-7, FR-6: an edit that leaves a Question with no Answer is refused, and the saved row is unchanged", async () => {
+    const { gameId, ids, tokens } = await collectingGame();
+    const editSecret = newToken();
+    await submitAnswerSet(gameId, tokens[0], {
+      answers: fullSet(ids),
+      editSecret,
+    });
+    const before = await rowsOf(tokens);
+    expect(
+      await submitAnswerSet(gameId, tokens[0], {
+        answers: { ...fullSet(ids), [ids[1]]: ["", " "] },
+        editSecret,
+      }),
+    ).toEqual(invalid({ [ids[1]]: ANSWER_MISSING }));
+    expect(await rowsOf(tokens)).toEqual(before);
+    expect(before).toHaveLength(1);
   });
 
   it("FR-6: a missing key or a Question with only blank fields is Skriv minst ett svar., and nothing is stored", async () => {

@@ -86,17 +86,38 @@ async function linkExists(db: Db, tokenHash: string, gameId: string) {
   return rows.length > 0;
 }
 
-// A read: no lock, no write, never updated_at.
+// A read: no lock, no write, never updated_at. The saved set comes back only for the
+// matching edit secret (AD-8); a wrong, missing or malformed one gets exactly what an
+// unused link gets, with no answers key (FR-7, FR-12).
 export function openInviteLink(
   gameId: unknown,
   token: unknown,
-): Promise<{ title: string; questions: questions.Question[] }> {
+  editSecret?: unknown,
+): Promise<{
+  title: string;
+  questions: questions.Question[];
+  answers?: Record<string, string[]>;
+}> {
   return withBoundary("collection", "openInviteLink", async () => {
     const link = await resolveLink(gameId, token, PERMITTED.openInviteLink);
-    return {
+    const view = {
       title: link.title,
       questions: await questions.ofGame(link.gameId),
     };
+    if (typeof editSecret !== "string" || !TOKEN_PATTERN.test(editSecret))
+      return view;
+    const [saved] = await (
+      await getDb()
+    )
+      .select({ answers: submission.answers })
+      .from(submission)
+      .where(
+        and(
+          eq(submission.tokenHash, link.tokenHash),
+          eq(submission.editSecretHash, sha256(editSecret)),
+        ),
+      );
+    return saved ? { ...view, answers: saved.answers } : view;
   });
 }
 

@@ -50,3 +50,26 @@ export function parseAnswerSet(
     throw new DomainError("INVALID_INPUT", errors);
   return answers;
 }
+
+// Form state from a saved set or an untrusted stored draft: per known Question, at most
+// five string fields, padded to at least two. Never throws.
+export function toFields(
+  set: unknown,
+  questionIds: readonly string[],
+): Record<string, string[]> {
+  const raw =
+    typeof set === "object" && set !== null
+      ? (set as Record<string, unknown>)
+      : {};
+  return Object.fromEntries(
+    questionIds.map((qid) => {
+      const value = Object.hasOwn(raw, qid) ? raw[qid] : undefined;
+      const given = Array.isArray(value)
+        ? value
+            .filter((v): v is string => typeof v === "string")
+            .slice(0, ANSWERS_PER_QUESTION_MAX)
+        : [];
+      return [qid, [...given, "", ""].slice(0, Math.max(2, given.length))];
+    }),
+  );
+}

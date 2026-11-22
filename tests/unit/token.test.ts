@@ -79,6 +79,18 @@ describe("link store", () => {
     expect(readLinkStore(gameId, cutShort)).toBeNull();
   });
 
+  it("AD-8, UX-DR20: the value round-trips { token, editSecret, draft }", () => {
+    const map = stubStorage();
+    const value = {
+      token,
+      editSecret: newEditSecret(),
+      draft: { q1: ["Sover videre", ""], q2: ["", "", "Kari"] },
+    };
+    writeLinkStore(gameId, value);
+    expect(JSON.parse(map.get(key)!)).toEqual(value);
+    expect(readLinkStore(gameId, token)).toEqual(value);
+  });
+
   it("FR-9: clear removes the key for the stored Token and keeps it for one sharing only the first 16 characters", () => {
     const map = stubStorage();
     writeLinkStore(gameId, { token });

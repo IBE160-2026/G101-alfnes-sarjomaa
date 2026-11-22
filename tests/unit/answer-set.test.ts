@@ -3,6 +3,7 @@ import {
   ANSWER_MISSING,
   ANSWER_TOO_LONG,
   parseAnswerSet,
+  toFields,
 } from "@/lib/answer-set";
 import { DomainError, MESSAGES } from "@/lib/errors";
 
@@ -77,5 +78,36 @@ describe("parseAnswerSet", () => {
     expect(fieldErrorsOf({ q1: ["a", 7], q2: ["b"] })).toEqual({
       "q1.1": MESSAGES.INVALID_INPUT,
     });
+  });
+});
+
+describe("toFields", () => {
+  it("FR-7: a saved set becomes form fields, padded to two per Question", () => {
+    expect(toFields({ q1: ["a", "b", "c"], q2: ["d"] }, IDS)).toEqual({
+      q1: ["a", "b", "c"],
+      q2: ["d", ""],
+    });
+  });
+
+  it("FR-6, AD-8: a tampered draft gives at most five string fields, at least two, known Questions only", () => {
+    expect(
+      toFields(
+        { q1: Array(7).fill("x"), q2: ["a", 7, null, "b"], q3: ["z"] },
+        IDS,
+      ),
+    ).toEqual({ q1: Array(5).fill("x"), q2: ["a", "b"] });
+    expect(toFields({ q1: "a", q2: { 0: "b" } }, IDS)).toEqual({
+      q1: ["", ""],
+      q2: ["", ""],
+    });
+  });
+
+  it.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["a string", "utkast"],
+    ["a number", 7],
+  ])("FR-6: %s gives empty fields and never throws", (_, input) => {
+    expect(toFields(input, IDS)).toEqual({ q1: ["", ""], q2: ["", ""] });
   });
 });
