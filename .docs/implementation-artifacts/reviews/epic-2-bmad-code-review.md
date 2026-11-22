@@ -188,3 +188,25 @@ Each line gives the source layer, then the verdict and the reason.
 22. *Focused layer*: a network drop after commit loses a replacement or new link (known open item b). **Low.** It needs a lost response inside a sub-second window, and recovery exists: "Flere lenker" plus the refreshed "N av maks 50". Story 2.7 rejected it. A cheap mitigation, if wanted later, is copy only: on a network failure, say that the link may have been revoked and how to make a new one.
 23. *Focused layer*: a revoke while a guest is typing clears their draft on the next submit. **Low.** Spec 2.3 and 2.4 require `LinkStatus` to clear on unknown, and a Host revokes only links they believe are lost.
 24. *Focused layer*: on a shared device the edit secret stays in that browser. **Already deferred.** Story 2.5 deferred the README line on exposure on a shared phone. FR-7 accepts "same device".
+
+## Epic 2 review fixes (2026-11-22)
+
+Fixes landed on `epic-2-innsamling` in commits `5e60949`, `55989b3`, `36b30cf` and `24c2ea9` (with UI audit fixes in `2e08f43`). After the last commit, `npm run test` passes 387 tests and `npm run test:e2e` passes 81.
+
+- **H1, fixed** (`5e60949`). `next.config.ts` now sets `logging: { serverFunctions: false, browserToTerminal: false }`, with a comment that cites FR-11 and FR-12. `tests/unit/next-config.test.ts` fails if either setting is removed. The check of other logging paths found one more leak: Next 16 forwards browser console warnings and errors to the dev terminal by default (`browserDebugInfoInTerminal: 'warn'`). On a party LAN, that means a guest's browser console would print in the Host's terminal, so it is now off too. Nothing else needed a change:
+  - `incomingRequests` logs only URL paths, and the Token is in the fragment, which never reaches the server.
+  - The server makes no `fetch` calls, so fetch logging has nothing to print.
+  - `log()` still writes only module, op, code and sqlstate.
+  - The dev error overlay shows only in the browser that hit the error.
+  - `next start` never logs Server Function calls.
+- **M1, fixed with option (a)** (`55989b3`). While `OnceLinkList` is mounted, a capture-phase `click` listener on same-origin links and a `submit` listener on forms ask with `window.confirm("Lenkene vises ikke igjen. Vil du gå videre uten å ha kopiert dem?")`. Cancel keeps the page and the links. EXPERIENCE.md has no beforeunload copy of its own, so this is the orchestrator's sentence.
+  - In-page anchors and modified clicks such as Ctrl-click are not intercepted, and when both panels show a list, the Host is asked only once per click.
+  - The listeners go away when "Jeg har kopiert lenkene" unmounts the list.
+  - Browser Back and Forward inside the app are still uncovered, because popstate cannot be cancelled. A `shortcut:` comment records this.
+  - The e2e test in `invite-links.spec.ts` clicks "Mine spill" with links on screen, dismisses the confirm, and checks that the same links are still there.
+- **L1, fixed** (`36b30cf`). `collection.test.ts` partially mocks `@/server/questions`, so a hook runs once after `ofGame`, between submit's lookup and its transaction. Three cases cover a revoked link (`LINK_UNKNOWN`), a deleted Game (`LINK_UNKNOWN`) and a Game moved to _grouping_ (`COLLECTION_CLOSED`), each with no `submission` row. Removing either the mapping or the re-check under the lock makes all three fail; this was checked.
+- **L2, fixed** (`36b30cf`). The comments in `collection/index.ts` and `ProgressCount.tsx` now say that the floor hides arrivals below three, and that above three the count is exact on any reload, which FR-8 accepts.
+- **L3, fixed** (`36b30cf`). `ANSWER_FIELDS_DEFAULT = 2` now lives in `limits.ts`, and both `AnswerForm.tsx` and `toFields` use it.
+- **L4, deferred, unchanged.** The stale-tab refresh branches in the link panels still have no e2e test.
+- **L5, deferred, unchanged.** The probe and overwrite through a link the Host keeps is a documentation item for the PRD note on FR-9 and the Epic 7 README.
+- **L6, deferred, unchanged.** The physical row order of `submission` and `invite_link` is a forward note for Stories 3.1 and 3.2 (copy in random or content order, and audit row order).

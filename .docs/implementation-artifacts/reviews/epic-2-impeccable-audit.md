@@ -78,3 +78,18 @@ Fix: add the count to the dialog text: "Du har {questionCount} spørsmål. De l�
 ## Order of work
 
 M1 first, with its e2e step. Then S1 to S3 (class changes and one small button), S4 (one `<title>` per status), S5 (one sentence). The nice items can wait or be dropped; N1 is a documentation correction.
+
+## Epic 2 review fixes (2026-11-22)
+
+Fixes landed on `epic-2-innsamling` in commits `55989b3`, `2e08f43` and `24c2ea9`. After the last commit, `npm run test` passes 387 tests and `npm run test:e2e` passes 81. The editor's failure state was checked in screenshots at 1280 px and 360 px.
+
+- **M1, fixed** (`55989b3`). A form-level `onKeyDown` makes Enter in an answer field move focus to the next answer input, and from the last one to the submit button ("Send inn svar" or "Lagre endringer"). Enter never submits from a field, and IME composition is left alone. This is stricter than the audit's fix, which let Enter submit from the last field; the orchestrator chose it. The e2e test in `answer-form.spec.ts` presses a real Enter in Svar 1 and in the last field, and checks focus, that no error summary appears and that no request is sent.
+- **S1, fixed** (`2e08f43`). "Forkast endringene" stays a ghost button, as EXPERIENCE.md says, but now reads as a link: `text-primary underline underline-offset-2`, at 7.4:1 on `primary-soft`. The discard is still immediate.
+- **S2, fixed** (`2e08f43`). In the Question editor, "Slett" is now `secondary-danger` and "Flytt opp" and "Flytt ned" are `secondary`. The e2e test checks the danger border on "Slett". No confirm was added, since the contract does not ask for one.
+- **S3, fixed** (`2e08f43`). A save that fails for the network or the server shows a `secondary` "Prøv igjen" button next to "Fikk ikke lagret. Prøv igjen.". The button moves focus to the textarea and resends. Refusals such as wrong state, cap or a field error get no retry button, because retrying cannot help there. The e2e test retries after the network comes back and checks "Lagret" and the reload.
+- **S4, fixed** (`2e08f43`). The title approach in `InviteLinkView` (re-applying the title against Next's head re-render) moved into `useDocumentTitle`, which `LinkStatus` also uses. The titles are "Innsamlingen er stengt – Toppsvar" for closed, "Vi finner ikke lenken – Toppsvar" for unknown and not-found, and "Noe gikk galt – Toppsvar" for a failed load. A plain React `<title>` lost to the root metadata title, so it was not used. The e2e tests check every state, both server-rendered and client-side.
+- **S5, fixed** (`2e08f43`). The "Åpne innsamlingen?" dialog now starts with "Du har lagret {n} spørsmål.", and the contract sentence is unchanged. The optional block while a row shows a danger status was not built.
+- **N2, fixed** (`24c2ea9`). "Kopier alle" is hidden when the list holds one link.
+- **N5, fixed** (`24c2ea9`). The Question counter turns `text-danger` above 200 characters.
+- **N1, skipped.** It is a wireframe correction, not code.
+- **N3, N4 and N6 to N8, skipped.** They are nice-to-haves that need new copy, a new prop or a design decision, so they are more than one-line changes.

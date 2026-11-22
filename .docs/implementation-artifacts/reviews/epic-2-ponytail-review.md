@@ -51,3 +51,19 @@ None.
 Verdict: Ship. Fix 1 and 2 first if you want a smaller diff before the Epic 2 PR; neither blocks the PR.
 Lean: -about 300 lines possible (about 55 in source, about 250 in tests).
 Not checked: I did not run the test suite or the app, and I read the test files by title and sample, not line by line.
+
+## Epic 2 review fixes (2026-11-22)
+
+Fixes landed on `epic-2-innsamling` in commit `36b30cf`. After it, `npm run test` passes 387 tests and `npm run test:e2e` passes 81.
+
+- **1, fixed.** `hostAction<T>` in `src/app/spill/[id]/actions.ts` now defines all five object-input Host actions. The question actions now return `data: undefined` instead of `null`, and no caller reads it.
+- **2, fixed.** `callAction()` is exported from `useFormAction.ts`, next to `NETWORK`, and is used in all five places: `QuestionEditor` (replacing its local `call`), `InviteLinkPanel`, `RevokeLinkPanel`, `AnswerForm` submit and `InviteLinkView` `fetchView`. The two link panels stay separate, as the review suggested.
+- **3, fixed.**
+  - `token.test.ts` drops the 10,000-Token loop, the `sha256("abc")` vector, the 100-iteration pattern loop and the separate `storageKey` test.
+  - `collection.test.ts` merges the three "table renamed, so INTERNAL" tests into one `it.each`. Each case now checks for every secret: the Token, its hash, the edit secret, its hash, the link, an Answer and the gameId.
+  - The two raw-revoke progress cases became one.
+  - "A revoked link is opened and submitted to like one that never existed" was folded into the used-versus-unused revoke test.
+  - The malformed-paste test was merged into the foreign-link test.
+  - Every anonymity, cap and log-leak assertion is kept, and `tests/TRACE.md` is updated so that each row still names a test. The net change in tests is smaller than the estimate, because the bmad review's L1 race-guard tests were added in the same commit.
+- **4, skipped**, as the orchestrator decided. The Game page still re-reads the owned Game, which costs two or three queries per view.
+- **5, fixed.** `FEWER_THAN_3` moved to `lib/limits.ts`, and `ProgressCount` and the tests import it from there. `QUESTION_CAP_REACHED`, `LINK_CAP_REACHED`, the invite-link `COUNT`, `ANSWER_TOO_LONG` and the question `TEXT_LENGTH` are now template strings built from the limit constants. The rendered text is unchanged.
