@@ -66,6 +66,22 @@ KI-arbeidet bruker mye tokens, og det meste går til lange svar og rapporter. De
   Conventional Commits, og den andre skriver om dokumentfiler.
 - Skru av med «stop caveman» eller «normal mode».
 
+## RTK komprimerer kommandoutdata
+
+[RTK](https://github.com/rtk-ai/rtk) er en CLI-proxy som filtrerer utdata fra kommandoer før de
+når KI-ens kontekst: bare feil, sammendrag og det som betyr noe. Den virker som en
+`PreToolUse`-hook (`rtk hook claude`) og gjelder også subagenter.
+
+- **Installasjon er per maskin, ikke i repoet.** RTK er et kompilert program. Hver i gruppa
+  installerer det selv og kjører `rtk init -g` én gang. Vi legger ikke hooken i
+  `.claude/settings.json`, fordi den ville kjørt dobbelt hos dem som har den globalt og feilet
+  hos dem som ikke har den.
+- **Bruk kommandoer RTK kjenner igjen:** `npm run test` (ikke `npm test`, som slipper gjennom
+  ufiltrert), `npm run test:e2e`, `npm run lint`, `npm run typecheck`, `npx vitest`,
+  `npx playwright`, `git` og `gh`.
+- Når utdata er tomme eller åpenbart feil, kjør `rtk proxy <kommando>` for å få rå utdata.
+- `rtk gain` viser hvor mye som er spart.
+
 ## Design
 
 Designkontrakten er `DESIGN.md` og `EXPERIENCE.md` i
