@@ -7,6 +7,7 @@ import {
   deleteGame,
   moveQuestion,
   removeQuestion,
+  revokeInviteLink,
   saveQuestion,
 } from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
@@ -307,6 +308,54 @@ describe("Invite links across Hosts", () => {
       state: "draft",
       inviteLinksIssued: 0,
       updatedAt: T0,
+    });
+  });
+
+  it("FR-9, AD-5: B's revokeInviteLink with A's valid link on A's Game, a random UUID and a malformed ID gives one identical NOT_FOUND and leaves A's rows, issued count and updated_at", async () => {
+    const db = await getDb();
+    const [{ id: collectingOfA }] = await db
+      .insert(game)
+      .values({ hostId: hosts.A, title: "As innsamling" })
+      .returning({ id: game.id });
+    await db.insert(question).values({
+      id: randomUUID(),
+      gameId: collectingOfA,
+      position: 1,
+      text: "Hvem?",
+    });
+    as("A");
+    const created = await createInviteLinks({
+      gameId: collectingOfA,
+      count: 2,
+    });
+    if (!created.ok) throw new Error(created.code);
+    const [link] = created.data.links;
+    const snapshot = async () => ({
+      game: await gameRow(collectingOfA),
+      links: await db
+        .select()
+        .from(inviteLink)
+        .where(eq(inviteLink.gameId, collectingOfA)),
+    });
+    const before = await snapshot();
+    as("B");
+    for (const gameId of [collectingOfA, randomUUID(), "abc"])
+      expect(await revokeInviteLink({ gameId, link }), gameId).toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    expect(
+      await revokeInviteLink({ gameId: collectingOfA, link: "abc" }),
+    ).toEqual({
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    });
+    expect(await snapshot()).toEqual(before);
+    expect(before.game).toMatchObject({
+      state: "collecting",
+      inviteLinksIssued: 2,
     });
   });
 

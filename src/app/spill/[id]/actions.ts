@@ -80,3 +80,18 @@ export async function createInviteLinks(
     return toFailure(error);
   }
 }
+
+export async function revokeInviteLink(
+  input: unknown,
+): Promise<ActionResult<{ link: string }>> {
+  try {
+    const { hostId } = await auth.requireHost();
+    const data = await collection.revokeInviteLink(hostId, input);
+    // revokeInviteLink validated the input, so gameId is a string here.
+    revalidatePath(`/spill/${(input as { gameId: string }).gameId}`);
+    return { ok: true, data };
+  } catch (error) {
+    unstable_rethrow(error); // the login redirect from requireHost
+    return toFailure(error);
+  }
+}

@@ -6,6 +6,7 @@ import {
   createInviteLinks,
   deleteGame,
   moveQuestion,
+  revokeInviteLink,
 } from "@/app/spill/[id]/actions";
 import { openInviteLink, submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import GamePage from "@/app/spill/[id]/page";
@@ -14,12 +15,13 @@ import InviteLinkPage from "@/app/svar/[gameId]/page";
 import { ANSWER_MISSING, ANSWER_TOO_LONG } from "@/lib/answer-set";
 import { MESSAGES } from "@/lib/errors";
 import { GAME_STATES, type GameState } from "@/lib/game-state";
+import { LINK_NOT_ACTIVE } from "@/lib/invite-link";
 import { newToken, sha256 } from "@/lib/token";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
 import { getDb } from "@/server/db/client";
 import { game, inviteLink, question, submission } from "@/server/db/schema";
-import { cookieJar, NotFoundError, run } from "./next-mocks";
+import { cookieJar, NotFoundError, RedirectError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -77,8 +79,9 @@ async function collectingGame(title = "Hyttetur 2026", count = 3) {
     );
   const result = await createInviteLinks({ gameId, count });
   if (!result.ok) throw new Error(result.code);
-  const tokens = result.data.links.map((l) => l.slice(l.indexOf("#") + 1));
-  return { gameId, ids, tokens };
+  const links = result.data.links;
+  const tokens = links.map((l) => l.slice(l.indexOf("#") + 1));
+  return { gameId, ids, tokens, links };
 }
 
 async function setState(gameId: string, state: GameState) {
@@ -677,6 +680,23 @@ describe("progress", () => {
     });
   });
 
+  it("FR-8, FR-9: after a real revoke active stays, issued grows and the count drops with the revoked set", async () => {
+    const { gameId, ids, tokens, links } = await collectingGame("Ekte", 4);
+    for (const token of tokens) await send(gameId, ids, token);
+    expect((await revokeInviteLink({ gameId, link: links[0] })).ok).toBe(true);
+    expect(await progressOf(gameId)).toEqual({
+      active: 4,
+      issued: 5,
+      submissions: 3,
+    });
+    expect((await revokeInviteLink({ gameId, link: links[1] })).ok).toBe(true);
+    expect(await progressOf(gameId)).toEqual({
+      active: 4,
+      issued: 6,
+      submissions: FEWER,
+    });
+  });
+
   it("FR-8, AD-17: a draft Game has active 0, issued 0 and fewer-than-3, and its page has no Innsamling section or refresh", async () => {
     const [{ id: gameId }] = await (
       await getDb()
@@ -740,5 +760,249 @@ describe("progress", () => {
 
     await send(gameId, ids, tokens[2], third, "endret igjen");
     expect(await snapshot()).toEqual(after);
+  });
+});
+
+describe("revokeInviteLink", () => {
+  const INACTIVE = {
+    ok: false,
+    code: "LINK_UNKNOWN",
+    message: "Vi finner ikke denne lenken.",
+    fieldErrors: { link: LINK_NOT_ACTIVE },
+  };
+  const tokenOf = (link: string) => link.slice(link.indexOf("#") + 1);
+
+  // Every row and value a revoke may touch, so "nothing changes" is one toEqual.
+  async function snapshot(gameId: string) {
+    const db = await getDb();
+    const [row] = await db.select().from(game).where(eq(game.id, gameId));
+    const links = (
+      await db
+        .select({ tokenHash: inviteLink.tokenHash })
+        .from(inviteLink)
+        .where(eq(inviteLink.gameId, gameId))
+    )
+      .map((r) => r.tokenHash)
+      .sort();
+    const sets = (
+      await db
+        .select({ tokenHash: submission.tokenHash })
+        .from(submission)
+        .innerJoin(inviteLink, eq(inviteLink.tokenHash, submission.tokenHash))
+        .where(eq(inviteLink.gameId, gameId))
+    )
+      .map((r) => r.tokenHash)
+      .sort();
+    return { row, links, sets };
+  }
+
+  async function sendSet(gameId: string, ids: string[], token: string) {
+    const answers = Object.fromEntries(ids.map((id) => [id, ["svar"]]));
+    const result = await submitAnswerSet(gameId, token, {
+      answers,
+      editSecret: newToken(),
+    });
+    if (!result.ok) throw new Error(result.code);
+  }
+
+  it("FR-9: a used and an unused link give the same response and the same row changes, and the new link opens", async () => {
+    const { gameId, ids, tokens, links } = await collectingGame("Erstatt", 3);
+    await sendSet(gameId, ids, tokens[0]);
+    const results = [];
+    for (const i of [0, 1]) {
+      const before = await snapshot(gameId);
+      expect(before.links).toContain(sha256(tokens[i]));
+      const result = await revokeInviteLink({ gameId, link: links[i] });
+      expect(result).toEqual({
+        ok: true,
+        data: {
+          link: expect.stringMatching(
+            new RegExp(`/svar/${gameId}#[A-Za-z0-9_-]{43}$`),
+          ),
+        },
+      });
+      if (!result.ok) throw new Error(result.code);
+      const fresh = tokenOf(result.data.link);
+      expect(fresh).not.toBe(tokens[i]);
+      const after = await snapshot(gameId);
+      expect(after.links).toEqual(
+        [
+          ...before.links.filter((h) => h !== sha256(tokens[i])),
+          sha256(fresh),
+        ].sort(),
+      );
+      expect(after.row.inviteLinksIssued).toBe(
+        before.row.inviteLinksIssued + 1,
+      );
+      expect(after.row.updatedAt.getTime()).toBeGreaterThanOrEqual(
+        before.row.updatedAt.getTime(),
+      );
+      expect(after.sets).toEqual([]);
+      expect(await openInviteLink(gameId, fresh)).toEqual({
+        ok: true,
+        data: {
+          title: "Erstatt",
+          questions: TEXTS.map((text, j) => ({ id: ids[j], text })),
+        },
+      });
+      results.push({ ...result, data: { link: "" } });
+    }
+    expect(results[0]).toEqual(results[1]);
+    const db = await getDb();
+    expect(
+      await db
+        .select()
+        .from(submission)
+        .where(eq(submission.tokenHash, sha256(tokens[0]))),
+    ).toEqual([]);
+  });
+
+  it("FR-9: a revoked link is opened and submitted to exactly like a link that never existed", async () => {
+    const { gameId, ids, tokens, links } = await collectingGame("Borte", 2);
+    await sendSet(gameId, ids, tokens[0]);
+    for (const i of [0, 1])
+      expect((await revokeInviteLink({ gameId, link: links[i] })).ok).toBe(
+        true,
+      );
+    const answers = Object.fromEntries(ids.map((id) => [id, ["svar"]]));
+    for (const token of [tokens[0], tokens[1], newToken()]) {
+      expect(await openInviteLink(gameId, token)).toEqual(UNKNOWN);
+      expect(
+        await submitAnswerSet(gameId, token, {
+          answers,
+          editSecret: newToken(),
+        }),
+      ).toEqual(UNKNOWN);
+    }
+  });
+
+  it("FR-9: a malformed paste is the inline LINK_UNKNOWN and changes nothing", async () => {
+    const { gameId, tokens, links } = await collectingGame("Feil lim", 2);
+    const before = await snapshot(gameId);
+    for (const link of [
+      "abc",
+      "",
+      "   ",
+      42,
+      tokens[0],
+      links[0].slice(0, -1),
+      links[0].replace("#", "/"),
+      `${links[0]}x`,
+    ])
+      expect(await revokeInviteLink({ gameId, link }), String(link)).toEqual(
+        INACTIVE,
+      );
+    expect(await snapshot(gameId)).toEqual(before);
+    expect((await openInviteLink(gameId, tokens[0])).ok).toBe(true);
+  });
+
+  it("FR-9: surrounding whitespace and another origin still match the link", async () => {
+    const { gameId, tokens } = await collectingGame("Annen vert", 1);
+    const result = await revokeInviteLink({
+      gameId,
+      link: `  http://192.168.1.20:3000/svar/${gameId}#${tokens[0]}\n`,
+    });
+    expect(result.ok).toBe(true);
+    expect(await openInviteLink(gameId, tokens[0])).toEqual(UNKNOWN);
+  });
+
+  it("FR-9, AD-5: another Game's link, this Game's Token behind another Game's path, and an already revoked link are the same inline LINK_UNKNOWN and change nothing", async () => {
+    const a = await collectingGame("Spill A", 2);
+    const b = await collectingGame("Spill B", 2);
+    expect(
+      (await revokeInviteLink({ gameId: a.gameId, link: a.links[1] })).ok,
+    ).toBe(true);
+    const before = { a: await snapshot(a.gameId), b: await snapshot(b.gameId) };
+    for (const link of [
+      b.links[0],
+      a.links[0].replace(`/svar/${a.gameId}`, `/svar/${b.gameId}`),
+      a.links[1],
+    ])
+      expect(await revokeInviteLink({ gameId: a.gameId, link })).toEqual(
+        INACTIVE,
+      );
+    expect({
+      a: await snapshot(a.gameId),
+      b: await snapshot(b.gameId),
+    }).toEqual(before);
+    expect((await openInviteLink(b.gameId, b.tokens[0])).ok).toBe(true);
+    expect((await openInviteLink(a.gameId, a.tokens[0])).ok).toBe(true);
+  });
+
+  it("FR-9: at 50 issued a valid active link is LINK_CAP_REACHED, nothing changes and the old link still opens", async () => {
+    const { gameId, tokens, links } = await collectingGame("Fullt", 2);
+    await (
+      await getDb()
+    )
+      .update(game)
+      .set({ inviteLinksIssued: 50 })
+      .where(eq(game.id, gameId));
+    const before = await snapshot(gameId);
+    expect(await revokeInviteLink({ gameId, link: links[0] })).toEqual({
+      ok: false,
+      code: "LINK_CAP_REACHED",
+      message: "Spillet har nådd maks 50 lenker.",
+    });
+    expect(await snapshot(gameId)).toEqual(before);
+    expect((await openInviteLink(gameId, tokens[0])).ok).toBe(true);
+  });
+
+  it.each(["draft", "grouping"] as const)(
+    "FR-9: in %s it is WRONG_STATE and changes nothing",
+    async (state) => {
+      const { gameId, links } = await collectingGame(`Fase ${state}`, 2);
+      await setState(gameId, state);
+      const before = await snapshot(gameId);
+      expect(await revokeInviteLink({ gameId, link: links[0] })).toEqual({
+        ok: false,
+        code: "WRONG_STATE",
+        message: MESSAGES.WRONG_STATE,
+      });
+      expect(await snapshot(gameId)).toEqual(before);
+    },
+  );
+
+  it("FR-1, FR-9: logged out it redirects to /logg-inn and writes nothing", async () => {
+    const { gameId, links } = await collectingGame("Utlogget", 2);
+    const before = await snapshot(gameId);
+    cookieJar.store.clear();
+    const error = await revokeInviteLink({ gameId, link: links[0] }).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(RedirectError);
+    expect((error as RedirectError).url).toBe("/logg-inn");
+    expect(await snapshot(gameId)).toEqual(before);
+  });
+
+  it("AD-17, FR-11: with invite_link renamed it is INTERNAL and logs one line with no Token, hash or link", async () => {
+    const { gameId, tokens, links } = await collectingGame("Feil i basen", 2);
+    const db = await getDb();
+    await db.execute(sql`alter table invite_link rename to invite_link_x`);
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    let result, out;
+    try {
+      result = await revokeInviteLink({ gameId, link: links[0] });
+    } finally {
+      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      write.mockRestore();
+      await db.execute(sql`alter table invite_link_x rename to invite_link`);
+    }
+    expect(result).toEqual({
+      ok: false,
+      code: "INTERNAL",
+      message: "Noe gikk galt hos oss. Prøv igjen om litt.",
+    });
+    const lines = out.trimEnd().split("\n");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0])).toEqual({
+      module: "collection",
+      op: "revokeInviteLink",
+      code: "INTERNAL",
+      sqlstate: "42P01",
+    });
+    for (const secret of [tokens[0], sha256(tokens[0]), links[0], gameId])
+      expect(out).not.toContain(secret);
   });
 });

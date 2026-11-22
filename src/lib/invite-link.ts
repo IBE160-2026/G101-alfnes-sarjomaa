@@ -13,6 +13,17 @@ export const createInviteLinksSchema = z.object({
     .max(INVITE_LINKS_MAX, COUNT),
 });
 
+// The Host copy for a pasted link that is not an active link of this Game (FR-9). It rides
+// in fieldErrors.link, so the Participant's LINK_UNKNOWN message stays unchanged.
+export const LINK_NOT_ACTIVE =
+  "Denne lenken er ikke en aktiv lenke i dette spillet.";
+
+// A non-string link becomes "" and so LINK_UNKNOWN, never INVALID_INPUT.
+export const revokeInviteLinkSchema = z.object({
+  gameId: z.string(),
+  link: z.string().catch(""),
+});
+
 // The shape newToken() makes: 32 bytes as base64url without padding.
 export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 

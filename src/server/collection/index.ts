@@ -3,11 +3,16 @@ import { and, count, eq } from "drizzle-orm";
 import { parseAnswerSet } from "@/lib/answer-set";
 import { DomainError, MESSAGES, validate } from "@/lib/errors";
 import { PERMITTED, type GameState } from "@/lib/game-state";
-import { createInviteLinksSchema, TOKEN_PATTERN } from "@/lib/invite-link";
+import {
+  createInviteLinksSchema,
+  LINK_NOT_ACTIVE,
+  revokeInviteLinkSchema,
+  TOKEN_PATTERN,
+} from "@/lib/invite-link";
 import { SUBMISSIONS_MIN } from "@/lib/limits";
 import { newToken, sha256 } from "@/lib/token";
 import { withBoundary } from "@/server/boundary";
-import { getDb, type Db } from "@/server/db/client";
+import { getDb, type Db, type Tx } from "@/server/db/client";
 import { inviteLink, submission } from "@/server/db/schema";
 import { env } from "@/server/env";
 import * as games from "@/server/games";
@@ -32,16 +37,75 @@ export function createInviteLinks(
       });
       if (state === "draft" && (await questions.count(tx, gameId)) === 0)
         throw new DomainError("QUESTIONS_REQUIRED");
-      await games.reserveInviteLinks(tx, gameId, count);
-      const tokens = Array.from({ length: count }, newToken);
-      await tx
-        .insert(inviteLink)
-        .values(tokens.map((token) => ({ tokenHash: sha256(token), gameId })));
+      const links = await issueLinks(tx, gameId, count);
       if (state === "draft")
         await games.transition(tx, gameId, "draft", "collecting");
-      return {
-        links: tokens.map((token) => `${BASE_URL}/svar/${gameId}#${token}`),
-      };
+      return { links };
+    });
+  });
+}
+
+// The one link-issuing path, replacements included: the cap check comes first (AD-8).
+async function issueLinks(
+  tx: Tx,
+  gameId: string,
+  count: number,
+): Promise<string[]> {
+  await games.reserveInviteLinks(tx, gameId, count);
+  const tokens = Array.from({ length: count }, newToken);
+  await tx
+    .insert(inviteLink)
+    .values(tokens.map((token) => ({ tokenHash: sha256(token), gameId })));
+  return tokens.map((token) => `${BASE_URL}/svar/${gameId}#${token}`);
+}
+
+// The Token of a pasted link of this Game, or null. The origin is not compared, since
+// APP_BASE_URL may differ between localhost and a LAN IP.
+function tokenOf(link: string, gameId: string): string | null {
+  const trimmed = link.trim();
+  const hash = trimmed.lastIndexOf("#");
+  if (hash < 0) return null;
+  const token = trimmed.slice(hash + 1);
+  return trimmed.slice(0, hash).endsWith(`/svar/${gameId}`) &&
+    TOKEN_PATTERN.test(token)
+    ? token
+    : null;
+}
+
+// Owner lock, then cap, then link (AD-8), so a foreign Host gets NOT_FOUND whatever they
+// paste (AD-5) and the cap refuses before anything changes. The submission goes by
+// cascade, and no code looks at it: the response is the same whether or not one existed.
+// Nothing here logs the pasted link, its Token or hash.
+export function revokeInviteLink(
+  hostId: string,
+  input: unknown,
+): Promise<{ link: string }> {
+  return withBoundary("collection", "revokeInviteLink", async () => {
+    const { gameId, link: pasted } = validate(revokeInviteLinkSchema, input);
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.revokeInviteLink,
+      });
+      const [link] = await issueLinks(tx, gameId, 1);
+      const token = tokenOf(pasted, gameId);
+      const deleted = token
+        ? await tx
+            .delete(inviteLink)
+            .where(
+              and(
+                eq(inviteLink.tokenHash, sha256(token)),
+                eq(inviteLink.gameId, gameId),
+              ),
+            )
+            .returning({ gameId: inviteLink.gameId })
+        : [];
+      // Throwing rolls back the lock's touch and the reservation too.
+      if (deleted.length === 0)
+        throw new DomainError("LINK_UNKNOWN", { link: LINK_NOT_ACTIVE });
+      return { link };
     });
   });
 }
