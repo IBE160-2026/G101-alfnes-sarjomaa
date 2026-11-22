@@ -389,7 +389,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
     - `demo-replay.test.ts`: `source = replay`, `uncovered_items = 0`, no fallback
     - `judge-eval.test.ts`: replayed F1 at least 0.70
     - `env.test.ts`
-  - **`tests/e2e/`** runs Playwright against `next build && next start`, with a fresh temporary PGlite directory and `JUDGE_PROVIDER=replay`. Each spec registers its own Host, and only `demo.spec.ts` uses the demo Game. Required specs:
+  - **`tests/e2e/`** runs Playwright against `next build && next start`, with a fresh temporary PGlite directory and `JUDGE_PROVIDER=replay`. A second server, `next dev` on its own port (3101) and PGlite directory, serves only `server-output.spec.ts`, since only development mode prints Server Function arguments and forwards browser console output. Both servers' stdout and stderr are redirected to files, and the global teardown fails the run if either file is missing or empty, or holds a Token, edit secret or Answer that a browser sent or received, or its sha256 (recorded in the shared `localOnly` helper). Each spec registers its own Host, and only `demo.spec.ts` uses the demo Game. Required specs:
     - `no-key.spec.ts` (FR-30)
     - `host-anonymity.spec.ts`: every Host page and response during Collection, before and after a Participant submits; reopening a used link from a fresh browser context shows an empty form
     - `participant.spec.ts`

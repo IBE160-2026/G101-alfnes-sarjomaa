@@ -72,6 +72,8 @@ npx playwright install chromium   # én gang
 npm run test:e2e            # Playwright mot next build && next start
 ```
 
+Stopp `npm run dev` før `npm run test:e2e`: e2e starter sin egen `next dev`, og Next tillater bare én per repo (grunnen står i `dev.log`).
+
 Databaseskjemaet ligger i `src/server/db/schema.ts`. `npm run db:generate` skriver SQL til
 `drizzle/`, og `npm run db:migrate` kjører migrasjonene mot `DATABASE_URL`. PGlite-databaser
 migreres automatisk første gang appen bruker databasen. Stopp `npm run dev` før

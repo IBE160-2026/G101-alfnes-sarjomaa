@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { inspect } from "node:util";
 import { eq, inArray, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1035,6 +1036,97 @@ describe("INTERNAL", () => {
         gameId,
       ])
         expect(out).not.toContain(secret);
+    },
+  );
+
+  it.each(["openInviteLink", "submit"] as const)(
+    "FR-11, AD-17: a driver error from %s carrying the Token, edit secret, their hashes and an Answer in message, detail, query, parameters and cause is INTERNAL with one bare log line, and no secret reaches the result, stdout, stderr or console",
+    async (op) => {
+      const { gameId, ids, tokens } = await collectingGame("Hemmelig feil");
+      const token = tokens[0];
+      const editSecret = newToken();
+      const answer = "Tante Gerd i badekaret";
+      const answers = Object.fromEntries(ids.map((id) => [id, [answer]]));
+      const secrets = [
+        token,
+        sha256(token),
+        editSecret,
+        sha256(editSecret),
+        answer,
+      ];
+      const carried = secrets.join(" ");
+      const failure = Object.assign(new Error(`check failed: ${carried}`), {
+        code: "23514",
+        detail: carried,
+        query: `insert into submission values (${carried})`,
+        parameters: secrets,
+        cause: new Error(carried),
+      });
+      const call =
+        op === "openInviteLink"
+          ? () => openInviteLink(gameId, token, editSecret)
+          : () => submitAnswerSet(gameId, token, { answers, editSecret });
+
+      // Both entry points' second getDb() select is linkExists in resolveLink, outside any
+      // nested module boundary (the first is games.find, which logs as "games").
+      const db = await getDb();
+      const realSelect = db.select.bind(db);
+      const select = vi
+        .spyOn(db, "select")
+        .mockImplementationOnce(realSelect)
+        .mockImplementationOnce(() => {
+          throw failure;
+        });
+      const captured: string[] = [];
+      const streams = [process.stderr, process.stdout].map((stream) =>
+        vi.spyOn(stream, "write").mockImplementation((chunk) => {
+          captured.push(String(chunk));
+          return true;
+        }),
+      );
+      const consoles = (
+        [
+          "log",
+          "info",
+          "warn",
+          "error",
+          "debug",
+          "trace",
+          "dir",
+          "table",
+        ] as const
+      ).map((method) =>
+        vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+          captured.push(inspect(args, { depth: Infinity }));
+        }),
+      );
+      let result, calls;
+      try {
+        result = await call();
+      } finally {
+        calls = select.mock.calls.length;
+        for (const spy of [select, ...streams, ...consoles]) spy.mockRestore();
+      }
+      expect(calls).toBe(2);
+      expect(result).toEqual({
+        ok: false,
+        code: "INTERNAL",
+        message: "Noe gikk galt hos oss. Prøv igjen om litt.",
+      });
+      const out = captured.join("");
+      const lines = out.trimEnd().split("\n");
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0])).toEqual({
+        module: "collection",
+        op,
+        code: "INTERNAL",
+        sqlstate: "23514",
+      });
+      const resultJson = JSON.stringify(result);
+      for (const secret of secrets) {
+        expect(out).not.toContain(secret);
+        expect(resultJson).not.toContain(secret);
+      }
     },
   );
 });
