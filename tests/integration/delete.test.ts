@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { deleteGame } from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
+import GamesPage from "@/app/spill/page";
 import { GAME_STATES, type GameState } from "@/lib/game-state";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
@@ -80,14 +81,25 @@ beforeEach(() => cookieJar.store.clear());
 
 describe("deleteGame", () => {
   it.each(GAME_STATES)(
-    "FR-3: deletes A's Game in %s, redirects with the title, and no row references it",
+    "FR-3: deletes A's Game in %s, redirects to /spill with the title in the notice cookie, and no row references it",
     async (state) => {
       const title = `Hytte & «${state}»`;
       const id = await insertGame(state, title);
       as("A");
       expect(await run(deleteGame, { gameId: id })).toEqual({
-        redirect: `/spill?slettet=${encodeURIComponent(title)}`,
+        redirect: "/spill",
       });
+      expect(cookieJar.set).toHaveBeenLastCalledWith(
+        "toppsvar_slettet",
+        title,
+        {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/spill",
+          maxAge: 60,
+          secure: false,
+        },
+      );
       expect(await gameRow(id)).toBeUndefined();
       const db = await getDb();
       for (const { tbl, col } of await foreignKeysTo("game")) {
@@ -133,6 +145,16 @@ describe("cascade", () => {
     const fks = await foreignKeysTo("host");
     expect(fks.map((fk) => fk.tbl).sort()).toEqual(["game", "session"]);
     for (const fk of fks) expect(fk.confdeltype, fk.tbl).toBe("c");
+  });
+});
+
+describe("Games page", () => {
+  it("FR-3: shows the deleted notice from the cookie only", async () => {
+    as("A");
+    const render = async () => renderToStaticMarkup(await GamesPage());
+    expect(await render()).not.toContain("er slettet.");
+    cookieJar.store.set("toppsvar_slettet", "Hytte & venner");
+    expect(await render()).toContain("«Hytte &amp; venner» er slettet.");
   });
 });
 

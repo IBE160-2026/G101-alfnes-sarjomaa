@@ -205,11 +205,7 @@ describe("with the game table dropped", () => {
     const write = vi
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
-    const html = renderToStaticMarkup(
-      await GamesPage({
-        searchParams: Promise.resolve({}),
-      } as PageProps<"/spill">),
-    );
+    const html = renderToStaticMarkup(await GamesPage());
     const out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
     write.mockRestore();
     expect(html).toContain(

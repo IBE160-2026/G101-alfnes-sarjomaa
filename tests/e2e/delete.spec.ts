@@ -68,15 +68,29 @@ test("FR-3: Slett for godt deletes the Game and lands on /spill with the success
   await expect(confirm).toHaveCSS("color", WHITE);
   await confirm.click();
 
-  await expect(page).toHaveURL(/\/spill\?slettet=/);
+  await expect(page).toHaveURL("/spill");
   await expect(page.getByRole("status")).toHaveText(
     "«Julebord & venner» er slettet.",
   );
   await expect(
     page.getByRole("link", { name: "Julebord & venner" }),
   ).toHaveCount(0);
+  // Shown once: a reload no longer has it.
+  await page.reload();
+  await expect(page.locator("h1")).toHaveText("Mine spill");
+  await expect(page.getByRole("status")).toHaveCount(0);
   await page.goto(gamePath);
   await expect(page.locator("h1")).toHaveText("Vi finner ikke dette spillet.");
+});
+
+test("FR-3: a crafted /spill?slettet= link shows no notice", async ({
+  page,
+}) => {
+  await registerHost(page);
+  await page.goto("/spill?slettet=Kontoen%20din%20er%20sperret");
+  await expect(page.locator("h1")).toHaveText("Mine spill");
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.locator("main")).not.toContainText("sperret");
 });
 
 test("FR-3, UX-DR23: an aborted delete request keeps the dialog open with the focused network message, and the Game stays", async ({
@@ -117,7 +131,7 @@ test("FR-3, AD-5: confirming in a stale dialog after the Game was deleted elsewh
     .getByRole("dialog")
     .getByRole("button", { name: "Slett for godt" })
     .click();
-  await expect(other).toHaveURL(/\/spill\?slettet=/);
+  await expect(other).toHaveURL("/spill");
   await other.close();
 
   await dialog.getByRole("button", { name: "Slett for godt" }).click();

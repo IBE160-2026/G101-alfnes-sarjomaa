@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
 import { createGame } from "@/app/spill/actions";
+import { DELETED_COOKIE } from "@/app/spill/deleted-notice";
 import { CreateGameForm } from "@/components/CreateGameForm";
 import { Notice } from "@/components/Notice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -20,14 +22,14 @@ async function ownedGames(hostId: string) {
 
 export const metadata: Metadata = { title: "Mine spill" };
 
-export default async function GamesPage({ searchParams }: PageProps<"/spill">) {
+export default async function GamesPage() {
   const { hostId } = await auth.requireHost();
-  const { slettet } = await searchParams;
+  const slettet = (await cookies()).get(DELETED_COOKIE)?.value;
   const list = await ownedGames(hostId);
   return (
     <>
       <h1 className="text-display">Mine spill</h1>
-      {typeof slettet === "string" && (
+      {slettet && (
         <Notice tone="success" className="mt-6">
           «{slettet}» er slettet.
         </Notice>

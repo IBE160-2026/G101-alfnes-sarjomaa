@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { loginSchema, registrationSchema } from "@/lib/account";
 import { DomainError, MESSAGES, validate } from "@/lib/errors";
 import {
@@ -159,7 +160,10 @@ export async function logOut(): Promise<void> {
   jar.delete(SESSION_COOKIE);
 }
 
-export async function requireHost(): Promise<{ hostId: string }> {
+// cache(): one session read per request. The spill layout and the page both call this,
+// and Next renders them in parallel; without it the second read finds the expired row
+// already deleted and redirects without ?utlopt=1 (Story 1.3 AC3).
+export const requireHost = cache(async (): Promise<{ hostId: string }> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) redirect("/logg-inn");
   const result = await withBoundary("auth", "requireHost", async () =>
@@ -168,7 +172,7 @@ export async function requireHost(): Promise<{ hostId: string }> {
   if (result === "missing") redirect("/logg-inn");
   if (result === "expired") redirect("/logg-inn?utlopt=1");
   return result;
-}
+});
 
 // Cookie presence only, no DB read, so the 404 page renders with the DB down.
 export async function hasSessionCookie(): Promise<boolean> {
