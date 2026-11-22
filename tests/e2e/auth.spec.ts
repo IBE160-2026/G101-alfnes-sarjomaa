@@ -1,10 +1,10 @@
-import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import {
   expect,
   FOCUS_RING,
   PASSWORD,
   registerHost,
+  seriousViolations,
   tabThrough,
   test,
   uniqueEmail,
@@ -15,13 +15,6 @@ const BAD_LOGIN = "Feil e-post eller passord.";
 async function fillLogin(page: Page, email: string, password: string) {
   await page.getByLabel("E-post").fill(email);
   await page.getByLabel("Passord").fill(password);
-}
-
-async function seriousViolations(page: Page) {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  return violations
-    .filter((v) => v.impact === "serious" || v.impact === "critical")
-    .map((v) => v.id);
 }
 
 test("FR-1, UX-DR28: register, log out and log in again each land on /spill", async ({

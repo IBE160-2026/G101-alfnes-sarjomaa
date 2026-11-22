@@ -1,16 +1,18 @@
-import { useId, type InputHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
   name: string;
   label: string;
   helper?: string;
   error?: string;
+  counter?: ReactNode;
 };
 
 export function TextField({
   label,
   helper,
   error,
+  counter,
   className = "",
   ...rest
 }: Props) {
@@ -35,10 +37,11 @@ export function TextField({
             : "border border-line-strong px-3"
         }`}
       />
-      {helper && (
-        <p id={helperId} className="mt-1 text-body-sm text-ink-muted">
-          {helper}
-        </p>
+      {(helper || counter) && (
+        <div className="mt-1 flex gap-4 text-body-sm text-ink-muted">
+          {helper && <p id={helperId}>{helper}</p>}
+          {counter && <div className="ml-auto">{counter}</div>}
+        </div>
       )}
       {error && (
         <p id={errorId} className="mt-1 text-body-sm text-danger">

@@ -14,14 +14,17 @@ Host account.
 - `tests/integration/proxy.test.ts`: `src/proxy.ts` re-sets the session cookie on a GET with `Max-Age=1209600`, `HttpOnly` and `SameSite=Lax`, and sets nothing on a POST or a GET without the cookie (Story 1.3, AC3).
 - `tests/integration/auth-secure-and-code.test.ts`: `APP_BASE_URL=https://…` makes the cookie `Secure`; with `REGISTRATION_CODE` set a missing or wrong code is `REGISTRATION_CODE_WRONG` before any scrypt run and creates no Host, the right code registers, and `/registrer` renders a field labelled "Registreringskode" (Story 1.3, AC3, AC4). Not e2e, because the e2e server runs with the code unset.
 - `tests/e2e/auth.spec.ts`: register, log out and log in again each land on "Mine spill", and `/spill` after logout redirects to `/logg-inn`; a second registration with the same email shows the taken message; wrong password and unknown email both show "Feil e-post eller passord."; no "Registreringskode" field; `/logg-inn?utlopt=1` shows the expiry notice; a GET with the session cookie re-sets it with `Max-Age=1209600`, `HttpOnly`, `SameSite=Lax` (Story 1.3, AC2–AC4).
-- Pending: Stories 1.4, 2.3.
+- `tests/integration/authz.test.ts`: Host B's `getOwned` and `lockForMutation({ hostId: B })` on Host A's Game reject with the same `DomainError("NOT_FOUND")` as a random UUID and `"abc"`, and A's `updated_at` stays unchanged; the Game page component calls `notFound()` for all three; `createGame` logged out redirects to `/logg-inn` and creates no Game (Story 1.4, AC3).
+- `tests/e2e/games.spec.ts`: Host B in a fresh context opening A's Game URL, a random UUID URL and `/spill/abc` sees the same `<h1>` "Vi finner ikke dette spillet.", the same "Mine spill" link and the same HTTP status, and never A's title; logged out, `/spill` and a Game page answer with a 3xx to `/logg-inn` from the spill layout and end there (Story 1.4, AC3).
+- Pending: Story 2.3.
 
 ## FR-2
 
 Create and list Games.
 
-- None yet.
-- Pending: Story 1.4.
+- `tests/unit/game-state.test.ts`: `createGameSchema` refuses an empty, whitespace-only and 81-character title with "Navnet må ha 1–80 tegn.", accepts 1 and 80 characters and trims; `formatDate` of `2026-11-21T23:30Z` is "22. november 2026" (Story 1.4, AC1, AC2).
+- `tests/integration/authz.test.ts`: `createGame` creates a trimmed _draft_ with `updated_at = created_at` and redirects to `/spill/{id}`; an empty or 81-character title returns `INVALID_INPUT` with the field error and creates no Game; `listOwned(B)` excludes A's Game and `listOwned(A)` is newest first by `created_at`, not `updated_at`, with only `id`, `title`, `state`, `updatedAt` (Story 1.4, AC1–AC3).
+- `tests/e2e/games.spec.ts`: a new Host sees the empty-state sentence, creates "Hyttetur 2026" and lands on its Game page with breadcrumb `Mine spill › Hyttetur 2026`, the title as focused `<h1>` and "Utkast"; an empty or 81-character title shows the error on the field with focus there and the title kept; the counter is absent at 59 characters and reads "60 av 80 tegn" at 60; two Games are listed newest first with title link, "Utkast" and "Sist endret {dato}" (Story 1.4, AC1, AC2, AC5).
 
 ## FR-3
 
@@ -246,6 +249,7 @@ Accessibility (WCAG 2.1 AA).
 
 - `tests/e2e/visual-foundation.spec.ts`: axe with its default rules finds no serious or critical violations on `/` and the 404 page; Tab reaches every interactive element on both and each shows the `focus` ring (3 px `focus-ring`); the landing links and Host chrome controls are at least 44 px high (Story 1.2).
 - `tests/e2e/auth.spec.ts`: axe finds no serious or critical violations on `/registrer` and `/logg-inn`, before and with field errors shown, and on `/spill`; Tab reaches every interactive element on both form pages, each shows the focus ring and is at least 44 px high; a too-short password sets `aria-invalid="true"`, links helper and error through `aria-describedby` and moves focus to the field (Story 1.3, AC6).
+- `tests/e2e/games.spec.ts`: axe finds no serious or critical violations on `/spill` empty, with Games and with a field error, on the Game page and on the Game not-found page; Tab reaches every interactive element on `/spill` with Games and on the Game page, each shows the focus ring, and every control in the header and main is at least 44 px high; an invalid title sets `aria-invalid="true"` with the error as accessible description (Story 1.4).
 - Pending: every story that builds a screen.
 
 ## NFR-7
@@ -255,6 +259,8 @@ Norwegian bokmål interface.
 - `tests/e2e/visual-foundation.spec.ts`: the landing page reads "Toppsvar", "Logg inn" and "Opprett konto"; an unknown URL reads "Siden finnes ikke." with "Hopp til innhold" in the Host chrome (Story 1.2), plus "Mine spill" and "Logg ut" when signed in (Story 1.3).
 - `tests/unit/error-pages.test.ts`: `error.tsx` and `global-error.tsx` read "Noe gikk galt hos oss. Prøv igjen om litt." (Story 1.2).
 - `tests/e2e/auth.spec.ts`: "Opprett konto", "Logg inn", "Mine spill", the labels "E-post" and "Passord", the helper "Minst 10 tegn.", the cross-links and every error and notice sentence are the literal bokmål strings (Story 1.3).
+- `tests/e2e/games.spec.ts` and `tests/integration/authz.test.ts`: "Navn på spillet", "Lag spill", the empty states, "Utkast", "Sist endret {dato}" in nb-NO, "Brødsmulesti", "Vi finner ikke dette spillet." and "Fikk ikke hentet spillene dine. Last inn siden på nytt." are the literal bokmål strings (Story 1.4).
+- `tests/unit/errors.test.ts`: `NOT_FOUND` and `WRONG_STATE` have their bokmål messages (Story 1.4).
 - Pending: every story that builds a screen.
 
 ## NFR-8
@@ -275,3 +281,8 @@ Design and experience rules from `DESIGN.md` and `EXPERIENCE.md` that no FR cove
 - `tests/unit/error-pages.test.ts`: `error.tsx` and `global-error.tsx` show no nav, "Mine spill" or "Logg ut", because a client component cannot read the session cookie (Story 1.3, UX-DR15).
 - `tests/e2e/visual-foundation.spec.ts`: the 404 page shows the nav with "Mine spill" and "Logg ut" only with a session cookie, and the wordmark links to `/` when signed out and `/spill` when signed in; every stop in the signed-in Host chrome shows the focus ring (NFR-6); "Logg ut" runs signed in; the focus test follows the real "Logg inn" link from `/` (Story 1.3, UX-DR15).
 - `tests/e2e/auth.spec.ts`: both forms use `autocomplete` `email` and `new-password`/`current-password` with visible labels (UX-DR28); a pending login shows "Logger inn …" with `aria-busy="true"` and sends exactly one request despite a second click and Enter (UX-DR2); a failed request shows "Fikk ikke kontakt. Sjekk nettet og prøv igjen." and keeps the email; after a failed login the email stays, the password is cleared and focus moves to the error notice (Story 1.3, AC6).
+- `tests/unit/game-state.test.ts`: the seven states in chain order, `INITIAL_STATE` _draft_, `TRANSITIONS` exactly the six forward edges, `canTransition` over all 49 pairs, `PERMITTED` names only known states, every state permits `deleteGame` and _played_ permits nothing else (Story 1.4, AC4, AD-4).
+- `tests/integration/game-state.test.ts`: `transition` over all 49 pairs succeeds only on the six edges and otherwise is `WRONG_STATE` with the state unchanged; a stale `from` is `WRONG_STATE`; `transition` never touches `updated_at`; `lockForMutation` is `NOT_FOUND` for a missing or malformed ID and `WRONG_STATE` outside `states` without touching `updated_at`; with `hostId` it sets `updated_at` to now, without it leaves it (fake `Date`); the row's `xmax` turns non-zero after the lock, proving `FOR UPDATE` on PGlite; walking `PERMITTED`, every operation locks exactly in its permitted states (Story 1.4, AC4, AD-4, AD-23).
+- `tests/integration/authz.test.ts`: with the `game` table dropped, `/spill` still renders the create form and the danger notice "Fikk ikke hentet spillene dine. Last inn siden på nytt.", and the boundary logs one `games`/`listOwned` line with only `module`, `op`, `code` and `sqlstate` (Story 1.4, UX-DR23, AD-17).
+- `tests/e2e/games.spec.ts`: with the Game page's RSC request held 1.5 s, the `loading.tsx` skeleton (no `<h1>`) fades in, and the streamed `<h1>` takes focus once it arrives, resolving Story 1.2's deferred `RouteFocus` gap (Story 1.4, UX-DR15, UX-DR23).
+- `tests/e2e/games.spec.ts`: an aborted create request shows "Fikk ikke kontakt. Sjekk nettet og prøv igjen.", focuses that notice, keeps the typed title and stays on `/spill` (Story 1.4, UX-DR23).

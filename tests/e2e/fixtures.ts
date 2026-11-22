@@ -1,15 +1,25 @@
-import { expect, test as base, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import {
+  expect,
+  test as base,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 // NFR-3: the browser never reaches a host other than localhost.
+export async function localOnly(context: BrowserContext) {
+  await context.route("**/*", (route) =>
+    LOCAL_HOSTS.has(new URL(route.request().url()).hostname)
+      ? route.continue()
+      : route.abort("blockedbyclient"),
+  );
+}
+
 export const test = base.extend({
   context: async ({ context }, provide) => {
-    await context.route("**/*", (route) =>
-      LOCAL_HOSTS.has(new URL(route.request().url()).hostname)
-        ? route.continue()
-        : route.abort("blockedbyclient"),
-    );
+    await localOnly(context);
     await provide(context);
   },
 });
@@ -53,4 +63,11 @@ export async function tabThrough(page: Page) {
     stops.push(stop);
   }
   return stops;
+}
+
+export async function seriousViolations(page: Page) {
+  const { violations } = await new AxeBuilder({ page }).analyze();
+  return violations
+    .filter((v) => v.impact === "serious" || v.impact === "critical")
+    .map((v) => v.id);
 }

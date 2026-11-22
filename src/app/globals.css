@@ -89,6 +89,14 @@
   --radius-md: 10px;
   --radius-lg: 16px;
   --radius-full: 9999px;
+
+  /* Loading skeletons stay invisible for 300 ms, so fast loads never flash; no fade, so no motion. */
+  --animate-appear: appear 0s 300ms both;
+  @keyframes appear {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 @layer base {

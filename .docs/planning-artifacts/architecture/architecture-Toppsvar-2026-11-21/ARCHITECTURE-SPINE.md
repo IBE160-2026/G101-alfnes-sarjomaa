@@ -140,7 +140,7 @@ stateDiagram-v2
   - **Session.** Host entry points take `hostId` from `auth.requireHost()`, which each Host page and action calls. No proxy makes an auth decision.
   - **The Game.** The Game is resolved through `lockForMutation` for mutations, or `games.getOwned` for reads. Both throw `NOT_FOUND` whether the Game is missing or belongs to someone else.
   - **Child IDs.** Every other input ID (`questionId`, `groupId`, `answerId`, `boardSlotId`, `teamId`) and every pasted link is resolved by a query constrained to the owned `gameId`. The IDs in one Review operation must also share one `question_id`. Any miss is `NOT_FOUND`, and the whole operation is refused.
-  - **Rendering.** Pages turn `NOT_FOUND` into the bokmål 404. Under `/svar` the segment has its own `not-found.tsx`, which renders the Participant's "unknown link" page instead, with no Host chrome.
+  - **Rendering.** Pages turn `NOT_FOUND` into the bokmål 404. Under `/svar` the segment has its own `not-found.tsx`, which renders the Participant's "unknown link" page instead, with no Host chrome. A Game page behind `loading.tsx` streams, so its `NOT_FOUND` renders the bokmål not-found UI with status 200 and `noindex`, identical for missing and foreign Games; logged-out redirects happen in the spill layout before streaming.
 
 ### AD-6 — In-app auth: scrypt, hashed DB sessions, bounded cost [ADOPTED]
 
