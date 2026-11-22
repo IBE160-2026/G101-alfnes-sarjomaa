@@ -115,7 +115,12 @@
   }
 
   ::selection {
-    background-color: var(--color-primary-soft);
+    /* primary-soft is 1.1:1 on paper, so selected text was invisible; ink stays above 7:1 on this. */
+    background-color: color-mix(
+      in oklab,
+      var(--color-primary) 40%,
+      var(--color-surface)
+    );
     color: var(--color-ink);
   }
 

@@ -61,6 +61,7 @@ test("FR-2, UX-DR16, UX-DR15: a new Host sees the empty state, creates a Game an
   const h1 = page.locator("h1");
   await expect(h1).toHaveText("Hyttetur 2026");
   await expect(h1).toBeFocused();
+  await expect(page).toHaveTitle("Hyttetur 2026 – Toppsvar");
   await expect(page.locator("main").getByText("Utkast")).toBeVisible();
   await expect(
     page
@@ -74,6 +75,7 @@ test("FR-2, NFR-6: an empty or 81-character title is refused on the field, and t
 }) => {
   await registerHost(page);
   const field = page.getByLabel("Navn på spillet");
+  await expect(field).toHaveAttribute("aria-required", "true");
   for (const title of ["", "a".repeat(81)]) {
     await field.fill(title);
     await page.getByRole("button", { name: "Lag spill" }).click();
@@ -147,6 +149,9 @@ test("FR-1, FR-2, AD-5: Host B gets the same not-found page for A's Game, a rand
     const response = await pageB.goto(path);
     statuses.add(response!.status());
     await expect(pageB.locator("h1"), path).toHaveText(NOT_FOUND);
+    await expect(pageB, path).toHaveTitle(
+      "Vi finner ikke dette spillet – Toppsvar",
+    );
     await expect(
       pageB.getByRole("main").getByRole("link", { name: "Mine spill" }),
     ).toHaveAttribute("href", "/spill");

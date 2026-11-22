@@ -33,7 +33,7 @@ export function TextField({
         aria-describedby={describedBy || undefined}
         className={`mt-1 block min-h-12 w-full rounded-sm bg-surface text-body text-ink ${
           error
-            ? "border-2 border-danger px-[11px]"
+            ? "border-2 border-danger px-2.75"
             : "border border-line-strong px-3"
         }`}
       />

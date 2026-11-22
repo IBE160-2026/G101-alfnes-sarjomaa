@@ -4,7 +4,9 @@ import type { ReactNode } from "react";
 import { RouteFocus } from "@/components/RouteFocus";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "Toppsvar" };
+export const metadata: Metadata = {
+  title: { default: "Toppsvar", template: "%s – Toppsvar" },
+};
 
 export default function RootLayout({
   children,

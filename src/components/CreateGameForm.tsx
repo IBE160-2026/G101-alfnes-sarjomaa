@@ -64,6 +64,7 @@ export function CreateGameForm({
           name="title"
           label="Navn på spillet"
           autoComplete="off"
+          aria-required
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           error={errors?.title}

@@ -191,11 +191,19 @@ test("FR-1: a GET with the session cookie re-sets it for 14 days, httpOnly and S
   expect(cookie).not.toMatch(/Secure/i);
 });
 
-for (const path of ["/registrer", "/logg-inn"]) {
+for (const [path, title] of [
+  ["/registrer", "Opprett konto – Toppsvar"],
+  ["/logg-inn", "Logg inn – Toppsvar"],
+]) {
   test(`NFR-6: axe finds no serious or critical violations on ${path}, also with an error shown`, async ({
     page,
   }) => {
     await page.goto(path);
+    await expect(page).toHaveTitle(title);
+    await expect(page.getByLabel("E-post")).toHaveAttribute(
+      "aria-required",
+      "true",
+    );
     expect(await seriousViolations(page)).toEqual([]);
     await page.locator("form button[type=submit]").click();
     await expect(page.locator('[aria-invalid="true"]').first()).toBeVisible();
@@ -222,5 +230,6 @@ test("NFR-6: axe finds no serious or critical violations on /spill", async ({
 }) => {
   await registerHost(page);
   await expect(page.locator("h1")).toHaveText("Mine spill");
+  await expect(page).toHaveTitle("Mine spill – Toppsvar");
   expect(await seriousViolations(page)).toEqual([]);
 });

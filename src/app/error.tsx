@@ -1,13 +1,14 @@
 "use client";
 
 import { HostChrome } from "@/components/HostChrome";
+import { ServerError } from "@/components/ServerError";
 
-export default function ErrorPage() {
+// Outside /spill a client component cannot know the session, so the chrome is signed out;
+// errors inside /spill are caught by spill/error.tsx under the signed-in layout.
+export default function ErrorPage({ retry }: { retry: () => void }) {
   return (
     <HostChrome signedIn={false}>
-      <h1 className="text-display">
-        Noe gikk galt hos oss. Prøv igjen om litt.
-      </h1>
+      <ServerError retry={retry} />
     </HostChrome>
   );
 }

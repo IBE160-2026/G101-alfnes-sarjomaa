@@ -43,7 +43,7 @@ export function ConfirmDialog({
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-body`}
         onClose={() => triggerRef.current?.focus()}
-        className="m-auto w-[calc(100%-2rem)] max-w-[480px] rounded-lg bg-surface p-6 text-ink shadow-xl backdrop:bg-[rgb(30_26_34/0.55)]"
+        className="m-auto w-[calc(100%-2rem)] max-w-120 rounded-lg bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/55"
       >
         <h2 id={`${id}-title`} className="text-heading">
           {title}

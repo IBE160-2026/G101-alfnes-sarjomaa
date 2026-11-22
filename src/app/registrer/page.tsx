@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { register } from "@/app/registrer/actions";
 import { AccountForm } from "@/components/AccountForm";
 import { env } from "@/server/env";
+
+export const metadata: Metadata = { title: "Opprett konto" };
 
 // Rendered per request, so a build-time snapshot of REGISTRATION_CODE never hides the field.
 export default async function RegisterPage() {

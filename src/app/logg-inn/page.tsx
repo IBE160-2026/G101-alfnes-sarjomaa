@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { logIn } from "@/app/logg-inn/actions";
 import { AccountForm } from "@/components/AccountForm";
 import { Notice } from "@/components/Notice";
+
+export const metadata: Metadata = { title: "Logg inn" };
 
 export default async function LoginPage({
   searchParams,

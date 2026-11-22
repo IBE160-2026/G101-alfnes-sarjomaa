@@ -1,25 +1,45 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { DeleteGame } from "@/components/DeleteGame";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
 import * as games from "@/server/games";
 
-async function ownedGame(hostId: string, gameId: string) {
+const isNotFound = (error: unknown) =>
+  error instanceof DomainError && error.code === "NOT_FOUND";
+
+// cache(): generateMetadata and the page share one owner-checked read per request.
+const ownedGame = cache(async (gameId: string) => {
+  const { hostId } = await auth.requireHost();
+  return games.getOwned(hostId, gameId);
+});
+
+// A foreign Game gets the not-found title too, so its title never leaks (AD-5).
+export async function generateMetadata({
+  params,
+}: PageProps<"/spill/[id]">): Promise<Metadata> {
+  const { id } = await params;
   try {
-    return await games.getOwned(hostId, gameId);
+    return { title: (await ownedGame(id)).title };
   } catch (error) {
-    // Missing, foreign and malformed IDs all land here, on one page (AD-5).
-    if (error instanceof DomainError && error.code === "NOT_FOUND") notFound();
+    if (isNotFound(error)) return { title: "Vi finner ikke dette spillet" };
     throw error;
   }
 }
 
 export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
   const { id } = await params;
-  const { hostId } = await auth.requireHost();
-  const game = await ownedGame(hostId, id);
+  let game;
+  try {
+    game = await ownedGame(id);
+  } catch (error) {
+    // Missing, foreign and malformed IDs all land here, on one page (AD-5).
+    if (isNotFound(error)) notFound();
+    throw error;
+  }
 
   // One route; later stories add their state's panel as a case here.
   let panel = null;
@@ -30,10 +50,8 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           <h2 id="sporsmal" className="text-heading">
             Spørsmål
           </h2>
-          <p className="mt-2">
-            Ingen spørsmål ennå. Skriv det første, gjerne om noen dere kjenner,
-            for eksempel «Hva gjør Jonas når han har forsovet seg?»
-          </p>
+          {/* shortcut: neutral copy while there is no question editor; restore the EXPERIENCE.md sentence ("Skriv det første …") with the editor in Epic 2. */}
+          <p className="mt-2">Ingen spørsmål ennå.</p>
         </section>
       );
       break;

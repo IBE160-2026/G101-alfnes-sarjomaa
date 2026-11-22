@@ -80,6 +80,10 @@ test("UX-DR15, UX-DR23: an unknown URL returns 404 inside the Host chrome, witho
   expect(res?.status()).toBe(404);
   await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.locator("h1")).toHaveText("Siden finnes ikke.");
+  await expect(page).toHaveTitle("Siden finnes ikke – Toppsvar");
+  await expect(
+    page.getByRole("main").getByRole("link", { name: "Til forsiden" }),
+  ).toHaveAttribute("href", "/");
 
   await expect(page.locator("header")).toHaveCount(1);
   await expect(page.locator("main#innhold")).toHaveCount(1);
@@ -111,6 +115,9 @@ test('UX-DR15: a signed-in Host sees "Mine spill" and "Logg ut" on the 404 page'
     "/spill",
   );
   await expect(nav.getByRole("button", { name: "Logg ut" })).toBeVisible();
+  await expect(
+    page.getByRole("main").getByRole("link", { name: "Mine spill" }),
+  ).toHaveAttribute("href", "/spill");
   await expect(
     page.locator("header").getByRole("link", { name: "Toppsvar" }),
   ).toHaveAttribute("href", "/spill");
@@ -201,5 +208,10 @@ test("NFR-6: every interactive element in the signed-in Host chrome shows the fo
   expect(stops.map((s) => s.text)).toEqual(
     expect.arrayContaining(["Mine spill", "Logg ut"]),
   );
+  await expect(
+    page
+      .getByRole("navigation", { name: "Hovedmeny" })
+      .getByRole("link", { name: "Mine spill" }),
+  ).toHaveAttribute("aria-current", "page");
   for (const stop of stops) expect(stop.outline, stop.text).toBe(FOCUS_RING);
 });

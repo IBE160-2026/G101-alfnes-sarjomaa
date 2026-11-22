@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { logOut } from "@/app/actions";
 import { Button } from "@/components/Button";
+import { NavLink } from "@/components/NavLink";
 
 const control =
   "inline-flex min-h-11 items-center rounded-md px-4 hover:bg-surface-sunken";
@@ -31,9 +32,9 @@ export function HostChrome({
           </Link>
           {signedIn && (
             <nav aria-label="Hovedmeny" className="flex items-center gap-1">
-              <Link href="/spill" className={control}>
+              <NavLink href="/spill" className={control}>
                 Mine spill
-              </Link>
+              </NavLink>
               <form action={logOut}>
                 <Button type="submit" variant="ghost">
                   Logg ut

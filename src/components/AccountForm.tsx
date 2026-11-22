@@ -91,6 +91,7 @@ export function AccountForm({
           label="E-post"
           type="email"
           autoComplete="email"
+          aria-required
           defaultValue={state?.email}
           error={errors?.email}
         />
@@ -99,6 +100,7 @@ export function AccountForm({
           label="Passord"
           type="password"
           autoComplete={copy.password}
+          aria-required
           helper={mode === "register" ? "Minst 10 tegn." : undefined}
           error={errors?.password}
           className="mt-5"
@@ -109,6 +111,7 @@ export function AccountForm({
             label="Registreringskode"
             type="text"
             autoComplete="off"
+            aria-required
             error={errors?.registrationCode}
             className="mt-5"
           />

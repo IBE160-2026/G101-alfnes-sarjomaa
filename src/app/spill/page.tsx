@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
 import { createGame } from "@/app/spill/actions";
@@ -16,6 +17,8 @@ async function ownedGames(hostId: string) {
     return null; // already logged by the module boundary
   }
 }
+
+export const metadata: Metadata = { title: "Mine spill" };
 
 export default async function GamesPage({ searchParams }: PageProps<"/spill">) {
   const { hostId } = await auth.requireHost();
