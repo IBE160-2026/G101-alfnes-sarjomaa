@@ -60,6 +60,11 @@ npm run dev                 # http://localhost:3000, helsesjekk på /api/health
 
 Variablene står i [`.env.example`](.env.example). Kopier den til `.env.local` for å endre noe.
 
+Uten nøkkel bruker dommeren lagrede kjennelser fra `data/rulings/` (`JUDGE_PROVIDER=replay`, standard
+når nøkkelen mangler). Spørsmål uten lagret kjennelse faller tilbake med grunnkoden
+`NO_KEY`: hvert ulike svar blir sin egen gruppe, og verten slår dem sammen for hånd i gjennomgangen. Så lenge `data/rulings/` er tom, gjelder det
+alle spørsmål: «Grupper foreslått 0» etter stenging er da forventet, ikke en feil.
+
 Med `OPENROUTER_API_KEY` i `.env` eller `.env.local` grupperer dommeren svarene live. To skript bruker nøkkelen, og
 ingen av dem kjører i testene eller CI:
 

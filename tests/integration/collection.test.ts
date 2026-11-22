@@ -1202,7 +1202,9 @@ describe("close", () => {
       const { gameId, ids, tokens } = await collectingGame("For få", 3);
       for (let k = 0; k < n; k++) await send(gameId, tokens[k], setOf(ids, k));
       const before = await snapshot(gameId, tokens, ids);
+      afterTasks.length = 0;
       expect(await closeCollection({ gameId })).toEqual(TOO_FEW);
+      expect(afterTasks, "a refused close queues no Grouping run").toEqual([]);
       expect(await snapshot(gameId, tokens, ids)).toEqual(before);
       expect(before.game.state).toBe("collecting");
       expect(before.sets).toHaveLength(n);

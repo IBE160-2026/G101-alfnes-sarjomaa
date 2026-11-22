@@ -29,7 +29,7 @@ import {
   submission,
 } from "@/server/db/schema";
 import * as games from "@/server/games";
-import { cookieJar, NotFoundError, run } from "./next-mocks";
+import { afterTasks, cookieJar, NotFoundError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -428,12 +428,14 @@ describe("Invite links across Hosts", () => {
     });
     const before = await snapshot();
     as("B");
+    afterTasks.length = 0;
     for (const gameId of [closableOfA, randomUUID(), "abc"])
       expect(await closeCollection({ gameId }), gameId).toEqual({
         ok: false,
         code: "NOT_FOUND",
         message: "Vi finner ikke dette spillet.",
       });
+    expect(afterTasks, "a refused close queues no Grouping run").toEqual([]);
     expect(await snapshot()).toEqual(before);
     expect(before.game.state).toBe("collecting");
     expect(before.links).toHaveLength(3);

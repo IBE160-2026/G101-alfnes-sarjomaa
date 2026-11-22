@@ -28,6 +28,7 @@ import {
   type Judge,
   type PartitionResult,
 } from "@/server/judge";
+import { log } from "@/server/log";
 import * as questions from "@/server/questions";
 
 export type AnswerRow = Omit<typeof answer.$inferInsert, "id">;
@@ -64,7 +65,10 @@ async function timedPartition(
       timedOut,
     ]);
   } catch (error) {
-    return error instanceof JudgeError ? error : new JudgeError("ERROR");
+    if (error instanceof JudgeError) return error;
+    // A broken ruling file or a provider bug; the code only, never the message (AD-17).
+    log({ module: "grouping", op: "partition", code: "INTERNAL" });
+    return new JudgeError("ERROR");
   } finally {
     clearTimeout(timer);
   }

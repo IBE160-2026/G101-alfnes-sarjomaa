@@ -39,7 +39,7 @@ import {
 } from "@/server/judge/providers/mock";
 import { createOpenRouterJudge } from "@/server/judge/providers/openrouter";
 import { createReplayJudge } from "@/server/judge/providers/replay";
-import { cookieJar, runAfterTasks } from "./next-mocks";
+import { afterTasks, cookieJar, runAfterTasks } from "./next-mocks";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -443,10 +443,16 @@ describe("run", () => {
     },
   );
 
-  it("FR-17 (AC3): a plain Error falls the Question back with ERROR", async () => {
+  it("FR-17 (AC3), AD-17: a plain Error falls the Question back with ERROR and logs one content-free line", async () => {
     const { gameId, ids } = await groupingGame(THREE);
-    mock({ [Q3]: new Error("boom") });
+    mock({ [Q3]: new Error("Invalid ruling file: /hemmelig/sti.json") });
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     await grouping.run(gameId);
+    expect(write.mock.calls.map(([chunk]) => String(chunk)).join("")).toBe(
+      `${JSON.stringify({ module: "grouping", op: "partition", code: "INTERNAL" })}\n`,
+    );
     expect(await resultOf(ids[2])).toMatchObject(fellBack("ERROR"));
     expect(await resultOf(ids[0])).toMatchObject(judged());
   });
@@ -795,5 +801,8 @@ describe("close", () => {
       { origin: "judge", texts: ["rød", "rød", "rød"] },
     ]);
     expect(await ungrouped(ids)).toEqual([]);
+    const again = await closeCollection({ gameId });
+    expect(again).toMatchObject({ ok: false, code: "WRONG_STATE" });
+    expect(afterTasks, "a refused close queues no Grouping run").toEqual([]);
   });
 });
