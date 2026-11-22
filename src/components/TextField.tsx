@@ -14,12 +14,17 @@ export function TextField({
   error,
   counter,
   className = "",
+  "aria-describedby": describedByExtra,
+  "aria-invalid": invalidExtra,
   ...rest
 }: Props) {
   const id = useId();
   const helperId = helper ? `${id}-helper` : undefined;
   const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [helperId, errorId].filter(Boolean).join(" ");
+  // A caller's description (an error shown outside the field) comes first.
+  const describedBy = [describedByExtra, helperId, errorId]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className={className}>
@@ -29,7 +34,7 @@ export function TextField({
       <input
         {...rest}
         id={id}
-        aria-invalid={error ? true : undefined}
+        aria-invalid={error ? true : invalidExtra}
         aria-describedby={describedBy || undefined}
         className={`mt-1 block min-h-12 w-full rounded-sm bg-surface text-body text-ink ${
           error

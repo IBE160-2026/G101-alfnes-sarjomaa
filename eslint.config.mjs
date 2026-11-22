@@ -69,6 +69,7 @@ export default defineConfig([
   zone(
     [
       "src/app/svar/**",
+      "src/components/AnswerForm.tsx",
       "src/components/InviteLinkView.tsx",
       "src/components/LinkStatus.tsx",
       "src/components/ParticipantChrome.tsx",

@@ -71,15 +71,20 @@ Create Invite links.
 Answer through an Invite link.
 
 - `tests/integration/collection.test.ts`, through the `openInviteLink` action: every valid link of a _collecting_ Game returns `{ title, questions: { id, text }[] }` in position order, also after two "Flytt opp" reorders; `linkStatus` is `open` (Story 2.3, AC5).
-- `tests/e2e/invite-link-page.spec.ts`: opening a valid link in a fresh browser shows the Game title as `<h1>`, the document title "{title} – Toppsvar" and the Question (Story 2.3, AC1, AC5).
-- Pending: Stories 2.4, 2.5.
+- `tests/e2e/invite-link-page.spec.ts`: opening a valid link in a fresh browser shows the Game title as `<h1>`, the document title "{title} – Toppsvar" and the Question's fieldset (Story 2.3, AC1, AC5).
+- `tests/unit/answer-set.test.ts`: `parseAnswerSet` trims, drops empty fields and keeps field order; 80 trimmed characters pass and 81 fail under `qid.1` with "Svaret kan ha maks 80 tegn."; six entries, a value that is not an array, an unknown Question ID and a non-object set fail; a missing key and an all-blank Question fail with "Skriv minst ett svar." (Story 2.4, AC3, AC4).
+- `tests/integration/collection.test.ts`, through the `submitAnswerSet` action: a first submit stores exactly one `submission` row with `token_hash = sha256(token)`, trimmed non-empty Answers in field order and `sha256` of the secret; a missing key or all-blank Question returns `INVALID_INPUT` with "Skriv minst ett svar." under the Question ID; 81 trimmed characters at field 1 return "Svaret kan ha maks 80 tegn." under `qid.1` while 80 are stored; six Answers, an unknown Question ID, a non-object set, a non-array value and a missing, 42-character or non-string secret are `INVALID_INPUT`; none of these writes a row (Story 2.4, AC3–AC5).
+- `tests/e2e/answer-form.spec.ts`: at 360 px each Question is a fieldset "Spørsmål N av 2: …" with "Svar 1" and "Svar 2 (valgfritt)"; inputs carry `maxlength="80"`, `autocomplete="off"`, `autocapitalize="sentences"` and `enterkeyhint="next"`; three "Legg til svar" clicks give five fields, focus each new one and remove the button; "Fjern svar 4" focuses Svar 3; no counter at 59 characters and "60/80" at 60; "0 av 2" becomes "1 av 2 spørsmål har svar"; the instruction and helper lines show; a submit with Question 2 empty sends no `next-action` POST, focuses the summary "1 spørsmål mangler svar" with one link "Spørsmål 2: …", marks Question 2's Svar 1 `aria-invalid` with "Skriv minst ett svar." as its description, and the link focuses that field without changing `location.hash`; an 81-character Answer past a removed `maxlength` shows "Svaret kan ha maks 80 tegn." under its field; a complete submit with an empty Svar 2 and a filled Svar 3 focuses "Svarene dine er lagret." with the body and "Se eller endre svarene" (Story 2.4, AC2, AC3, AC5).
+- Pending: Story 2.5.
 
 ## FR-7
 
 Change a submitted Answer set.
 
-- None yet.
-- Pending: Stories 2.4, 2.5.
+- `tests/unit/token.test.ts`: the link store writes `{ token, editSecret }` under `storageKey` and reads it back only for exactly that Token; `newEditSecret()` is 32 bytes in `TOKEN_PATTERN`'s shape and two calls differ (Story 2.4, AC5).
+- `tests/integration/collection.test.ts`: a second submit on the same link keeps one row and replaces both the Answers and the secret hash (Story 2.4, AD-8).
+- `tests/e2e/answer-form.spec.ts`: after a complete submit the `localStorage` value at `storageKey` is `{ token: <link Token>, editSecret: <43 base64url characters> }`; "Se eller endre svarene" focuses the `<h1>` and shows the form with the submitted values and "Lagre endringer", and pressing it keeps the same `editSecret`; after an aborted submit the key already holds `{ token, editSecret }` (Story 2.4, AC5).
+- Pending: Story 2.5.
 
 ## FR-8
 
@@ -96,6 +101,9 @@ Revoke and replace an Invite link.
 - `tests/unit/token.test.ts`: `TOKEN_PATTERN` accepts 100 `newToken()`s and rejects 42 and 44 characters, `+`, `/`, `=` and an empty string; `storageKey` is `toppsvar:<gameId>:<first 16 Token characters>` (Story 2.3).
 - `tests/integration/collection.test.ts`: a Token of another Game is `LINK_UNKNOWN` (lookup by `(token_hash, game_id)`); a random 43-character Token, `"abc"`, `""`, 42 characters, a number and no Token are `LINK_UNKNOWN`; a revoked link (row deleted) is identical to an unknown one while its sibling still opens; a random UUID, `"abc"`, a non-string and a deleted Game are `LINK_UNKNOWN` and `linkStatus` `unknown`; the shell throws `notFound()` for a random UUID and `"abc"` (Story 2.3, AC3, AC5).
 - `tests/e2e/invite-link-page.spec.ts`: a random UUID, an `"abc"` gameId, a malformed Token, an unknown Token and a deleted Game's link each show "Vi finner ikke denne lenken." with "Den kan være skrevet feil eller ikke lenger gyldig. Be den som sendte deg den om en ny.", and the pre-seeded `storageKey` is removed; setting `location.hash` to a valid Token on the unknown page (a pasted replacement link) reloads and shows the Game title (Story 2.3, AC3).
+- `tests/unit/token.test.ts`: `clearLinkStore` removes the key when its stored Token equals the current one, and keeps it for a Token sharing only the first 16 characters and for an unparseable value; read, write and clear never throw when storage throws (Story 2.4, 2.3 deferred item).
+- `tests/integration/collection.test.ts`, through `submitAnswerSet`: a number, `"abc"`, an unknown, another Game's and a revoked Token, and a random UUID, `"abc"` or non-string Game are `LINK_UNKNOWN` with no row; deleting the `invite_link` row removes its `submission` by cascade (Story 2.4, AD-8).
+- `tests/e2e/invite-link-page.spec.ts`: with the real link's key seeded `{ token: <real> }`, opening `/svar/<gameId>#<first 16 characters>x` shows the unknown page and leaves the value unchanged; the seeded values of the other key tests are now `{ token }` (Story 2.4, 2.3 deferred item).
 - Pending: Story 2.7.
 
 ## FR-10
@@ -106,6 +114,8 @@ Close Collection.
 - `tests/integration/collection.test.ts`: in each of the six states other than _collecting_, a real, an unknown, a revoked and a malformed Token are all `COLLECTION_CLOSED` (the state is decided before the Token) and `linkStatus` is `closed`; the shell for a _grouping_ Game renders the closed heading and body and not the Game title (Story 2.3, AC4).
 - `tests/e2e/invite-link-page.spec.ts`: a _draft_ Game's ID with a made-up Token shows "Innsamlingen er stengt." with "Verten har stengt innsamlingen, så svar kan ikke lenger sendes inn eller endres.", no Game title, and the pre-seeded `storageKey` is removed (Story 2.3, AC4).
 - `tests/e2e/invite-link-page.spec.ts`: a real `LINK_UNKNOWN` action response rewritten to `COLLECTION_CLOSED` shows the closed heading and body with no alert and removes the seeded key (the client branch, Story 2.3, AC4).
+- `tests/integration/collection.test.ts`: in each of the six states other than _collecting_ a submit is `COLLECTION_CLOSED` and writes no row (Story 2.4).
+- `tests/e2e/answer-form.spec.ts`: a real submit response rewritten to `COLLECTION_CLOSED` replaces the form with the focused "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." and removes the key; rewritten to `LINK_UNKNOWN` it shows the focused unknown heading; to `INTERNAL` the alert with the values kept; to `INVALID_INPUT` with a `qid.0` field error that error under Question 1's Svar 1 (Story 2.4).
 - Pending: Story 3.1.
 
 ## FR-11
@@ -118,7 +128,10 @@ No identity in the answering flow.
 - `tests/integration/collection.test.ts`: with `invite_link` renamed, `openInviteLink` returns `INTERNAL` and stderr holds one line `{ module: "collection", op: "openInviteLink", code: "INTERNAL", sqlstate: "42P01" }` with no Token, hash or gameId; opening (a valid and an unknown Token) changes neither the `game` row, `updated_at` included, nor any `invite_link` row; the shell's server HTML for an open Game holds no Game title, Question text, Token or link, only the wordmark and "Henter spørsmålene …" (Story 2.3, AC1, AC6).
 - `tests/e2e/invite-link-page.spec.ts`: `GET /svar/<gameId>` answers with `Referrer-Policy: no-referrer`, `<title>Toppsvar</title>`, `noindex, nofollow`, no `og:` tag, and neither the Game title nor the Question; no request the browser sends while opening the link has the Token in its URL (Story 2.3, AC1).
 - `tests/e2e/invite-link-page.spec.ts`: a real action response rewritten to `INTERNAL` shows only the danger alert "Noe gikk galt hos oss. Prøv igjen om litt." with "Prøv igjen", no unknown or closed copy, and keeps the seeded `storageKey` (Story 2.3).
-- Pending: Stories 2.4, 3.2, 3.3, 6.5.
+- `tests/integration/collection.test.ts`: a first submit leaves the `game` row, `updated_at` included, unchanged; with `submission` renamed it returns `INTERNAL` and stderr holds one line `{ module: "collection", op: "submit", code: "INTERNAL", sqlstate: "42P01" }` with no Token, hash, edit secret, its hash, Answer or gameId (Story 2.4, AD-8, AD-17).
+- `tests/e2e/answer-form.spec.ts`: opened in the Host's own browser, the answer form shows no "Logg ut", "Mine spill" or `@` (Story 2.4, AC6).
+- `tests/unit/lint-zones.test.ts`: `AnswerForm.tsx` may not import `@/server/auth` (Story 2.4, AD-6).
+- Pending: Stories 3.2, 3.3, 6.5.
 
 ## FR-12
 
@@ -139,8 +152,9 @@ Unlinkable storage after close.
 
 Honest anonymity notice.
 
-- None yet.
-- Pending: Stories 2.4, 7.4.
+- `tests/e2e/answer-form.spec.ts`: above the first Question the info Notice reads exactly "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet.", with the instruction line as a separate paragraph (Story 2.4, AC1).
+- `tests/manual/checklist.md`: A3, the notice is read by VoiceOver or TalkBack (Story 2.4, AC6).
+- Pending: Story 7.4.
 
 ## FR-15
 
@@ -278,7 +292,8 @@ Tests without network.
 Devices.
 
 - `tests/e2e/invite-link-page.spec.ts`: at 360 px the open, closed and unknown link pages have no horizontal scroll (Story 2.3).
-- Pending: Story 2.4.
+- `tests/e2e/answer-form.spec.ts`: the answer form with four fields in Question 1 and a visible counter has no horizontal scroll at 360 px and at 320 px (Story 2.4, AC2).
+- `tests/manual/checklist.md`: A4, 360 px, 320 px and 200 % zoom on a real phone (Story 2.4, AC6).
 
 ## NFR-6
 
@@ -291,6 +306,8 @@ Accessibility (WCAG 2.1 AA).
 - `tests/e2e/questions.spec.ts`: three Questions are added with Enter on "Legg til spørsmål", typing and Tab, and one is moved with Space on "Flytt ned", focus following it; on the _draft_ Game page Tab then reaches every interactive element in DOM (reading) order, each shows the focus ring, every editor button is at least 44 px high and each textarea has a visible label "Spørsmål N"; axe finds no serious or critical violations with Questions present and with a field error shown (Story 2.1, AC4).
 - `tests/e2e/invite-links.spec.ts`: axe finds no serious or critical violations on the _draft_ Invite link panel, with the "Åpne innsamlingen?" dialog open, with the OnceLinkList shown and on the _collecting_ page; from the focused "Kopier lenkene nå", Tab reaches "Kopier alle", each "Kopier" and "Jeg har kopiert lenkene" in order, each with the focus ring and at least 44 px high (Story 2.2, NFR-6).
 - `tests/e2e/invite-link-page.spec.ts`: axe finds no serious or critical violations at 360 px on the open, closed and both unknown link pages (client `LINK_UNKNOWN` and the server `not-found.tsx`); an aborted `openInviteLink` POST shows the danger alert "Fikk ikke kontakt. Sjekk nettet og prøv igjen." with "Prøv igjen", which, pressed with Enter once the route is released, loads the Questions and moves focus to the new `<h1>`; the `INTERNAL` failure shows the same alert and "Prøv igjen" (Story 2.3, UX-DR23).
+- `tests/e2e/answer-form.spec.ts`: axe finds no serious or critical violations on the answer form at 360 px; the error summary takes focus and its links move focus to the field; an aborted submit POST shows the danger alert "Fikk ikke sendt svarene. Sjekk nettet og prøv igjen. Utkastet ditt ligger fortsatt på denne enheten." and keeps every typed value (Story 2.4, AC3, AC6).
+- `tests/manual/checklist.md`: A2 keyboard only, A3 screen reader, A4 reflow and zoom (Story 2.4, AC6).
 - Pending: every story that builds a screen.
 
 ## NFR-7

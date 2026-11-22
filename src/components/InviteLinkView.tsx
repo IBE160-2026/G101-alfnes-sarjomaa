@@ -3,6 +3,7 @@
 import { unstable_rethrow } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openInviteLink } from "@/app/svar/[gameId]/actions";
+import { AnswerForm } from "@/components/AnswerForm";
 import { Button } from "@/components/Button";
 import { LinkStatus } from "@/components/LinkStatus";
 import { Notice } from "@/components/Notice";
@@ -13,14 +14,15 @@ type View =
   | { kind: "loading" }
   | { kind: "closed" | "unknown" }
   | { kind: "failed"; message: string }
-  | { kind: "open"; title: string; questions: Question[] };
+  | { kind: "open"; token: string; title: string; questions: Question[] };
 
 // The Token stays in the fragment, which the browser never sends; it leaves only in
-// the action's POST body.
+// the action's POST body. The form submits with the Token it was opened with.
 async function fetchView(gameId: string): Promise<View> {
+  const token = location.hash.slice(1);
   try {
-    const result = await openInviteLink(gameId, location.hash.slice(1));
-    if (result.ok) return { kind: "open", ...result.data };
+    const result = await openInviteLink(gameId, token);
+    if (result.ok) return { kind: "open", token, ...result.data };
     if (result.code === "LINK_UNKNOWN") return { kind: "unknown" };
     if (result.code === "COLLECTION_CLOSED") return { kind: "closed" };
     return { kind: "failed", message: result.message };
@@ -33,7 +35,7 @@ async function fetchView(gameId: string): Promise<View> {
 export function InviteLinkView({ gameId }: { gameId: string }) {
   const [view, setView] = useState<View>({ kind: "loading" });
   const load = useCallback(() => fetchView(gameId).then(setView), [gameId]);
-  const retried = useRef(false);
+  const refocus = useRef(false);
   const retryRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -47,10 +49,11 @@ export function InviteLinkView({ gameId }: { gameId: string }) {
     return () => window.removeEventListener("hashchange", reload);
   }, []);
 
-  // "Prøv igjen" unmounts itself, so focus goes to what replaced it once the load settles.
+  // "Prøv igjen" and a submit that finds the link gone unmount themselves, so focus goes
+  // to what replaced them once the view settles.
   useEffect(() => {
-    if (!retried.current || view.kind === "loading") return;
-    retried.current = false;
+    if (!refocus.current || view.kind === "loading") return;
+    refocus.current = false;
     if (view.kind === "failed") return retryRef.current?.focus();
     const h1 = document.querySelector("h1");
     h1?.setAttribute("tabindex", "-1");
@@ -96,7 +99,7 @@ export function InviteLinkView({ gameId }: { gameId: string }) {
             className="mt-4"
             ref={retryRef}
             onClick={() => {
-              retried.current = true;
+              refocus.current = true;
               setView({ kind: "loading" });
               void load();
             }}
@@ -106,15 +109,18 @@ export function InviteLinkView({ gameId }: { gameId: string }) {
         </>
       );
     case "open":
-      // Story 2.4 replaces the list with the answer form.
       return (
         <>
           <h1 className="text-display text-balance">{view.title}</h1>
-          <ol className="mt-6 list-decimal space-y-2 pl-6">
-            {view.questions.map((q) => (
-              <li key={q.id}>{q.text}</li>
-            ))}
-          </ol>
+          <AnswerForm
+            gameId={gameId}
+            token={view.token}
+            questions={view.questions}
+            onUnknown={() => {
+              refocus.current = true;
+              setView({ kind: "unknown" });
+            }}
+          />
         </>
       );
   }

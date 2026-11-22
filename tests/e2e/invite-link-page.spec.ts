@@ -53,13 +53,20 @@ async function collectingGame(page: Page, title: string) {
 const pathOf = (link: string) => new URL(link).pathname;
 
 // From another page first, so a link differing only in its fragment still loads anew.
+// The seeded value is a link store for this exact Token, so closed and unknown clear it.
 async function openWithSeededKey(page: Page, gameId: string, token: string) {
   const key = storageKey(gameId, token);
   await page.goto("/");
-  await page.evaluate((k) => localStorage.setItem(k, "utkast"), key);
+  await page.evaluate(
+    ([k, v]) => localStorage.setItem(k, v),
+    [key, JSON.stringify({ token })],
+  );
   await page.goto(`/svar/${gameId}#${token}`);
   return key;
 }
+
+const legend = (page: Page) =>
+  page.getByRole("group", { name: `Spørsmål 1 av 1: ${QUESTION}` });
 
 const storedValue = (page: Page, key: string) =>
   page.evaluate((k) => localStorage.getItem(k), key);
@@ -102,7 +109,7 @@ test("FR-11, AD-7: the server HTML is generic, sent with no-referrer, and no req
   await participant.goto(link);
   await expect(participant.locator("h1")).toHaveText("Hyttetur 2026");
   await expect(participant).toHaveTitle("Hyttetur 2026 – Toppsvar");
-  await expect(participant.getByRole("listitem")).toHaveText([QUESTION]);
+  await expect(legend(participant)).toBeVisible();
   expect(sent.length).toBeGreaterThan(1);
   for (const url of sent) expect(url).not.toContain(token);
   await context.close();
@@ -214,7 +221,7 @@ test("NFR-6, UX-DR23: an aborted openInviteLink request shows the network messag
   await page.keyboard.press("Enter");
   await expect(page.locator("h1")).toHaveText("Uten nett");
   await expect(page.locator("h1")).toBeFocused();
-  await expect(page.getByRole("listitem")).toHaveText([QUESTION]);
+  await expect(legend(page)).toBeVisible();
 });
 
 test("FR-1, UX-DR27: unmatched /svar URLs show the unknown page without Host chrome, even with a Host session", async ({
@@ -269,11 +276,8 @@ test("FR-10, FR-11, NFR-6: a client-side COLLECTION_CLOSED shows the closed page
       delete headers["content-length"];
       await route.fulfill({ response, headers, body });
     });
-    const key = await openWithSeededKey(
-      page,
-      gameId,
-      randomBytes(32).toString("base64url"),
-    );
+    const token = randomBytes(32).toString("base64url");
+    const key = await openWithSeededKey(page, gameId, token);
     if (i === 0) {
       await expect(page.locator("main").getByRole("alert")).toHaveText(
         INTERNAL,
@@ -284,7 +288,7 @@ test("FR-10, FR-11, NFR-6: a client-side COLLECTION_CLOSED shows the closed page
       await expect(page.locator("h1")).toHaveCount(0);
       await expect(page.getByText(UNKNOWN_HEADING)).toHaveCount(0);
       await expect(page.getByText(CLOSED_HEADING)).toHaveCount(0);
-      expect(await storedValue(page, key)).toBe("utkast");
+      expect(await storedValue(page, key)).toBe(JSON.stringify({ token }));
     } else {
       await expect(page.locator("h1")).toHaveText(CLOSED_HEADING);
       await expect(page.getByText(CLOSED_BODY)).toBeVisible();
@@ -292,4 +296,28 @@ test("FR-10, FR-11, NFR-6: a client-side COLLECTION_CLOSED shows the closed page
       await expect.poll(() => storedValue(page, key)).toBeNull();
     }
   }
+});
+
+test("FR-9: a cut-short link that shares the real link's key shows the unknown page and leaves the real link's value alone", async ({
+  page,
+}) => {
+  await registerHost(page);
+  const { gameId, token } = await collectingGame(page, "Avkuttet lenke");
+  const key = storageKey(gameId, token);
+  const value = JSON.stringify({ token });
+  await page.goto("/");
+  await page.evaluate(([k, v]) => localStorage.setItem(k, v), [key, value]);
+  const cutShort = `${token.slice(0, 16)}x`;
+  expect(storageKey(gameId, cutShort)).toBe(key);
+  await page.goto(`/svar/${gameId}#${cutShort}`);
+  await expect(page.locator("h1")).toHaveText(UNKNOWN_HEADING);
+  await expect(page.getByText(UNKNOWN_BODY)).toBeVisible();
+  // LinkStatus clears in an effect after the heading renders; let it run first.
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => setTimeout(resolve, 0)),
+      ),
+  );
+  expect(await storedValue(page, key)).toBe(value);
 });
