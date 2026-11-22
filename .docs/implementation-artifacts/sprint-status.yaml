@@ -55,7 +55,7 @@ development_status:
 
   epic-3: in-progress
   3-1-close-collection-as-the-single-anonymisation-step: done
-  3-2-anonymity-test-schema-and-data-after-close: backlog
+  3-2-anonymity-test-schema-and-data-after-close: done
   3-3-anonymity-tests-the-host-s-view-during-collection-and-log-hy: backlog
   epic-3-retrospective: optional
 
