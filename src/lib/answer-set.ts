@@ -52,7 +52,7 @@ export function parseAnswerSet(
 }
 
 // Form state from a saved set or an untrusted stored draft: per known Question, at most
-// five string fields, padded to at least two. Never throws.
+// five string fields of at most 80 characters, padded to at least two. Never throws.
 export function toFields(
   set: unknown,
   questionIds: readonly string[],
@@ -68,6 +68,7 @@ export function toFields(
         ? value
             .filter((v): v is string => typeof v === "string")
             .slice(0, ANSWERS_PER_QUESTION_MAX)
+            .map((v) => v.slice(0, ANSWER_TEXT_MAX))
         : [];
       return [qid, [...given, "", ""].slice(0, Math.max(2, given.length))];
     }),

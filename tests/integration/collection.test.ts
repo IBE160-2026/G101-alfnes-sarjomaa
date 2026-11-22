@@ -162,6 +162,7 @@ describe("openInviteLink", () => {
     const answers = Object.fromEntries(ids.map((id, i) => [id, [`svar ${i}`]]));
     await submitAnswerSet(gameId, tokens[0], { answers, editSecret });
     const unused = await openInviteLink(gameId, tokens[1]);
+    expect(unused.ok).toBe(true);
     expect(unused.ok && "answers" in unused.data).toBe(false);
 
     expect(await openInviteLink(gameId, tokens[0], editSecret)).toEqual({

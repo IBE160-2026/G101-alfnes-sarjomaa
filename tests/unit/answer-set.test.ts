@@ -89,13 +89,17 @@ describe("toFields", () => {
     });
   });
 
-  it("FR-6, AD-8: a tampered draft gives at most five string fields, at least two, known Questions only", () => {
+  it("FR-6, AD-8: a tampered draft gives at most five string fields of at most 80 characters, at least two, known Questions only", () => {
     expect(
       toFields(
         { q1: Array(7).fill("x"), q2: ["a", 7, null, "b"], q3: ["z"] },
         IDS,
       ),
     ).toEqual({ q1: Array(5).fill("x"), q2: ["a", "b"] });
+    expect(toFields({ q1: ["x".repeat(140)], q2: ["b"] }, IDS)).toEqual({
+      q1: ["x".repeat(80), ""],
+      q2: ["b", ""],
+    });
     expect(toFields({ q1: "a", q2: { 0: "b" } }, IDS)).toEqual({
       q1: ["", ""],
       q2: ["", ""],

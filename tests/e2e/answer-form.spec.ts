@@ -275,7 +275,10 @@ test("FR-6, FR-7, AD-8: a complete submit shows the confirmation, keeps { token,
 test("FR-6, NFR-6: an aborted submit POST shows the network sentence and keeps every typed value", async ({
   page,
 }) => {
+  await page.clock.install();
   const { gameId, token } = await openForm(page, "Uten nett");
+  // Paused, so the 500 ms debounce cannot fire: the draft can only come from the submit's flush.
+  await page.clock.pauseAt(Date.now() + 60_000);
   const qid = (n: number) =>
     field(page, n, 1)
       .getAttribute("name")
@@ -406,6 +409,12 @@ test("FR-7: the same browser reopens the link pre-filled with the returning noti
   await expect(main.getByText(RETURNING, { exact: true })).toBeVisible();
   await expect(main.getByText(DRAFT_NOTICE)).toHaveCount(0);
   await expect(main.getByText(HELPER, { exact: true })).toBeVisible();
+  expect(
+    await precedes(
+      page.getByRole("button", { name: "Lagre endringer" }),
+      main.getByText(HELPER, { exact: true }),
+    ),
+  ).toBe(true);
   await group(page, 1).getByRole("button", { name: "Legg til svar" }).click();
   await field(page, 1, 3).fill("Vekker alle");
   await page.getByRole("button", { name: "Lagre endringer" }).click();
@@ -430,6 +439,12 @@ test("FR-7: the same browser reopens the link pre-filled with the returning noti
   await expect(
     other.locator("main").getByText(HELPER, { exact: true }),
   ).toBeVisible();
+  expect(
+    await precedes(
+      other.getByRole("button", { name: "Send inn svar" }),
+      other.locator("main").getByText(HELPER, { exact: true }),
+    ),
+  ).toBe(true);
   await fresh.close();
 });
 
@@ -442,7 +457,15 @@ test("UX-DR20, FR-6: a typed draft is kept on the device, restored on reload wit
   page.on("request", (r) => sent.push(`${r.url()}\n${r.postData() ?? ""}`));
   const draft = `Tunnel ${Date.now()}`;
 
+  await page.clock.install();
+  await page.reload();
+  await expect(field(page, 1, 1)).toBeVisible();
+  await page.clock.pauseAt(Date.now() + 60_000);
   await field(page, 1, 1).fill(draft);
+  await expect(main.getByText("1 av 2 spørsmål har svar")).toBeVisible();
+  await page.clock.runFor(400);
+  expect(await storedValue(page, gameId, token)).toBeNull();
+  await page.clock.runFor(200);
   await draftHolds(page, gameId, token, draft);
   await page.reload();
   await expect(field(page, 1, 1)).toHaveValue(draft);
@@ -498,4 +521,16 @@ test("UX-DR20, FR-7, NFR-6: a local draft wins over the saved set, and Forkast e
   await expect(main.getByText(RETURNING, { exact: true })).toBeVisible();
   await expect(main.getByText(DRAFT_NOTICE)).toHaveCount(0);
   expect(await storedValue(page, gameId, token)).toEqual({ token, editSecret });
+
+  // Typed, then erased back to the saved set plus a blank field: nothing new, no draft.
+  await field(page, 1, 1).fill("Står opp likevel");
+  await draftHolds(page, gameId, token, "Står opp likevel");
+  await field(page, 1, 1).fill("Sover videre");
+  await group(page, 1).getByRole("button", { name: "Legg til svar" }).click();
+  await expect
+    .poll(() => storedValue(page, gameId, token))
+    .toEqual({ token, editSecret });
+  await page.reload();
+  await expect(main.getByText(RETURNING, { exact: true })).toBeVisible();
+  await expect(main.getByText(DRAFT_NOTICE)).toHaveCount(0);
 });

@@ -283,6 +283,9 @@ export function AnswerForm({
   const hasError = (qid: string) =>
     !!errors &&
     Object.keys(errors).some((k) => k === qid || k.startsWith(`${qid}.`));
+  // Edited back to the saved set, a restored draft is gone (saveDraft drops it).
+  const showDraftNotice =
+    draftRestored && differs(fields, savedFields, questionIds);
   const answered = questionIds.filter((qid) =>
     fields[qid].some((v) => v.trim() !== ""),
   ).length;
@@ -314,7 +317,7 @@ export function AnswerForm({
           </ul>
         </Notice>
       )}
-      {draftRestored ? (
+      {showDraftNotice ? (
         <Notice tone="info" className="mt-6">
           <p>Du har endringer som ikke er sendt inn.</p>
           <Button
@@ -335,7 +338,7 @@ export function AnswerForm({
       )}
       <Notice
         tone="info"
-        className={draftRestored || submitted ? "mt-4" : "mt-6"}
+        className={showDraftNotice || submitted ? "mt-4" : "mt-6"}
       >
         {NOTICE}
       </Notice>
