@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { and, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
@@ -16,6 +16,8 @@ import {
 } from "vitest";
 import { closeCollection, createInviteLinks } from "@/app/spill/[id]/actions";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
+import { DomainError } from "@/lib/errors";
+import { JUDGE_CONCURRENCY } from "@/lib/limits";
 import { NORMALIZE_VERSION, normalize } from "@/lib/normalize";
 import { newToken } from "@/lib/token";
 import * as auth from "@/server/auth";
@@ -55,7 +57,6 @@ vi.mock("@/server/judge", async (importOriginal) => {
 
 vi.setConfig({ testTimeout: 30_000 });
 
-const FIXTURES = join(process.cwd(), "tests/fixtures/rulings");
 const COOKIE = "toppsvar_session";
 const Q1 = "Nevn et dyr";
 const Q2 = "Nevn en farge";
@@ -288,21 +289,32 @@ const stored = (questionId: string) => ({
 });
 
 describe("run", () => {
-  it("FR-15, AD-12 (AC2): one partition per Question over its sorted distinct normalised items, outside any transaction, then Groups, group_ids, one result each and in review", async () => {
-    const { gameId, ids } = await groupingGame([
-      // Code-unit order puts æ and ø after z; a collation would not.
+  it("FR-15, AD-12 (AC1): one partition per Question over its sorted distinct normalised items, outside any transaction, then Groups, group_ids, one result each, an extended lease and in review", async () => {
+    const { gameId, ids } = await groupingGame(
       [
-        Q1,
+        // Code-unit order puts æ and ø after z; a collation would not.
         [
-          ["Hund", "Ørn"],
-          ["zebra", "hund!"],
-          ["Ælg", "apekatt"],
+          Q1,
+          [
+            ["Hund", "Ørn"],
+            ["zebra", "hund!"],
+            ["Ælg", "apekatt"],
+          ],
         ],
+        ...THREE.slice(1),
       ],
-      ...THREE.slice(1),
-    ]);
+      // run takes no lease, so only extendGroupingLease can move it past now().
+      EXPIRED,
+    );
     const { calls } = mock();
     await grouping.run(gameId);
+    const [lease] = await (
+      await getDb()
+    )
+      .select({ fresh: sql<boolean>`${game.groupingLeaseUntil} > now()` })
+      .from(game)
+      .where(eq(game.id, gameId));
+    expect(lease.fresh).toBe(true);
     expect(
       calls
         .map(({ question, items, inTransaction }) => ({
@@ -343,7 +355,7 @@ describe("run", () => {
     });
   });
 
-  it("FR-15 (AC2): a mock map that merges items a and b gives two Groups, and their Answers share one group_id", async () => {
+  it("FR-15 (AC1): a mock map that merges items a and b gives two Groups, and their Answers share one group_id", async () => {
     const { gameId, ids } = await groupingGame([
       [Q1, [["a"], ["b"], ["c", "a"]]],
     ]);
@@ -444,7 +456,7 @@ describe("run", () => {
     expect(await resultOf(ids[0])).toMatchObject(fellBack("INVALID_OUTPUT"));
   });
 
-  it("FR-17 (AC4): replay with no ruling and no key falls every Question back with NO_KEY, one fallback Group per item, and the Game reaches in review", async () => {
+  it("FR-17 (AC3): replay with no ruling and no key falls every Question back with NO_KEY, one fallback Group per item, and the Game reaches in review", async () => {
     const { gameId, ids } = await groupingGame(THREE);
     install(createReplayJudge({ dir: emptyDir(), hasKey: false }));
     await grouping.run(gameId);
@@ -463,7 +475,7 @@ describe("run", () => {
     });
   });
 
-  it("FR-17 (AC4): replay with no ruling and a key falls every Question back with NO_STORED_RULING", async () => {
+  it("FR-17 (AC3): replay with no ruling and a key falls every Question back with NO_STORED_RULING", async () => {
     const { gameId, ids } = await groupingGame(THREE);
     install(createReplayJudge({ dir: emptyDir(), hasKey: true }));
     await grouping.run(gameId);
@@ -473,39 +485,64 @@ describe("run", () => {
       );
   });
 
-  it("FR-15, FR-17 (AC4): a partial replay hit is source replay with the uncovered count; uncovered Groups are origin fallback, covered ones judge", async () => {
+  it("FR-15, FR-17 (AC3): a partial replay hit is source replay with the uncovered count; uncovered Groups are origin fallback, also one that sorts before every covered item, and covered ones judge", async () => {
     const { gameId, ids } = await groupingGame([
-      ["Nevn en frukt", [["Banan", "eple"], ["bananer"], ["Mango", "eple"]]],
+      [
+        "Nevn en frukt",
+        [["Ananas", "eple"], ["Banan"], ["bananer", "Mango"], ["eple"]],
+      ],
     ]);
-    install(createReplayJudge({ dir: FIXTURES, hasKey: false }));
+    const dir = emptyDir();
+    writeFileSync(
+      join(dir, "frukt.json"),
+      JSON.stringify([
+        {
+          kind: "partition",
+          promptVersion: "1",
+          normalizeVersion: NORMALIZE_VERSION,
+          model: "fixture/model",
+          question: "Nevn en frukt",
+          items: ["banan", "bananer", "eple"],
+          assignments: [0, 0, 1],
+        },
+      ]),
+    );
+    install(createReplayJudge({ dir, hasKey: false }));
     await grouping.run(gameId);
     expect(await resultOf(ids[0])).toMatchObject({
       source: "replay",
       modelId: "replay",
       judgeCalls: 0,
-      uncoveredItems: 1,
+      uncoveredItems: 2,
       fellBack: false,
       fallbackReason: null,
     });
     expect(await groupsOf(ids[0])).toEqual([
+      { origin: "fallback", texts: ["ananas"] },
       { origin: "judge", texts: ["banan", "bananer"] },
       { origin: "judge", texts: ["eple", "eple"] },
       { origin: "fallback", texts: ["mango"] },
     ]);
   });
 
-  it("FR-15, AD-12 (AC5): run after a finished run makes no partition call and changes no Group, group_id or result", async () => {
+  it("FR-15, AD-12 (AC2): repeated reads and a run after a finished run make no partition call and change no Group, group_id or result", async () => {
     const { gameId, ids } = await groupingGame(THREE);
     mock();
     await grouping.run(gameId);
     const before = await written(ids);
+    for (let k = 0; k < 2; k++) {
+      await grouping.progress(gameId);
+      await grouping.summary(gameId);
+      for (const id of ids) await grouping.countsOf(id);
+    }
+    expect(await written(ids)).toEqual(before);
     const { calls } = mock();
     await grouping.run(gameId);
     expect(calls).toEqual([]);
     expect(await written(ids)).toEqual(before);
   });
 
-  it("FR-15, AD-12 (AC5): two runs at once both resolve, and each Question keeps one result and one set of Groups", async () => {
+  it("FR-15, AD-12 (AC2): two runs at once both resolve, and each Question keeps one result and one set of Groups", async () => {
     const { gameId, ids } = await groupingGame(THREE);
     mock();
     await expect(
@@ -518,16 +555,27 @@ describe("run", () => {
     expect(await stateOf(gameId)).toBe("in_review");
   });
 
-  it("FR-15, AD-12 (AC5): a Game deleted during its first partition call stops the run quietly, logs nothing and leaves no rows", async () => {
-    const { gameId, ids } = await groupingGame(THREE);
+  it("FR-15, AD-12 (AC5): a Game deleted while its first calls run stops the run quietly: no call starts after the delete, nothing is logged and no rows are left", async () => {
+    const { gameId, ids } = await groupingGame(
+      Array.from({ length: JUDGE_CONCURRENCY + 3 }, (_, q) => [
+        `Spørsmål ${q + 1}`,
+        [["a"], ["b"], ["c"]],
+      ]),
+    );
+    // The first JUDGE_CONCURRENCY calls start, then one deletes the Game before any returns.
     let deleted = false;
-    install(createMockJudge(), async () => {
+    let release!: () => void;
+    const allStarted = new Promise<void>((resolve) => (release = resolve));
+    const recorded = install(createMockJudge(), async () => {
+      if (recorded.calls.length === JUDGE_CONCURRENCY) release();
+      await allStarted;
       if (deleted) return;
       deleted = true;
       await (await getDb()).delete(game).where(eq(game.id, gameId));
     });
     const stderr = vi.spyOn(process.stderr, "write");
     await expect(grouping.run(gameId)).resolves.toBeUndefined();
+    expect(recorded.calls).toHaveLength(JUDGE_CONCURRENCY);
     expect(stderr).not.toHaveBeenCalled();
     expect(await written(ids)).toEqual({
       groups: [],
@@ -536,7 +584,38 @@ describe("run", () => {
     });
   });
 
-  it("FR-15, AD-12: the sizing Game (30 sets, 15 Questions, up to 5 Answers) groups in well under 2 minutes, 5 Questions in flight at most and at some point, none inside a transaction", async () => {
+  it("AD-12, AD-17: a DB step failing with a non-domain error inside the runner rejects run with INTERNAL and logs one content-free line", async () => {
+    const { gameId } = await groupingGame([
+      [Q1, [["Hund"], ["katt"], ["Ørn"]]],
+    ]);
+    mock();
+    const db = await getDb();
+    await db.execute(
+      sql.raw("alter table answer_group rename to answer_group_x"),
+    );
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    let error: unknown, out: string;
+    try {
+      error = await grouping.run(gameId).catch((e: unknown) => e);
+    } finally {
+      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      write.mockRestore();
+      await db.execute(
+        sql.raw("alter table answer_group_x rename to answer_group"),
+      );
+    }
+    expect(error).toBeInstanceOf(DomainError);
+    expect((error as DomainError).code).toBe("INTERNAL");
+    expect(out).toBe(
+      `${JSON.stringify({ module: "grouping", op: "run", code: "INTERNAL", sqlstate: "42P01" })}\n`,
+    );
+    for (const text of [Q1, "hund", "Hund", "katt", "ørn", "Ørn"])
+      expect(out).not.toContain(text);
+  });
+
+  it("FR-15, AD-12 (AC5): the sizing Game (30 sets, 15 Questions, up to 5 Answers) groups in well under 2 minutes, 5 Questions in flight at most and at some point, none inside a transaction", async () => {
     const spec: [string, string[][]][] = Array.from({ length: 15 }, (_, q) => [
       `Spørsmål ${q + 1}`,
       Array.from({ length: 30 }, (_, s) =>
@@ -563,7 +642,7 @@ describe("run", () => {
 });
 
 describe("resumeIfStale", () => {
-  it("FR-15, AD-12 (AC5): two resumes past the lease run Grouping once: one partition per Question, and the Game reaches in review", async () => {
+  it("FR-15, AD-12 (AC2): two resumes past the lease run Grouping once: one partition per Question, and the Game reaches in review", async () => {
     const { gameId } = await groupingGame(THREE, EXPIRED);
     const { calls } = mock();
     await Promise.all([
@@ -574,7 +653,7 @@ describe("resumeIfStale", () => {
     expect(await stateOf(gameId)).toBe("in_review");
   });
 
-  it("AD-12 (AC5): of two lease grabs past the lease exactly one wins, and none wins a fresh lease", async () => {
+  it("AD-12 (AC2): of two lease grabs past the lease exactly one wins, and none wins a fresh lease", async () => {
     const { gameId } = await groupingGame(THREE, EXPIRED);
     const won = await Promise.all([
       games.acquireGroupingLease(gameId),
@@ -584,7 +663,7 @@ describe("resumeIfStale", () => {
     expect(await games.acquireGroupingLease(gameId)).toBe(false);
   });
 
-  it("AD-12 (AC5): with a fresh lease resumeIfStale returns without a partition call", async () => {
+  it("AD-12 (AC2): with a fresh lease resumeIfStale returns without a partition call", async () => {
     const { gameId } = await groupingGame(THREE);
     const { calls } = mock();
     await grouping.resumeIfStale(gameId);
@@ -592,7 +671,7 @@ describe("resumeIfStale", () => {
     expect(await stateOf(gameId)).toBe("grouping");
   });
 
-  it("AD-12 (AC5): after a crash with some results stored, resumeIfStale partitions only the rest", async () => {
+  it("AD-12 (AC2): after a crash with some results stored, resumeIfStale partitions only the rest", async () => {
     const { gameId, ids } = await groupingGame(THREE, EXPIRED);
     await (await getDb()).insert(groupingResult).values(stored(ids[0]));
     const { calls } = mock();
@@ -603,7 +682,7 @@ describe("resumeIfStale", () => {
 });
 
 describe("reads", () => {
-  it("FR-16, AD-11: a Group's Count is its distinct Contributor keys, so two Answers of one key count once", async () => {
+  it("FR-15, AD-11 (AC4): a Group's Count is its distinct Contributor keys, so two Answers of one key count once", async () => {
     const { gameId, ids } = await groupingGame([
       [Q1, [["hund", "bikkje"], ["hund"], ["katt"]]],
     ]);

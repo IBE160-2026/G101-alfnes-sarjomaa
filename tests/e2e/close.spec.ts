@@ -100,7 +100,7 @@ async function openCloseDialog(
   return dialog;
 }
 
-test("FR-10, FR-15, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reason below three sets, opens the confirm dialog from three, closes to Grupperer with 0 av 1 spørsmål ferdig, polls to the in review summary, and a form opened before close gets the late-submit sentence and loses its key", async ({
+test("FR-10, FR-15 (AC6), UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reason below three sets, opens the confirm dialog from three, closes to Grupperer with 0 av 1 spørsmål ferdig, polls to the in review summary, and a form opened before close gets the late-submit sentence and loses its key", async ({
   page,
   browser,
   baseURL,

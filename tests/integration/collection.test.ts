@@ -28,6 +28,7 @@ import { getDb } from "@/server/db/client";
 import {
   answer,
   game,
+  groupingResult,
   inviteLink,
   question,
   submission,
@@ -1485,38 +1486,79 @@ describe("close", () => {
     expect(row.state).toBe("in_review");
   });
 
-  it("FR-15, FR-17 (AC6): the in review page shows the summary numbers and never claims a missing key, with or without Demo mode", async () => {
-    const { gameId, ids, tokens } = await collectingGame("Ferdig gruppert", 3);
-    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
-    expect(await closeCollection({ gameId })).toEqual({ ok: true });
-    await runAfterTasks();
-    const page = async () =>
-      renderToStaticMarkup(
-        await GamePage({
-          params: Promise.resolve({ id: gameId }),
-          searchParams: Promise.resolve({}),
-        }),
+  // The six distinct texts per Question are six Judge Groups with the mock, and six
+  // fallback Groups per Question with replay, which finds no data/rulings here.
+  it.each([
+    { provider: "mock", key: undefined, reason: null, proposed: 18, fell: 0 },
+    {
+      provider: "replay",
+      key: undefined,
+      reason: "NO_KEY",
+      proposed: 0,
+      fell: 3,
+    },
+    {
+      provider: "replay",
+      key: "test-key",
+      reason: "NO_STORED_RULING",
+      proposed: 0,
+      fell: 3,
+    },
+  ] as const)(
+    "FR-15, FR-17 (AC6): grouped by $provider with fallback reason $reason, the in review page shows the summary numbers and never claims a missing key, with or without Demo mode",
+    async ({ provider, key, reason, proposed, fell }) => {
+      const { gameId, ids, tokens } = await collectingGame(
+        "Ferdig gruppert",
+        3,
       );
-    const saved = env.DEMO_MODE;
-    try {
-      for (const demo of [false, true]) {
-        env.DEMO_MODE = demo;
-        const html = await page();
-        // The mock Judge gives each of the six distinct texts per Question its own Group.
-        expect(html.replace(/<[^>]*>/g, "")).toContain(
-          "Grupperingen er ferdig" +
-            "Spørsmål3" +
-            "Grupper foreslått18" +
-            "Spørsmål å gruppere for hånd0",
-        );
-        expect(html).toContain("Til gjennomgang");
-        expect(html).not.toContain("Ingen KI-nøkkel");
-        expect(html).not.toContain("Grupperer");
+      for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+      expect(await closeCollection({ gameId })).toEqual({ ok: true });
+      const judgeEnv = {
+        provider: env.JUDGE_PROVIDER,
+        key: env.OPENROUTER_API_KEY,
+      };
+      try {
+        env.JUDGE_PROVIDER = provider;
+        env.OPENROUTER_API_KEY = key;
+        await runAfterTasks();
+      } finally {
+        env.JUDGE_PROVIDER = judgeEnv.provider;
+        env.OPENROUTER_API_KEY = judgeEnv.key;
       }
-    } finally {
-      env.DEMO_MODE = saved;
-    }
-  });
+      const reasons = await (
+        await getDb()
+      )
+        .select({ reason: groupingResult.fallbackReason })
+        .from(groupingResult)
+        .where(inArray(groupingResult.questionId, ids));
+      expect(reasons).toEqual(ids.map(() => ({ reason })));
+      const page = async () =>
+        renderToStaticMarkup(
+          await GamePage({
+            params: Promise.resolve({ id: gameId }),
+            searchParams: Promise.resolve({}),
+          }),
+        );
+      const saved = env.DEMO_MODE;
+      try {
+        for (const demo of [false, true]) {
+          env.DEMO_MODE = demo;
+          const html = await page();
+          expect(html.replace(/<[^>]*>/g, "")).toContain(
+            "Grupperingen er ferdig" +
+              "Spørsmål3" +
+              `Grupper foreslått${proposed}` +
+              `Spørsmål å gruppere for hånd${fell}`,
+          );
+          expect(html).toContain("Til gjennomgang");
+          expect(html).not.toContain("Ingen KI-nøkkel");
+          expect(html).not.toContain("Grupperer");
+        }
+      } finally {
+        env.DEMO_MODE = saved;
+      }
+    },
+  );
 
   it("FR-10, FR-17: the dialog's no-key sentence shows only with neither a model key nor Demo mode", async () => {
     const { gameId, ids, tokens } = await collectingGame("Nøkkel", 3);
