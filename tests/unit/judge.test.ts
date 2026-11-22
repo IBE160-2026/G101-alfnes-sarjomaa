@@ -135,6 +135,52 @@ describe("mock provider", () => {
       ).toBe("INVALID_OUTPUT");
     },
   );
+
+  it.each([
+    "NO_KEY",
+    "NO_STORED_RULING",
+    "ERROR",
+    "REFUSAL",
+    "INVALID_OUTPUT",
+  ] as const)(
+    "AD-13: a mapped %s throws a JudgeError with that reason",
+    async (reason) => {
+      const judge = createMockJudge({ "Nevn en farge": reason });
+      expect(
+        await reasonOf(
+          judge.partition(
+            { question: "Nevn en farge", items: ["blå"] },
+            signal,
+          ),
+        ),
+      ).toBe(reason);
+    },
+  );
+
+  it("AD-13: a mapped TIMEOUT throws only once the signal aborts, and a mapped Error is thrown as is", async () => {
+    const controller = new AbortController();
+    const boom = new Error("boom");
+    const judge = createMockJudge({
+      "Nevn en farge": "TIMEOUT",
+      "Nevn en by": boom,
+    });
+    let settled = false;
+    const pending = reasonOf(
+      judge.partition(
+        { question: "Nevn en farge", items: ["blå"] },
+        controller.signal,
+      ),
+    ).finally(() => (settled = true));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(settled).toBe(false);
+    controller.abort();
+    expect(await pending).toBe("TIMEOUT");
+    expect(
+      await reasonOf(
+        judge.partition({ question: "Nevn en by", items: ["oslo"] }, signal),
+      ),
+    ).toBe(boom);
+  });
 });
 
 describe("replay provider", () => {

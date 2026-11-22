@@ -100,7 +100,7 @@ async function openCloseDialog(
   return dialog;
 }
 
-test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reason below three sets, opens the confirm dialog from three, closes to Grupperer, and a form opened before close gets the late-submit sentence and loses its key", async ({
+test("FR-10, FR-15, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reason below three sets, opens the confirm dialog from three, closes to Grupperer with 0 av 1 spørsmål ferdig, polls to the in review summary, and a form opened before close gets the late-submit sentence and loses its key", async ({
   page,
   browser,
   baseURL,
@@ -153,6 +153,7 @@ test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reas
   await dialog.getByRole("button", { name: "Steng innsamlingen" }).click();
   await expect(page.getByText("Grupperer", { exact: true })).toBeVisible();
   await expect(page.getByText(GROUPING, { exact: true })).toBeVisible();
+  await expect(page.getByText("0 av 1 spørsmål ferdig")).toBeVisible();
   // The new state's heading, so a screen reader hears what changed.
   await expect(
     page.getByRole("heading", { name: "Gruppering", level: 2 }),
@@ -161,6 +162,25 @@ test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reas
   expect(await noHorizontalScroll(page)).toBe(true);
   // The action's re-render sets the head again; axe would flag the moment in between.
   await expect(page).toHaveTitle("Hyttetur – Toppsvar");
+  expect(await seriousViolations(page)).toEqual([]);
+
+  // Replay with no rulings and no key: the one Question falls back at once, and the next
+  // 3 s poll shows the in review summary, with focus on its heading (FR-15, FR-17).
+  await expect(page.getByText("Til gjennomgang", { exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
+  const summary = page.getByRole("region", { name: "Grupperingen er ferdig" });
+  await expect(summary.getByRole("term")).toHaveText([
+    "Spørsmål",
+    "Grupper foreslått",
+    "Spørsmål å gruppere for hånd",
+  ]);
+  await expect(summary.getByRole("definition")).toHaveText(["1", "0", "1"]);
+  await expect(
+    page.getByRole("heading", { name: "Grupperingen er ferdig", level: 2 }),
+  ).toBeFocused();
+  await expect(page.getByText("Ingen KI-nøkkel")).toHaveCount(0);
+  expect(await noHorizontalScroll(page)).toBe(true);
   expect(await seriousViolations(page)).toEqual([]);
 
   await late.page.getByRole("button", { name: "Send inn svar" }).click();
@@ -208,7 +228,7 @@ test("FR-10, UX-DR23: while close runs neither Esc nor Avbryt dismisses the dial
   await expect(page.getByText("Samler inn", { exact: true })).toBeVisible();
 });
 
-test("FR-10, AD-4: confirming in a tab whose Game another tab already closed refreshes it to Grupperer", async ({
+test("FR-10, AD-4: confirming in a tab whose Game another tab already closed refreshes it to the Game's current state", async ({
   page,
   browser,
   baseURL,
@@ -228,7 +248,9 @@ test("FR-10, AD-4: confirming in a tab whose Game another tab already closed ref
   await other.close();
 
   await dialog.getByRole("button", { name: "Steng innsamlingen" }).click();
-  await expect(page.getByText("Grupperer", { exact: true })).toBeVisible();
-  await expect(page.getByText(GROUPING, { exact: true })).toBeVisible();
+  // The other tab's close already ran Grouping, which falls back at once with no key.
+  await expect(page.getByText("Til gjennomgang", { exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });

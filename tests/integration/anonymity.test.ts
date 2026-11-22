@@ -131,15 +131,16 @@ beforeAll(async () => {
 });
 
 describe("after close", () => {
-  it("FR-13 (AC1): answer has exactly today's six AD-10 columns, with these types, nullability and defaults", async () => {
+  it("FR-13 (AC1): answer has exactly today's seven AD-10 columns, with these types, nullability and defaults", async () => {
     const answer = (await appColumns())
       .filter((c) => c.table === "answer")
       .map((c) => [c.column, c.type, c.nullable, c.default])
       .sort();
-    // Story 4.2 adds group_id (uuid, nullable): add it here on purpose then, never loosen.
+    // Each new column is added here on purpose, never by loosening the check.
     expect(answer).toEqual(
       [
         ["contributor_key", "uuid", "YES", null],
+        ["group_id", "uuid", "YES", null],
         ["id", "uuid", "NO", "gen_random_uuid()"],
         ["normalized_text", "text", "NO", null],
         ["question_id", "uuid", "NO", null],
@@ -166,12 +167,14 @@ describe("after close", () => {
     expect(outside).toEqual([]);
   });
 
-  it("FR-13 (AC1): answer has no identity column or nextval default, and no app schema owns a sequence", async () => {
-    const answer = (await appColumns()).filter((c) => c.table === "answer");
-    expect(answer.length).toBeGreaterThan(0);
-    for (const c of answer) {
-      expect(c.identity, c.column).toBe("NO");
-      expect(c.default ?? "", c.column).not.toMatch(/nextval/i);
+  it("FR-13 (AC1): answer and answer_group have no identity column or nextval default, and no app schema owns a sequence", async () => {
+    for (const table of ["answer", "answer_group"]) {
+      const columns = (await appColumns()).filter((c) => c.table === table);
+      expect(columns.length, table).toBeGreaterThan(0);
+      for (const c of columns) {
+        expect(c.identity, `${table}.${c.column}`).toBe("NO");
+        expect(c.default ?? "", `${table}.${c.column}`).not.toMatch(/nextval/i);
+      }
     }
     expect(
       await rows(

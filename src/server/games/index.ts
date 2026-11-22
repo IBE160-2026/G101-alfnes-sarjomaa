@@ -1,5 +1,15 @@
 import "server-only";
-import { and, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { DomainError, validate } from "@/lib/errors";
 import { createGameSchema } from "@/lib/game";
@@ -138,6 +148,36 @@ export async function lockForMutation(
   return { ...row, updatedAt };
 }
 
+// DB time, since the Grouping runner compares it with now() (AD-9).
+const leaseUntil = () =>
+  sql`now() + ${GROUPING_LEASE_MS} * interval '1 millisecond'`;
+
+// Compare-and-set on an expired lease of a grouping Game: true only for the one winner (AD-12).
+export async function acquireGroupingLease(gameId: string): Promise<boolean> {
+  assertGameId(gameId);
+  const db = await getDb();
+  const rows = await db
+    .update(game)
+    .set({ groupingLeaseUntil: leaseUntil() })
+    .where(
+      and(
+        eq(game.id, gameId),
+        eq(game.state, "grouping"),
+        lt(game.groupingLeaseUntil, sql`now()`),
+      ),
+    )
+    .returning({ id: game.id });
+  return rows.length > 0;
+}
+
+// After each Question, under the caller's lock (AD-12).
+export async function extendGroupingLease(tx: Tx, gameId: string) {
+  await tx
+    .update(game)
+    .set({ groupingLeaseUntil: leaseUntil() })
+    .where(eq(game.id, gameId));
+}
+
 // Compare-and-set along the forward chain; a stale `from` is WRONG_STATE too.
 // Entering grouping also starts the Grouping lease (AD-9).
 export async function transition(
@@ -150,11 +190,7 @@ export async function transition(
   assertGameId(gameId);
   let extra: PgUpdateSetSource<typeof game> = {};
   if (to === "played") extra = { playedAt: new Date() };
-  // DB time, since the Grouping runner compares it with now() (AD-9).
-  if (to === "grouping")
-    extra = {
-      groupingLeaseUntil: sql`now() + ${GROUPING_LEASE_MS} * interval '1 millisecond'`,
-    };
+  if (to === "grouping") extra = { groupingLeaseUntil: leaseUntil() };
   const [row] = await tx
     .update(game)
     .set({ state: to, ...extra })

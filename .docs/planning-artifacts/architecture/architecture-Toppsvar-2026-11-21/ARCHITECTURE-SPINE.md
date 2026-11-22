@@ -235,6 +235,14 @@ stateDiagram-v2
     - If the Game has been deleted, the run stops quietly.
   - **Progress.** `grouping.progress(gameId)` returns Questions done out of the total, for the UX Grouping panel.
   - **Cost.** For the sizing Game: 15 calls, about USD 0.006, at most 90 s. For the largest Game: 20 calls, about USD 0.01, at most 120 s. The arithmetic is in `delivery-notes.md`. No pair is judged twice.
+- *Amended in Story 4.2:*
+  - **Timer.** The runner owns the 30 s bound: it aborts its own `AbortController` after `JUDGE_TIMEOUT_MS` and races the call against that abort, so a provider that ignores the signal still falls back with `TIMEOUT`. Any other throw is `ERROR`.
+  - **Result columns.** `source` is `judge` for a `live` result, `replay` for a `stored` one and `fallback` on fallback. `prompt_version` and `model_id` come from `judge.info`. On fallback `judge_calls` and `uncovered_items` are 0, since `JudgeError` carries no call count (a `shortcut:` in `grouping` until the live provider of Story 4.4 can fail after spending calls).
+  - **Lease.** `games.acquireGroupingLease(gameId)` (one compare-and-set `UPDATE`) and `games.extendGroupingLease(tx, gameId)` live in `games`, which owns `game`, and share the database-time expression `transition` uses at close. A lock that finds the Game gone (`NOT_FOUND`) or past `grouping` (`WRONG_STATE`) ends the whole run without a throw or a log line.
+  - **Page.** The Game page in `grouping` reads `grouping.progress`, polls every `GROUPING_POLL_MS` (3 s), and calls `resumeIfStale` inside `after()` only when the lease has expired, so a page load never waits for Grouping. The close action and the page both `.catch(() => {})` the task, since the boundary has already logged it.
+  - **Reads.** `grouping.summary(gameId)` gives the *in review* summary (Questions, Groups with `origin = judge`, fallen-back Questions), and `grouping.countsOf(questionId)` gives each Group's `count(distinct contributor_key)`.
+  - **Foreign key.** `answer.group_id` references `answer_group` with `ON DELETE CASCADE`, like every other key under `game`.
+  - **Deferred.** `edit_count` is not added here: Review (Epic 5) increments it, and Story 4.3 adds the column with the report that reads it. `bumpCounters` also arrives with 4.3.
 
 ### AD-13 — One Judge boundary, three providers
 
@@ -277,6 +285,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **mock** takes its map keyed by the exact Question text (`createMockJudge(map)`) and reports `calls: 1`, `source: 'live'`.
   - **Imports.** "Or the SDK" becomes a ban on the endpoint: an ESLint rule rejects any string or template literal containing `openrouter.ai`, in any letter case, in `src/` outside `src/server/judge`. It catches literals only, not a host built from pieces at runtime.
   - Until Story 4.4, `JUDGE_PROVIDER=openrouter` (the key-derived default) selects replay.
+- *Amended in Story 4.2:* **mock** failure injection. A map value may also be a `FallbackReason`, thrown as `JudgeError(reason)`, or an `Error`, thrown as is. `"TIMEOUT"` first waits for the signal to abort, as the live provider will, so every fallback reason is testable offline.
 
 ### AD-14 — Stored ruling format
 

@@ -50,6 +50,13 @@
       "when": 1795374089743,
       "tag": "0006_rare_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795382661901,
+      "tag": "0007_lonely_ares",
+      "breakpoints": true
     }
   ]
 }

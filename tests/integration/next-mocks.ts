@@ -58,6 +58,14 @@ export async function nextNavigation() {
   };
 }
 
+// after() from next/server, queued by tests/setup.ts's mock.
+export const afterTasks: (() => unknown)[] = [];
+
+export async function runAfterTasks(): Promise<void> {
+  for (let task = afterTasks.shift(); task; task = afterTasks.shift())
+    await task();
+}
+
 // revalidatePath needs a request store; outside one it only records the call.
 export const nextCache = { revalidatePath: vi.fn() };
 

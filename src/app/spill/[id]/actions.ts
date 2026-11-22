@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
+import { after } from "next/server";
 import {
   DELETED_COOKIE,
   deletedCookieOptions,
@@ -11,6 +12,7 @@ import { toFailure, type ActionResult, type Failure } from "@/lib/errors";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
 import * as games from "@/server/games";
+import * as grouping from "@/server/grouping";
 import * as questions from "@/server/questions";
 
 export async function deleteGame(
@@ -81,9 +83,15 @@ export async function revokeInviteLink(
 }
 
 // A "use server" file exports only async functions, so this action inherits
-// maxDuration = 300 from the Game page it posts to (AD-24).
+// maxDuration = 300 from the Game page it posts to (AD-24). Grouping runs after the
+// response (AD-12); the boundary has already logged any failure.
 export async function closeCollection(
   input: unknown,
 ): Promise<ActionResult<void>> {
-  return hostAction(collection.close, input);
+  const result = await hostAction(collection.close, input);
+  if (result.ok) {
+    const { gameId } = input as { gameId: string };
+    after(() => grouping.run(gameId).catch(() => {}));
+  }
+  return result;
 }
