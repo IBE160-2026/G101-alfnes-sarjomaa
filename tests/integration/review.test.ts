@@ -1769,7 +1769,7 @@ describe("Game page in ready", () => {
       ),
     );
 
-  it("FR-21, UX-DR17 (AC5): shows Brettet er låst with the Question count, 9 spørsmål er klare and 1 spørsmål er klart, and keeps the report link", async () => {
+  it("FR-21, FR-23, UX-DR17 (AC5): shows Brettet er låst with the Question count, 9 spørsmål er klare and 1 spørsmål er klart, the Start spillet link, and keeps the report link", async () => {
     for (const [n, sentence] of [
       [9, "9 spørsmål er klare."],
       [1, "1 spørsmål er klart."],
@@ -1786,6 +1786,7 @@ describe("Game page in ready", () => {
       expect(screen).toContain(`Brettet er låst ${sentence}`);
       expect(screen).toContain("Last ned bruksrapport");
       expect(screen).not.toContain("Gå til gjennomgangen");
+      expect(screen).toContain("Start spillet");
     }
   });
 });

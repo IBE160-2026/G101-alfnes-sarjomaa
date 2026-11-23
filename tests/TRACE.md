@@ -43,6 +43,7 @@ Delete a Game.
 - `tests/integration/collection.test.ts`: a deleted Game's link is `LINK_UNKNOWN` through `openInviteLink` and `unknown` from `linkStatus`, so the shell calls `notFound()` (Story 2.3, AC3).
 - `tests/e2e/invite-link-page.spec.ts`: the link of a Game deleted through "Slett for godt" shows "Vi finner ikke denne lenken." with its body, and its pre-seeded `localStorage` key is removed (Story 2.3, AC3).
 - `tests/integration/report.test.ts`: deleting a Game with a counter row, by the Host and by the retention purge, removes its `game_counter` row (Story 4.3, AC3).
+- `tests/integration/play.test.ts`: deleting a _playing_ Game removes its `team` and `play_state` rows; `tests/integration/delete.test.ts` reads the foreign keys from the catalog, so both tables are in its cascade check (Story 6.1).
 - Pending: Story 6.4.
 
 ## FR-4
@@ -311,8 +312,11 @@ Mark reviewed and confirm the Board.
 
 Set up Teams.
 
-- None yet.
-- Pending: Story 6.1.
+- `tests/integration/play.test.ts`: `play.start` (through `startPlay`, which revalidates the Game and screen pages) on a _ready_ Game with three Questions writes two `team` rows at positions 1 and 2 with trimmed names, a `play_state` row pointing at Question 1 and Team 1, moves the Game to _playing_ and touches `updated_at`; `play.load` then gives Question 1 of 3 and both Scores 0 with Team 1 current; four Teams with one 14-character name go in in order; one or five Teams ("Velg to til fire lag."), an empty or blank name ("Laget trenger et navn.") and a 15-character name ("Navnet kan ha maks 14 tegn.") are `INVALID_INPUT` with `fieldErrors.teams` from both the module and the action, and nothing is written; _draft_, _collecting_, _grouping_, _in review_ and _played_ Games and a second start on a _playing_ one are `WRONG_STATE` with nothing written; `play.load` on a _ready_ Game is `WRONG_STATE`; deleting a _playing_ Game removes its `team` and `play_state` rows (Story 6.1, AC1).
+- `tests/integration/play.test.ts`: `/spill/[id]/skjerm` renders Team setup for a _ready_ Game ("Hvem spiller?", "Navn på lag 1" and "Navn på lag 2" prefilled "Lag 1" and "Lag 2", "Legg til lag", "Start spillet", no "Fjern") with the Game title as page title (the not-found title for a missing Game), the stage for a _playing_ one (the Question in `text-tv-question`, "Spørsmål 1 av 3", "Svarer nå" on Team 1, every Score "0 poeng", "Trykk F for fullskjerm.") and redirects to the Game page for every other state; the Game page links "Start spillet" to the screen in _ready_ and shows "Spillet er i gang", "Spørsmål 1 av 3.", each Team with its Score and "Fortsett spillet" in _playing_ (Story 6.1, AC1, AC2).
+- `tests/integration/review.test.ts`: the _ready_ Game page after a real lock also shows "Start spillet" (Story 6.1).
+- `tests/integration/authz.test.ts`: Host B's `play.start`, `startPlay` and `play.load` on A's _ready_ and _playing_ Games, a random UUID and `abc` give `NOT_FOUND`, and A's Games keep their state, Teams and `play_state` (Story 6.1, AD-5).
+- `tests/e2e/play.spec.ts`: a collecting Game's `/skjerm` redirects to the Game page; after Review and the lock, "Start spillet" opens "Hvem spiller?" with focus on `<h1>`, "Lag 1" and "Lag 2" and no "Fjern"; "Legg til lag" adds "Lag 3" and "Lag 4", each focused, and then goes; "Fjern lag 4" goes back to three with focus on "Legg til lag"; an empty and a 15-character name show "Laget trenger et navn." and "Navnet kan ha maks 14 tegn." as field descriptions with focus on the first, and editing a field clears its error; starting by keyboard shows the play view with focus on the Question `<h1>` and its inverse focus ring, no banner, skip link, link or button, "Svarer nå" on "Hyttegjengen", every Score "0 poeng", "Spørsmål 1 av 1" and "Trykk F for fullskjerm."; `F` enters fullscreen and hides the hint, `F` again brings it back; a tab opened before the start gets "Spillet har allerede startet. Gå til spillet", focused, whose link opens the Game page with "Spillet er i gang"; "Fortsett spillet" and a reload show the same Teams, current Team and Question (Story 6.1, AC1, AC2).
 
 ## FR-24
 
@@ -431,6 +435,7 @@ Accessibility (WCAG 2.1 AA).
 - `tests/e2e/review.spec.ts`: axe finds no serious or critical violations with the "Låse brettet?" dialog open and on the _ready_ Game page; the dialog opens with focus on "Avbryt" and Esc returns focus to "Lås brettet"; the mark's announcement lives in its own polite region outside the Question-keyed Group list, so it survives the Question change (Story 5.5, AC5).
 - `tests/e2e/review.spec.ts`: at 1280×800, ticking Frida (rank 7, where the SelectionBar appears) scrolls its checkbox above the bar's top edge, and Tab on to Ola's checkbox below the fold also stops above the bar (WCAG 2.4.11); the link "Gå til spillet" in the bar's locked Notice has the dark 3 px focus ring on the light Notice; every "Mer for «…»" trigger is `aria-disabled` while a merge runs; checked to fail without the scroll padding and the ring class (Epic 5 review, impeccable S1, S3, bmad finding 7).
 - `tests/manual/checklist.md`: A6, Review end to end by keyboard only (Story 5.5).
+- `tests/e2e/play.spec.ts`: axe finds no serious or critical violations on Team setup and on the play view; on the stage the Host chrome is gone from view and tab order and the focused Question has the inverse focus ring (Story 6.1, AC2).
 - Pending: every story that builds a screen.
 
 ## NFR-7
@@ -469,3 +474,4 @@ Design and experience rules from `DESIGN.md` and `EXPERIENCE.md` that no FR cove
 - `tests/e2e/games.spec.ts`: with the Game page's RSC request held 1.5 s, the `loading.tsx` skeleton (no `<h1>`) appears after 300 ms, without a fade, and the streamed `<h1>` takes focus once it arrives, resolving Story 1.2's deferred `RouteFocus` gap (Story 1.4, UX-DR15, UX-DR23).
 - `tests/e2e/games.spec.ts`: an aborted create request shows "Fikk ikke kontakt. Sjekk nettet og prøv igjen.", focuses that notice, keeps the typed title and stays on `/spill` (Story 1.4, UX-DR23).
 - `tests/integration/report.test.ts`: the Game page renders "Last ned bruksrapport" as a plain link (no `download` attribute) to `/api/spill/{id}/rapport` in _in review_, _ready_, _playing_ and _played_, and not in _draft_, _collecting_ or _grouping_; `tests/e2e/close.spec.ts`: the link is absent while collecting, visible on _in review_, and axe stays clean (Story 4.3, AC4, UX-DR16).
+- `tests/e2e/play.spec.ts`, `tests/integration/play.test.ts`: Team setup is a light Host page with "Hvem spiller?", fields "Navn på lag N" prefilled "Lag N", "Legg til lag" up to four, "Fjern lag N" only above two, errors under each field and "Start spillet" (Story 6.1, UX-DR22).

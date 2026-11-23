@@ -13,7 +13,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { GAME_STATES } from "@/lib/game-state";
-import { ANSWERS_PER_QUESTION_MAX, BOARD_SIZE } from "@/lib/limits";
+import {
+  ANSWERS_PER_QUESTION_MAX,
+  BOARD_SIZE,
+  TEAM_NAME_MAX,
+  TEAMS_MAX,
+} from "@/lib/limits";
 
 const utc = { withTimezone: true, mode: "date" } as const;
 
@@ -212,3 +217,40 @@ export const boardSlot = pgTable(
     ),
   ],
 );
+
+// Written only by the play module (AD-16). Names are frozen at start: no rename or reorder.
+export const team = pgTable(
+  "team",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => game.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    position: integer("position").notNull(),
+  },
+  (t) => [
+    uniqueIndex("team_game_position_key").on(t.gameId, t.position),
+    check(
+      "team_position_range",
+      sql`${t.position} between 1 and ${sql.raw(String(TEAMS_MAX))}`,
+    ),
+    check(
+      "team_name_length",
+      sql`char_length(${t.name}) between 1 and ${sql.raw(String(TEAM_NAME_MAX))}`,
+    ),
+  ],
+);
+
+// One row per playing or played Game: where play stands, so it survives a reload (AD-16).
+export const playState = pgTable("play_state", {
+  gameId: uuid("game_id")
+    .primaryKey()
+    .references(() => game.id, { onDelete: "cascade" }),
+  currentQuestionId: uuid("current_question_id")
+    .notNull()
+    .references(() => question.id, { onDelete: "cascade" }),
+  currentTeamId: uuid("current_team_id")
+    .notNull()
+    .references(() => team.id, { onDelete: "cascade" }),
+});

@@ -1,0 +1,33 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+// F toggles fullscreen on the play view; the hint goes while fullscreen is on.
+export function FullscreenKey({ className }: { className: string }) {
+  const [full, setFull] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setFull(document.fullscreenElement !== null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "f" || event.repeat) return;
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
+        return;
+      const target = event.target as HTMLElement;
+      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      // A refused request (no user gesture, a browser policy) leaves the page as it is.
+      (document.fullscreenElement
+        ? document.exitFullscreen()
+        : document.documentElement.requestFullscreen()
+      ).catch(() => {});
+    };
+    onChange(); // fullscreen may already be on when the view mounts
+    document.addEventListener("fullscreenchange", onChange);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  return full ? null : <p className={className}>Trykk F for fullskjerm.</p>;
+}

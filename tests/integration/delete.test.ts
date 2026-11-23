@@ -16,6 +16,7 @@ import { newToken } from "@/lib/token";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import { answerGroup, game, question } from "@/server/db/schema";
+import * as play from "@/server/play";
 import * as review from "@/server/review";
 import { cookieJar, run, runAfterTasks } from "./next-mocks";
 
@@ -332,7 +333,16 @@ describe("Game page", () => {
   it.each(GAME_STATES)(
     'FR-3, UX-DR8: in %s it renders the "Slett spillet" button',
     async (state) => {
-      const id = await insertGame(state);
+      // A playing Game's page reads play_state, so that one is started for real.
+      const id = await insertGame(state === "playing" ? "ready" : state);
+      if (state === "playing") {
+        await (
+          await getDb()
+        )
+          .insert(question)
+          .values({ id: randomUUID(), gameId: id, position: 1, text: "?" });
+        await play.start(hosts.A, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+      }
       as("A");
       const html = renderToStaticMarkup(
         await GamePage({

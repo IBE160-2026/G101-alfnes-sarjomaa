@@ -128,3 +128,9 @@
     text-underline-offset: 0.2em;
   }
 }
+
+/* The play view's stage covers the window: the Host chrome leaves view and tab order.
+   Unlayered, so no utility (the skip link's focus:inline-flex) brings it back. */
+body:has([data-stage]) [data-host-chrome] {
+  display: none;
+}

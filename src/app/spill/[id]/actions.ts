@@ -13,6 +13,7 @@ import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
 import * as games from "@/server/games";
 import * as grouping from "@/server/grouping";
+import * as play from "@/server/play";
 import * as questions from "@/server/questions";
 import * as review from "@/server/review";
 
@@ -140,4 +141,8 @@ export async function confirmBoard(
   input: unknown,
 ): Promise<ActionResult<{ questions: number }>> {
   return hostAction(review.confirmBoard, input, "gjennomgang");
+}
+
+export async function startPlay(input: unknown): Promise<ActionResult<void>> {
+  return hostAction(play.start, input, "skjerm");
 }
