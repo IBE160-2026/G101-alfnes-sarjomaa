@@ -114,8 +114,9 @@ Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Svarene kan bli se
 ekstern KI-tjeneste for gruppering. Begge deler står øverst i svarskjemaet.
 
 Spill slettes 30 dager etter at de er spilt, ellers 90 dager etter siste endring. Slettingen
-kjører når en vert åpner spillsidene (høyst én gang i timen), eller fra Cron når `CRON_SECRET`
-er satt. Pilotdatabasen slettes når emnet er over.
+kjører når en vert åpner spillsidene (høyst én gang i timen), og i piloten også fra Vercel Cron
+den 1. i hver måned. Står piloten ubrukt, kan et spill derfor ligge opptil rundt to måneder.
+Pilotdatabasen slettes når emnet er over.
 
 <details>
 <summary>Grensene: hvem kan se hva</summary>
@@ -172,8 +173,8 @@ Per 23. november. Trinn 1 fryses 1. desember.
 - **Trinn 1 er ikke godkjent ennå (SM-1).** Testene og [sporingen](tests/TRACE.md) er grønne. De
   [manuelle sjekkene](tests/manual/checklist.md) og
   [anonymitetsrevisjonen](tests/manual/anonymity-audit.md) gjenstår.
-- **Ingenting er kuttet, og ingenting har glidd.** Av glidelista i PRD §6.5 kjører piloten (uten
-  Vercel Cron), og kjennelsene er tatt opp live på nytt. Målingen på ekte norske svar (SM-4) er
+- **Ingenting er kuttet, og ingenting har glidd.** Av glidelista i PRD §6.5 kjører piloten (med
+  Vercel Cron én gang i måneden), og kjennelsene er tatt opp live på nytt. Målingen på ekte norske svar (SM-4) er
   ikke kjørt. Det som ikke er ferdig ved frysen, flyttes til trinn 2.
 - **Trinn 2 venter** til trinn 1 er godkjent: ferdige spørsmålssett (FR-33), egen rekkefølge på
   brettet (FR-22), hjelp til gjetninger (FR-28), strikes og steals (FR-29).

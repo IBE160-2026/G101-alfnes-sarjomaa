@@ -497,6 +497,7 @@ The pilot is Vercel Hobby (300 s per function with fluid compute), with producti
 - **Previews on.** Preview deployments set `DATABASE_URL=pglite:///tmp/toppsvar` and no `OPENROUTER_API_KEY`. They never reach the production database or the Judge, and their data lasts only as long as the function instance.
 - **Production.** Neon Postgres in Frankfurt (EU) and an OpenRouter key with a USD 0.10 credit limit, which is the cost cap. When the credit is used up, OpenRouter refuses the request, the Judge reports `ERROR`, and the Question starts with one Group per distinct normalised Answer (FR-17).
 - *Amended 2026-11-23 in Story 7.5:* `vercel.json` pins the functions to `fra1`, next to the database. `CRON_SECRET` and the daily Cron are not set on the pilot yet: Production has no `CRON_SECRET`, so `/api/purge` answers 404 `disabled`, and `vercel.json` has no `crons` entry. Until the group adds both, the purge on the pilot runs only from Host requests (AD-23). If they are still missing at the Stage 1 freeze, the scheduled expiry slips (PRD §6.5). The steps are in the "Pilot" section of `tests/manual/checklist.md`.
+- *Amended 2026-11-23 after Story 7.5:* the group chose a monthly Cron, not a daily one. `CRON_SECRET` is set for Production only, and `vercel.json` has `"crons": [{ "path": "/api/purge", "schedule": "0 3 1 * *" }]` (03:00 UTC on the 1st). Host requests still trigger the hourly purge, so the Cron is only the backstop for a pilot nobody opens. In that case a Game can outlive its 30 or 90 days by up to a month.
 
 There are no backups beyond Neon's short history, and the pilot database is deleted when the course ends. Any Node host running `next start` with a Postgres URL is equivalent. The README's local path never mentions a host.
 
@@ -575,7 +576,7 @@ flowchart LR
   subgraph Pilot["Pilot (optional, main only)"]
     V["Vercel function, Node runtime"] --> HP["Neon Postgres, Frankfurt (EU), pooled"]
     V --> FX2["data/rulings (traced into bundle)"]
-    C["Vercel Cron daily"] --> V
+    C["Vercel Cron monthly"] --> V
     V -. "only if OPENROUTER_API_KEY" .-> A["OpenRouter chat completions, deepseek/deepseek-v4.1-flash"]
   end
   P["Participant phone"] -->|"/svar/gameId#token"| V

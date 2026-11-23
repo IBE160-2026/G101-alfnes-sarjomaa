@@ -87,8 +87,8 @@ The pilot is optional and the first item on the cut list. P1 to P3 are the three
 
 **How to migrate the pilot.** `npm run db:migrate` migrates only a `postgres://` or `postgresql://` URL. It reads `.env.local`, but a `DATABASE_URL` already exported in the shell wins over the file, and an unset or mistyped one silently falls back to local PGlite (`.data/local`), so production is never migrated. Neon sets a pooled `DATABASE_URL`, which the app keeps, and a direct `DATABASE_URL_UNPOOLED`: use the value of `DATABASE_URL_UNPOOLED` for the migration run. Read it without echo or shell history, for example `read -rs DATABASE_URL && export DATABASE_URL`, and never write it into `.env.local` or a tracked file. Check that `echo ${DATABASE_URL%%:*}` prints `postgres` or `postgresql`, run `npm run db:migrate`, then close the terminal session. To close P1:
 
-1. Add `CRON_SECRET` (any long random string) to Production in the Vercel project's environment variables.
-2. Add `"crons": [{ "path": "/api/purge", "schedule": "0 3 * * *" }]` to `vercel.json` and merge it to `main`. The Cron registers on the next production deploy, and a variable added after the last deploy is read only by a new one.
+1. Done 2026-11-23 by the AI: `CRON_SECRET` (random, 64 hex characters, never printed) was added to Production only.
+2. Done 2026-11-23 by the AI: `"crons": [{ "path": "/api/purge", "schedule": "0 3 1 * *" }]` is in `vercel.json` on `main` (monthly, the group's choice). The Cron registers on the next production deploy, and a variable added after the last deploy is read only by a new one.
 3. Check that an unauthenticated request to `/api/purge` now answers 401 and that the project's Cron Jobs page lists the job. Then press "Run" on the job and check that the function log shows 200 `{"status":"ok"}`, which proves the Cron calls the route with the secret. Write all three, with the date, in the Result cell.
 
 ## SM-1 gate
@@ -104,14 +104,14 @@ Open items:
 - Demo content: D1.
 - Fresh clone: F1 was run by the AI on the developer's machine (Story 7.4); a group member still runs it once on a machine without the repository.
 - SM-3 anonymity audit: `tests/manual/anonymity-audit.md` has no recorded run.
-- Pilot: P1, P2 and P3 have no result, and `CRON_SECRET` and the daily Cron are not set in production (see "Pilot"). If the pilot is cut (moved to Stage 2 under PRD §6.5, and named so in the README), these rows leave the count.
+- Pilot: P1, P2 and P3 have no result, and the monthly Cron has not been confirmed with "Run" yet (see "Pilot", step 3). If the pilot is cut (moved to Stage 2 under PRD §6.5, and named so in the README), these rows leave the count.
 - README: the "Status" section is dated 23 November. Update it at the freeze (1 December) and before hand-in, so it states what slipped.
 
 SM-2 is reported, not gated. The live ProtoQA figure, recorded 2026-11-23 with prompt version 1 and `deepseek/deepseek-v4.1-flash`, is B-cubed F1 0.6849 (precision 0.9809, recall 0.5261), 1.40 calls per Question, with 15 of 52 Questions falling back on `INVALID_OUTPUT`. Reasoning was tried and rejected (see `.docs/implementation-artifacts/spec-7-2-judge-evaluation-against-protoqa.md`). The figure is below 0.70, which does not fail SM-1. The README reports it, with every version tried, in its "Status" section.
 
 The slip list in PRD §6.5 has three items. What is known about each:
 
-- Pilot deployment: live at the pilot URL since 2026-11-23. Story 7.5's three checks are rows P1 to P3, still without a result, and the daily Cron is not set up.
+- Pilot deployment: live at the pilot URL since 2026-11-23. Story 7.5's three checks are rows P1 to P3, still without a result. The Cron runs monthly (set up 2026-11-23).
 - `judge:eval --live`, the live regeneration of the rulings: run on 2026-11-23 (Story 7.2).
 - SM-4, the local measurement on real Answers: not run in this repository.
 
