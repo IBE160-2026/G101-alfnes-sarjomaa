@@ -24,6 +24,9 @@ export const revokeInviteLinkSchema = z.object({
   link: z.string().catch(""),
 });
 
+// Malformed gameIds are left to lockForMutation, as above.
+export const closeCollectionSchema = z.object({ gameId: z.string() });
+
 // The shape newToken() makes: 32 bytes as base64url without padding.
 export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 

@@ -1,21 +1,27 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { and, count, eq } from "drizzle-orm";
 import { parseAnswerSet } from "@/lib/answer-set";
 import { DomainError, MESSAGES, validate } from "@/lib/errors";
 import { PERMITTED, type GameState } from "@/lib/game-state";
 import {
+  closeCollectionSchema,
   createInviteLinksSchema,
   LINK_NOT_ACTIVE,
   revokeInviteLinkSchema,
   TOKEN_PATTERN,
 } from "@/lib/invite-link";
 import { FEWER_THAN_3, SUBMISSIONS_MIN } from "@/lib/limits";
+import { normalize } from "@/lib/normalize";
+import { shuffle } from "@/lib/shuffle";
 import { newToken, sha256 } from "@/lib/token";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Db, type Tx } from "@/server/db/client";
 import { inviteLink, submission } from "@/server/db/schema";
+import { vacuumCollectionTables } from "@/server/db/vacuum";
 import { env } from "@/server/env";
 import * as games from "@/server/games";
+import * as grouping from "@/server/grouping";
 import * as questions from "@/server/questions";
 
 const BASE_URL = env.APP_BASE_URL.replace(/\/+$/, "");
@@ -264,5 +270,47 @@ export function submit(
           set: { answers, editSecretHash },
         });
     });
+  });
+}
+
+// The single anonymisation step (AD-9, FR-10, FR-13): one transaction turns every Answer
+// set into keyless answer rows with a fresh Contributor key per set and Question, shuffled
+// across the whole Game, and deletes every link (submissions cascade). Question IDs come
+// from the sets' keys, since questions.ofGame is a getDb() read that would deadlock here.
+// The set order of the SELECT never reaches `answer`: only the shuffled array is inserted.
+export function close(hostId: string, input: unknown): Promise<void> {
+  return withBoundary("collection", "close", async () => {
+    const { gameId } = validate(closeCollectionSchema, input);
+    const db = await getDb();
+    await db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.closeCollection,
+      });
+      const sets = await tx
+        .select({ answers: submission.answers })
+        .from(submission)
+        .innerJoin(inviteLink, eq(inviteLink.tokenHash, submission.tokenHash))
+        .where(eq(inviteLink.gameId, gameId));
+      if (sets.length < SUBMISSIONS_MIN)
+        throw new DomainError("TOO_FEW_ANSWER_SETS");
+      const rows = sets.flatMap(({ answers }) =>
+        Object.entries(answers).flatMap(([questionId, texts]) => {
+          const contributorKey = randomUUID();
+          return texts.map((text, i) => ({
+            questionId,
+            contributorKey,
+            rank: i + 1,
+            text,
+            normalizedText: normalize(text),
+          }));
+        }),
+      );
+      await grouping.insertAnswers(tx, shuffle(rows));
+      await tx.delete(inviteLink).where(eq(inviteLink.gameId, gameId));
+      await games.transition(tx, gameId, "collecting", "grouping");
+    });
+    await vacuumCollectionTables("collection");
   });
 }

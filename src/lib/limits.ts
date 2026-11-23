@@ -27,6 +27,8 @@ export const SUBMISSIONS_MIN = 3;
 // What progress() reports instead of a count below SUBMISSIONS_MIN.
 export const FEWER_THAN_3 = "fewer-than-3";
 export const COLLECTING_REFRESH_MS = 30_000; // AD-17
+// The Grouping lease that close sets (AD-9, AD-12).
+export const GROUPING_LEASE_MS = 180_000;
 
 export const ANSWER_TEXT_MAX = 80;
 export const ANSWER_COUNTER_FROM = 60;

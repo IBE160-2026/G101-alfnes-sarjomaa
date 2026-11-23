@@ -1,4 +1,5 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, type SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { deleteGame } from "@/app/spill/[id]/actions";
@@ -135,6 +136,67 @@ describe("deleteGame", () => {
       redirect: "/logg-inn",
     });
     expect(await gameRow(id)).toBeDefined();
+  });
+});
+
+describe("VACUUM after delete", () => {
+  const dialect = new PgDialect();
+
+  // Deletes A's Game in `state` with db.execute spied, and returns the SQL it ran and the log.
+  async function deleteWatched(state: GameState, fail = false) {
+    const id = await insertGame(state);
+    as("A");
+    const db = await getDb();
+    const execute = vi.spyOn(db, "execute");
+    if (fail)
+      execute.mockRejectedValueOnce(
+        Object.assign(new Error("låst"), { code: "55P03" }),
+      );
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    let result, statements, out;
+    try {
+      result = await run(deleteGame, { gameId: id });
+    } finally {
+      statements = execute.mock.calls.map(
+        ([query]) => dialect.sqlToQuery((query as SQL).getSQL()).sql,
+      );
+      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      execute.mockRestore();
+      write.mockRestore();
+    }
+    return { id, result, statements, out };
+  }
+
+  it("FR-3, FR-13, AD-9: deleting a collecting Game runs VACUUM (FULL, SKIP_LOCKED) on submission and invite_link after commit", async () => {
+    const { id, result, statements, out } = await deleteWatched("collecting");
+    expect(result).toEqual({ redirect: "/spill" });
+    expect(statements).toEqual([
+      "VACUUM (FULL, SKIP_LOCKED) submission, invite_link",
+    ]);
+    expect(out).toBe("");
+    expect(await gameRow(id)).toBeUndefined();
+  });
+
+  it("FR-3, AD-9: a failing VACUUM still deletes, and logs only module, op, code and sqlstate", async () => {
+    const { id, result, out } = await deleteWatched("collecting", true);
+    expect(result).toEqual({ redirect: "/spill" });
+    expect(await gameRow(id)).toBeUndefined();
+    const lines = out.trimEnd().split("\n");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0])).toEqual({
+      module: "games",
+      op: "vacuum",
+      code: "INTERNAL",
+      sqlstate: "55P03",
+    });
+  });
+
+  it("FR-3, AD-9: deleting a draft Game skips the VACUUM", async () => {
+    const { id, statements } = await deleteWatched("draft");
+    expect(statements).toEqual([]);
+    expect(await gameRow(id)).toBeUndefined();
   });
 });
 

@@ -186,7 +186,7 @@ stateDiagram-v2
   4. Delete the Game's `submission` and `invite_link` rows.
   5. `transition(collecting → grouping)`. This also sets `grouping_lease_until = now() + 180 s`.
 
-  After commit, a best-effort `VACUUM FULL submission, invite_link` runs outside any transaction, with `lock_timeout = '2s'`. Its errors are swallowed and logged by SQLSTATE only, and it never fails the close. The same best-effort VACUUM runs after deleting a Game that was `collecting`. Then the action starts Grouping with `after()` (AD-12). Nothing else inserts into `answer`.
+  After commit, a best-effort `VACUUM (FULL, SKIP_LOCKED) submission, invite_link` runs outside any transaction. Its errors are swallowed and logged by SQLSTATE only, and it never fails the close. The same best-effort VACUUM runs after deleting a Game that was `collecting`, so the helper (`vacuumCollectionTables`) lives in the db layer (`src/server/db/vacuum.ts`), since `games` may not import `collection`. *Amended in Story 3.1:* `SKIP_LOCKED` replaces `lock_timeout = '2s'`. VACUUM cannot run in a transaction block, so `SET lock_timeout` would need a second statement on the same connection, which a pooled postgres.js client does not guarantee without driver-specific code (AD-2). With `SKIP_LOCKED`, in one statement, the VACUUM never waits for a lock and never queues an ACCESS EXCLUSIVE request ahead of live submits; it skips a table someone holds. The rewrite itself still holds ACCESS EXCLUSIVE on each table briefly while it runs. *Amended in the Epic 3 review:* a skipped table is retried and reported. The hourly purge (`purgeExpired`) runs the same helper on every run, not only after deleting a `collecting` Game, so a table that `SKIP_LOCKED` skipped at close is rewritten within about an hour. Postgres reports a skip (a held table, or a role that does not own it) only as a notice, so the helper compares each table's `relfilenode` before and after: `VACUUM FULL` always writes a new file, and an unchanged one logs `{ module, op: "vacuum", code: "VACUUM_SKIPPED" }` and nothing else. It must stay `FULL`: a plain VACUUM leaves the dead tuples' bytes in the table file. Then the action starts Grouping with `after()` (AD-12). Nothing else inserts into `answer`.
 
 ### AD-10 — Answers carry no order and no identity, and Host views never see the linking columns
 
@@ -389,7 +389,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
     - `demo-replay.test.ts`: `source = replay`, `uncovered_items = 0`, no fallback
     - `judge-eval.test.ts`: replayed F1 at least 0.70
     - `env.test.ts`
-  - **`tests/e2e/`** runs Playwright against `next build && next start`, with a fresh temporary PGlite directory and `JUDGE_PROVIDER=replay`. Each spec registers its own Host, and only `demo.spec.ts` uses the demo Game. Required specs:
+  - **`tests/e2e/`** runs Playwright against `next build && next start`, with a fresh temporary PGlite directory and `JUDGE_PROVIDER=replay`. A second server, `next dev` on its own port (3101) and PGlite directory, serves only `server-output.spec.ts`, since only development mode prints Server Function arguments and forwards browser console output. Both servers' stdout and stderr are redirected to files, and the global teardown fails the run if either file is missing or empty, or holds a Token, edit secret or Answer that a browser sent or received, or its sha256 (recorded in the shared `localOnly` helper). Each spec registers its own Host, and only `demo.spec.ts` uses the demo Game. Required specs:
     - `no-key.spec.ts` (FR-30)
     - `host-anonymity.spec.ts`: every Host page and response during Collection, before and after a Participant submits; reopening a used link from a fresh browser context shows an empty form
     - `participant.spec.ts`
@@ -428,7 +428,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - `outputFileTracingIncludes` for `data/rulings/**`
   - `agentRules: false`
 
-  The close action and the Game page export `maxDuration = 300`.
+  The Game page exports `maxDuration = 300`. *Amended in Story 3.1:* a `"use server"` file may export only async functions, so the close action cannot export it; it inherits the setting from the Game page it posts to.
 
 | Environment | `DATABASE_URL` | Migrations | Live Judge |
 | --- | --- | --- | --- |

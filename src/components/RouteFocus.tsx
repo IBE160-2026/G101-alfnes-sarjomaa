@@ -3,9 +3,13 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-function focusHeading(h1: HTMLElement) {
-  h1.setAttribute("tabindex", "-1");
-  h1.focus();
+// Focuses a heading that is not focusable by itself; the page's <h1> by default.
+export function focusHeading(
+  heading: Element | null = document.querySelector("h1"),
+) {
+  if (!(heading instanceof HTMLElement)) return;
+  heading.setAttribute("tabindex", "-1");
+  heading.focus();
 }
 
 // Moves focus to the new page's <h1> after a client route change, never on first load.

@@ -1,3 +1,5 @@
+import { appendFileSync } from "node:fs";
+import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import {
   expect,
@@ -8,13 +10,55 @@ import {
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-// NFR-3: the browser never reaches a host other than localhost.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LINK_TOKEN = /\/svar\/[0-9a-f-]{36}#([A-Za-z0-9_-]{43})/g;
+const recorded = new Set<string>();
+
+// One JSON line per Token or Answer a browser sent or received, for the teardown's
+// scan of the server logs (FR-11).
+function record(value: string) {
+  if (recorded.has(value)) return;
+  recorded.add(value);
+  appendFileSync(
+    path.join(process.env.E2E_OUT_DIR!, "secrets.jsonl"),
+    `${JSON.stringify(value)}\n`,
+  );
+}
+
+// Every string leaf of a /svar action's arguments: Token, edit secret and Answers. React
+// escapes a leading $ as $$; a single $ is a reference, and UUIDs are Game and Question IDs.
+// shortcut: Answers under 3 characters and UUID-shaped Answers are not scanned (too many false hits), add them if a test ever relies on such an Answer.
+function recordLeaves(value: unknown) {
+  if (typeof value === "string") {
+    if (value.startsWith("$") && !value.startsWith("$$")) return;
+    const text = value.startsWith("$$") ? value.slice(1) : value;
+    if (text.length >= 3 && !UUID.test(text)) record(text);
+  } else if (value !== null && typeof value === "object")
+    for (const child of Object.values(value)) recordLeaves(child);
+}
+
+// NFR-3: the browser never reaches a host other than localhost. Every context passes
+// through here, so it also records what the server logs must never hold.
 export async function localOnly(context: BrowserContext) {
   await context.route("**/*", (route) =>
     LOCAL_HOSTS.has(new URL(route.request().url()).hostname)
       ? route.continue()
       : route.abort("blockedbyclient"),
   );
+  // An event, not the route above: a page's own route wins over the context's, and its
+  // route.fetch() sends the real request without passing through here.
+  context.on("request", (request) => {
+    if (
+      request.headers()["next-action"] &&
+      new URL(request.url()).pathname.startsWith("/svar/")
+    )
+      recordLeaves(request.postDataJSON());
+  });
+  context.on("response", async (response) => {
+    if (!response.request().headers()["next-action"]) return;
+    const body = await response.text().catch(() => "");
+    for (const [, token] of body.matchAll(LINK_TOKEN)) record(token);
+  });
 }
 
 export const test = base.extend({

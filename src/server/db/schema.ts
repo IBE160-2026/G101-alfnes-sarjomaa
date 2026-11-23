@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import {
+  check,
   integer,
   jsonb,
   pgEnum,
@@ -11,6 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { GAME_STATES } from "@/lib/game-state";
+import { ANSWERS_PER_QUESTION_MAX } from "@/lib/limits";
 
 const utc = { withTimezone: true, mode: "date" } as const;
 
@@ -49,6 +51,8 @@ export const game = pgTable("game", {
   playedAt: timestamp("played_at", utc),
   // Every Invite link ever created, revoked ones included (the cap counts these).
   inviteLinksIssued: integer("invite_links_issued").notNull().default(0),
+  // Set to now + 180 s when Collection closes; the Grouping runner extends it (AD-12).
+  groupingLeaseUntil: timestamp("grouping_lease_until", utc),
 });
 
 export const question = pgTable(
@@ -81,3 +85,27 @@ export const submission = pgTable("submission", {
   answers: jsonb("answers").$type<Record<string, string[]>>().notNull(),
   editSecretHash: text("edit_secret_hash").notNull(),
 });
+
+// Written only by grouping.insertAnswers, in shuffled order (AD-9, AD-10). No serial,
+// identity, time-ordered id, timestamp or ordinal, so nothing shows arrival (FR-13).
+// group_id arrives with answer_group in Story 4.2.
+export const answer = pgTable(
+  "answer",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => question.id, { onDelete: "cascade" }),
+    // Both nullable: review.confirmBoard clears them for the Game (AD-10).
+    contributorKey: uuid("contributor_key"),
+    rank: integer("rank"),
+    text: text("text").notNull(),
+    normalizedText: text("normalized_text").notNull(),
+  },
+  (t) => [
+    check(
+      "answer_rank_range",
+      sql`${t.rank} between 1 and ${sql.raw(String(ANSWERS_PER_QUESTION_MAX))}`,
+    ),
+  ],
+);

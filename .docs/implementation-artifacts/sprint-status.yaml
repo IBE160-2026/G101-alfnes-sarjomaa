@@ -53,10 +53,10 @@ development_status:
   2-7-revoke-and-replace-a-lost-invite-link: done
   epic-2-retrospective: optional
 
-  epic-3: backlog
-  3-1-close-collection-as-the-single-anonymisation-step: backlog
-  3-2-anonymity-test-schema-and-data-after-close: backlog
-  3-3-anonymity-tests-the-host-s-view-during-collection-and-log-hy: backlog
+  epic-3: done
+  3-1-close-collection-as-the-single-anonymisation-step: done
+  3-2-anonymity-test-schema-and-data-after-close: done
+  3-3-anonymity-tests-the-host-s-view-during-collection-and-log-hy: done
   epic-3-retrospective: optional
 
   epic-4: backlog

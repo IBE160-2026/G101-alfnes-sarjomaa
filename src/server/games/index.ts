@@ -1,9 +1,11 @@
 import "server-only";
 import { and, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { DomainError, validate } from "@/lib/errors";
 import { createGameSchema } from "@/lib/game";
 import { canTransition, PERMITTED, type GameState } from "@/lib/game-state";
 import {
+  GROUPING_LEASE_MS,
   INVITE_LINKS_MAX,
   PURGE_INTERVAL_MS,
   RETENTION_IDLE_MS,
@@ -13,6 +15,7 @@ import * as auth from "@/server/auth";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Tx } from "@/server/db/client";
 import { game } from "@/server/db/schema";
+import { vacuumCollectionTables } from "@/server/db/vacuum";
 
 export type GameSummary = {
   id: string;
@@ -66,12 +69,17 @@ export function listOwned(hostId: string): Promise<GameSummary[]> {
 export function getOwned(
   hostId: string,
   gameId: string,
-): Promise<GameSummary & { inviteLinksIssued: number }> {
+): Promise<GameSummary & { inviteLinksIssued: number; leaseExpired: boolean }> {
   return withBoundary("games", "getOwned", async () => {
     assertGameId(gameId);
     const db = await getDb();
     const [row] = await db
-      .select({ ...summary, inviteLinksIssued: game.inviteLinksIssued })
+      .select({
+        ...summary,
+        inviteLinksIssued: game.inviteLinksIssued,
+        // DB time, as the Grouping runner compares the lease (AD-9).
+        leaseExpired: sql<boolean>`coalesce(${game.groupingLeaseUntil} < now(), false)`,
+      })
       .from(game)
       .where(and(eq(game.id, gameId), eq(game.hostId, hostId)));
     if (!row) throw new DomainError("NOT_FOUND");
@@ -131,6 +139,7 @@ export async function lockForMutation(
 }
 
 // Compare-and-set along the forward chain; a stale `from` is WRONG_STATE too.
+// Entering grouping also starts the Grouping lease (AD-9).
 export async function transition(
   tx: Tx,
   gameId: string,
@@ -139,9 +148,16 @@ export async function transition(
 ): Promise<void> {
   if (!canTransition(from, to)) throw new DomainError("WRONG_STATE");
   assertGameId(gameId);
+  let extra: PgUpdateSetSource<typeof game> = {};
+  if (to === "played") extra = { playedAt: new Date() };
+  // DB time, since the Grouping runner compares it with now() (AD-9).
+  if (to === "grouping")
+    extra = {
+      groupingLeaseUntil: sql`now() + ${GROUPING_LEASE_MS} * interval '1 millisecond'`,
+    };
   const [row] = await tx
     .update(game)
-    .set(to === "played" ? { state: to, playedAt: new Date() } : { state: to })
+    .set({ state: to, ...extra })
     .where(and(eq(game.id, gameId), eq(game.state, from)))
     .returning({ id: game.id });
   if (!row) throw new DomainError("WRONG_STATE");
@@ -169,22 +185,25 @@ export async function reserveInviteLinks(
 }
 
 // Any state (AD-4). Children cascade from game, so one DELETE removes every row of it.
+// A collecting Game had links and Answer sets, so their dead rows are vacuumed (AD-9).
 export function deleteOwned(
   hostId: string,
   gameId: string,
 ): Promise<{ title: string }> {
   return withBoundary("games", "deleteOwned", async () => {
     const db = await getDb();
-    return db.transaction(async (tx) => {
-      const { title } = await lockForMutation(tx, {
+    const { title, state } = await db.transaction(async (tx) => {
+      const row = await lockForMutation(tx, {
         hostId,
         gameId,
         states: PERMITTED.deleteGame,
         touch: false,
       });
       await tx.delete(game).where(eq(game.id, gameId));
-      return { title };
+      return row;
     });
+    if (state === "collecting") await vacuumCollectionTables("games");
+    return { title };
   });
 }
 
@@ -210,6 +229,9 @@ export function purgeExpired(): Promise<{ deleted: number }> {
         ),
       )
       .returning({ id: game.id });
+    // Every run, not only after a collecting Game: it retries a close-time VACUUM that
+    // SKIP_LOCKED skipped (AD-9).
+    await vacuumCollectionTables("games");
     await auth.purgeExpiredSessions();
     return { deleted: rows.length };
   });

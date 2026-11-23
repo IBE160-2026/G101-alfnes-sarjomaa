@@ -256,3 +256,22 @@ describe("Invite links after collecting", () => {
     }
   });
 });
+
+describe("close outside collecting", () => {
+  it("FR-10, AD-4: closeCollection is WRONG_STATE in every state but collecting, and nothing changes, updated_at included", async () => {
+    const db = await getDb();
+    const links = () =>
+      db.select().from(inviteLink).where(eq(inviteLink.gameId, gameId));
+    const before = await links();
+    for (const state of GAME_STATES.filter((s) => s !== "collecting")) {
+      await setState(state);
+      const snapshot = await row();
+      expect(await codeOf(collection.close(hostId, { gameId })), state).toBe(
+        "WRONG_STATE",
+      );
+      expect(await row(), state).toEqual(snapshot);
+      expect(snapshot.updatedAt).toEqual(T0);
+      expect(await links(), state).toEqual(before);
+    }
+  });
+});

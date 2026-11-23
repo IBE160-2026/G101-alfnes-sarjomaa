@@ -6,6 +6,7 @@ import { AnswerForm } from "@/components/AnswerForm";
 import { Button } from "@/components/Button";
 import { LinkStatus } from "@/components/LinkStatus";
 import { Notice } from "@/components/Notice";
+import { focusHeading } from "@/components/RouteFocus";
 import { useDocumentTitle } from "@/components/useDocumentTitle";
 import { callAction, NETWORK } from "@/components/useFormAction";
 import { readLinkStore } from "@/lib/invite-link";
@@ -61,9 +62,7 @@ export function InviteLinkView({ gameId }: { gameId: string }) {
     if (!refocus.current || view.kind === "loading") return;
     refocus.current = false;
     if (view.kind === "failed") return retryRef.current?.focus();
-    const h1 = document.querySelector("h1");
-    h1?.setAttribute("tabindex", "-1");
-    h1?.focus();
+    focusHeading();
   }, [view]);
 
   useDocumentTitle(

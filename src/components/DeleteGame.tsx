@@ -22,6 +22,7 @@ export function DeleteGame({
       triggerLabel="Slett spillet"
       triggerVariant="secondary-danger"
       title={`Slette «${title}»?`}
+      busy={pending}
       confirm={
         <form action={submit}>
           <input type="hidden" name="gameId" value={gameId} />

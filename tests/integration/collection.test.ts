@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { inspect } from "node:util";
 import { eq, inArray, sql } from "drizzle-orm";
+import { PgliteSession } from "drizzle-orm/pglite";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  closeCollection,
   createInviteLinks,
   deleteGame,
   moveQuestion,
@@ -17,11 +20,20 @@ import { MESSAGES } from "@/lib/errors";
 import { GAME_STATES, type GameState } from "@/lib/game-state";
 import { LINK_NOT_ACTIVE } from "@/lib/invite-link";
 import { FEWER_THAN_3 } from "@/lib/limits";
+import { shuffle } from "@/lib/shuffle";
 import { newToken, sha256 } from "@/lib/token";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
 import { getDb } from "@/server/db/client";
-import { game, inviteLink, question, submission } from "@/server/db/schema";
+import {
+  answer,
+  game,
+  inviteLink,
+  question,
+  submission,
+} from "@/server/db/schema";
+import { env } from "@/server/env";
+import * as grouping from "@/server/grouping";
 import { cookieJar, NotFoundError, RedirectError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
@@ -47,6 +59,40 @@ vi.mock("@/server/questions", async (importOriginal) => {
       return result;
     },
   };
+});
+
+// Runs once right after a lockForMutation without hostId (submit's lock), while submit
+// still holds the Game lock inside its transaction.
+const lockRace = vi.hoisted(() => ({
+  hook: null as null | (() => void),
+}));
+vi.mock("@/server/games", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/server/games")>();
+  return {
+    ...real,
+    lockForMutation: async (
+      ...args: Parameters<typeof real.lockForMutation>
+    ) => {
+      const row = await real.lockForMutation(...args);
+      const hook = lockRace.hook;
+      if (hook && args[1].hostId === undefined) {
+        lockRace.hook = null;
+        hook();
+      }
+      return row;
+    },
+  };
+});
+
+// Counts the one insertAnswers call per close; the real writer still runs.
+vi.mock("@/server/grouping", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/server/grouping")>();
+  return { ...real, insertAnswers: vi.fn(real.insertAnswers) };
+});
+// The real shuffle, watched, so a test can see that close inserts exactly its output.
+vi.mock("@/lib/shuffle", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/shuffle")>();
+  return { shuffle: vi.fn(real.shuffle) };
 });
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -708,11 +754,20 @@ describe("progress", () => {
 
     const third = await send(gameId, ids, tokens[2]);
     const after = await snapshot();
-    expect(after).toEqual({
+    // From three the count and the close control change (FR-10), nothing else.
+    const withoutClose = (html: string) =>
+      html.replace(
+        /(aldri hvem som har svart\.<\/p>)[\s\S]*?<\/section>/,
+        "$1",
+      );
+    expect({ ...after, page: withoutClose(after.page) }).toEqual({
       ...before,
-      page: before.page.replace("færre enn 3", "3"),
+      page: withoutClose(before.page).replace("færre enn 3", "3"),
     });
     expect(text(after.page)).toContain("3 av 4 svar mottatt");
+    expect(before.page).toContain('aria-disabled="true"');
+    expect(after.page).not.toContain('aria-disabled="true"');
+    expect(after.page).toContain("Stenge innsamlingen?");
 
     await send(gameId, ids, tokens[2], third, "endret igjen");
     expect(await snapshot()).toEqual(after);
@@ -990,4 +1045,475 @@ describe("INTERNAL", () => {
         expect(out).not.toContain(secret);
     },
   );
+
+  it.each(["openInviteLink", "submit"] as const)(
+    "FR-11, AD-17: a driver error from %s carrying the Token, edit secret, their hashes and an Answer in message, detail, query, parameters and cause is INTERNAL with one bare log line, and no secret reaches the result, stdout, stderr or console",
+    async (op) => {
+      const { gameId, ids, tokens } = await collectingGame("Hemmelig feil");
+      const token = tokens[0];
+      const editSecret = newToken();
+      const answer = "Tante Gerd i badekaret";
+      const answers = Object.fromEntries(ids.map((id) => [id, [answer]]));
+      const secrets = [
+        token,
+        sha256(token),
+        editSecret,
+        sha256(editSecret),
+        answer,
+      ];
+      const carried = secrets.join(" ");
+      const failure = Object.assign(new Error(`check failed: ${carried}`), {
+        code: "23514",
+        detail: carried,
+        query: `insert into submission values (${carried})`,
+        parameters: secrets,
+        cause: new Error(carried),
+      });
+      const call =
+        op === "openInviteLink"
+          ? () => openInviteLink(gameId, token, editSecret)
+          : () => submitAnswerSet(gameId, token, { answers, editSecret });
+
+      // Both entry points' second getDb() select is linkExists in resolveLink, outside any
+      // nested module boundary (the first is games.find, which logs as "games").
+      const db = await getDb();
+      const realSelect = db.select.bind(db);
+      const select = vi
+        .spyOn(db, "select")
+        .mockImplementationOnce(realSelect)
+        .mockImplementationOnce(() => {
+          throw failure;
+        });
+      const captured: string[] = [];
+      const streams = [process.stderr, process.stdout].map((stream) =>
+        vi.spyOn(stream, "write").mockImplementation((chunk) => {
+          captured.push(String(chunk));
+          return true;
+        }),
+      );
+      const consoles = (
+        [
+          "log",
+          "info",
+          "warn",
+          "error",
+          "debug",
+          "trace",
+          "dir",
+          "table",
+        ] as const
+      ).map((method) =>
+        vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+          captured.push(inspect(args, { depth: Infinity }));
+        }),
+      );
+      let result, calls;
+      try {
+        result = await call();
+      } finally {
+        calls = select.mock.calls.length;
+        for (const spy of [select, ...streams, ...consoles]) spy.mockRestore();
+      }
+      expect(calls).toBe(2);
+      expect(result).toEqual({
+        ok: false,
+        code: "INTERNAL",
+        message: "Noe gikk galt hos oss. Prøv igjen om litt.",
+      });
+      const out = captured.join("");
+      const lines = out.trimEnd().split("\n");
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0])).toEqual({
+        module: "collection",
+        op,
+        code: "INTERNAL",
+        sqlstate: "23514",
+      });
+      const resultJson = JSON.stringify(result);
+      for (const secret of secrets) {
+        expect(out).not.toContain(secret);
+        expect(resultJson).not.toContain(secret);
+      }
+    },
+  );
+});
+
+describe("close", () => {
+  const V4 =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  const TOO_FEW = {
+    ok: false,
+    code: "TOO_FEW_ANSWER_SETS",
+    message: MESSAGES.TOO_FEW_ANSWER_SETS,
+  };
+
+  // Set k answers Question j with n texts that name k, j and the field.
+  const setOf = (ids: string[], k: number, n = 2) =>
+    Object.fromEntries(
+      ids.map((id, j) => [
+        id,
+        Array.from({ length: n }, (_, f) => `S${k} Q${j} F${f + 1}`),
+      ]),
+    );
+
+  async function send(gameId: string, token: string, answers: object) {
+    const result = await submitAnswerSet(gameId, token, {
+      answers,
+      editSecret: newToken(),
+    });
+    if (!result.ok) throw new Error(result.code);
+  }
+
+  async function answersOf(ids: string[]) {
+    return (await getDb())
+      .select()
+      .from(answer)
+      .where(inArray(answer.questionId, ids));
+  }
+
+  // Everything close may change, for one Game.
+  async function snapshot(gameId: string, tokens: string[], ids: string[]) {
+    const db = await getDb();
+    return {
+      game: (await db.select().from(game).where(eq(game.id, gameId)))[0],
+      links: await db
+        .select()
+        .from(inviteLink)
+        .where(eq(inviteLink.gameId, gameId)),
+      sets: await db
+        .select()
+        .from(submission)
+        .where(inArray(submission.tokenHash, tokens.map(sha256))),
+      answers: await answersOf(ids),
+    };
+  }
+
+  it.each([0, 1, 2])(
+    "FR-10, FR-8: with %i Answer sets close is TOO_FEW_ANSWER_SETS and nothing changes, updated_at included",
+    async (n) => {
+      const { gameId, ids, tokens } = await collectingGame("For få", 3);
+      for (let k = 0; k < n; k++) await send(gameId, tokens[k], setOf(ids, k));
+      const before = await snapshot(gameId, tokens, ids);
+      expect(await closeCollection({ gameId })).toEqual(TOO_FEW);
+      expect(await snapshot(gameId, tokens, ids)).toEqual(before);
+      expect(before.game.state).toBe("collecting");
+      expect(before.sets).toHaveLength(n);
+    },
+  );
+
+  it("FR-10, FR-13, FR-17: close writes one row per Answer with rank, text and normalized_text, one fresh key per set and Question, v4 ids, deletes this Game's links and sets only, and moves it to grouping with the lease", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Stenges", 4);
+    const other = await collectingGame("Står åpent", 3);
+    for (let k = 0; k < 3; k++)
+      await send(other.gameId, other.tokens[k], setOf(other.ids, k));
+    const otherBefore = await snapshot(other.gameId, other.tokens, other.ids);
+    for (let k = 0; k < 2; k++) await send(gameId, tokens[k], setOf(ids, k));
+    await send(gameId, tokens[2], {
+      ...setOf(ids, 2),
+      [ids[0]]: ["  Kari  Nordmann!! ", "ÆRLIG TALT …"],
+    });
+    vi.mocked(grouping.insertAnswers).mockClear();
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const t0 = Date.now();
+    let result, logged;
+    try {
+      result = await closeCollection({ gameId });
+    } finally {
+      logged = write.mock.calls.length;
+      write.mockRestore();
+    }
+    const t1 = Date.now();
+    expect(result).toEqual({ ok: true });
+    // The VACUUM succeeded, so nothing was logged.
+    expect(logged).toBe(0);
+    expect(grouping.insertAnswers).toHaveBeenCalledTimes(1);
+
+    const rows = await answersOf(ids);
+    expect(rows).toHaveLength(3 * 3 * 2);
+    for (const row of rows) expect(row.id).toMatch(V4);
+    expect(rows.map((r) => r.text).sort()).toEqual(
+      [
+        ...[0, 1].flatMap((k) =>
+          ids.flatMap((_, j) => [`S${k} Q${j} F1`, `S${k} Q${j} F2`]),
+        ),
+        "Kari  Nordmann!!",
+        "ÆRLIG TALT …",
+        ...[1, 2].flatMap((j) => [`S2 Q${j} F1`, `S2 Q${j} F2`]),
+      ].sort(),
+    );
+    const byText = new Map(rows.map((r) => [r.text, r]));
+    expect(byText.get("Kari  Nordmann!!")).toMatchObject({
+      rank: 1,
+      normalizedText: "kari nordmann",
+      questionId: ids[0],
+    });
+    expect(byText.get("ÆRLIG TALT …")).toMatchObject({
+      rank: 2,
+      normalizedText: "ærlig talt",
+    });
+    expect(byText.get("S1 Q2 F2")).toMatchObject({
+      rank: 2,
+      normalizedText: "s1 q2 f2",
+      questionId: ids[2],
+    });
+    // Each key covers exactly one set's Answers to one Question, and no key repeats.
+    const keys = new Map<string, typeof rows>();
+    for (const row of rows) {
+      expect(row.contributorKey).toMatch(V4);
+      keys.set(row.contributorKey!, [
+        ...(keys.get(row.contributorKey!) ?? []),
+        row,
+      ]);
+    }
+    expect(keys.size).toBe(9);
+    for (const group of keys.values()) {
+      expect(group).toHaveLength(2);
+      expect(new Set(group.map((r) => r.questionId)).size).toBe(1);
+      expect(group.map((r) => r.rank).sort()).toEqual([1, 2]);
+    }
+
+    const after = await snapshot(gameId, tokens, ids);
+    expect(after.links).toEqual([]);
+    expect(after.sets).toEqual([]);
+    expect(after.game.state).toBe("grouping");
+    const lease = after.game.groupingLeaseUntil!.getTime();
+    expect(lease).toBeGreaterThanOrEqual(t0 + 180_000);
+    expect(lease).toBeLessThanOrEqual(t1 + 180_000);
+    expect(await snapshot(other.gameId, other.tokens, other.ids)).toEqual(
+      otherBefore,
+    );
+  });
+
+  it("FR-13, AD-9: close shuffles all of the Game's rows once and inserts exactly the shuffled array", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Stokket", 3);
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k, 5));
+    vi.mocked(shuffle).mockClear();
+    vi.mocked(grouping.insertAnswers).mockClear();
+    // A known permutation, so an insert of the unshuffled rows (or a sorted copy) fails.
+    vi.mocked(shuffle).mockImplementationOnce((items) => [...items].reverse());
+    expect(await closeCollection({ gameId })).toEqual({ ok: true });
+    expect(shuffle).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(shuffle).mock.calls[0][0]).toHaveLength(45);
+    const shuffled = vi.mocked(shuffle).mock.results[0].value;
+    expect(grouping.insertAnswers).toHaveBeenCalledWith(
+      expect.anything(),
+      shuffled,
+    );
+    expect(vi.mocked(grouping.insertAnswers).mock.calls[0][1]).toBe(shuffled);
+  });
+
+  it("FR-10, FR-11: a failing VACUUM still closes, and logs one line with only module, op, code and sqlstate", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Vakuum feiler", 3);
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    const db = await getDb();
+    const execute = vi
+      .spyOn(db, "execute")
+      .mockRejectedValueOnce(
+        Object.assign(new Error("S0 Q0 F1 hemmelig"), { code: "55P03" }),
+      );
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    let result, out, calls;
+    try {
+      result = await closeCollection({ gameId });
+    } finally {
+      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      calls = execute.mock.calls.length;
+      write.mockRestore();
+      execute.mockRestore();
+    }
+    expect(result).toEqual({ ok: true });
+    expect(calls).toBe(1);
+    const lines = out.trimEnd().split("\n");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0])).toEqual({
+      module: "collection",
+      op: "vacuum",
+      code: "INTERNAL",
+      sqlstate: "55P03",
+    });
+    for (const secret of ["S0 Q0 F1", gameId, ...tokens, sha256(tokens[0])])
+      expect(out).not.toContain(secret);
+    expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
+  });
+
+  it("FR-13, AD-9: a VACUUM that skips the tables (run by a role that does not own them) still closes, and logs one VACUUM_SKIPPED line", async () => {
+    const { gameId, ids, tokens } = await collectingGame(
+      "Vakuum hoppes over",
+      3,
+    );
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    const db = await getDb();
+    await db.execute(sql`create role vacuum_skip`);
+    // Not ALL, which includes MAINTAIN (the right to VACUUM) since Postgres 17.
+    await db.execute(
+      sql`grant select, insert, update, delete on all tables in schema public to vacuum_skip`,
+    );
+    const write = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    let result, out;
+    try {
+      await db.execute(sql`set role vacuum_skip`);
+      result = await closeCollection({ gameId });
+    } finally {
+      await db.execute(sql`reset role`);
+      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      write.mockRestore();
+    }
+    expect(result).toEqual({ ok: true });
+    expect(
+      out
+        .trimEnd()
+        .split("\n")
+        .map((l) => JSON.parse(l)),
+    ).toEqual([{ module: "collection", op: "vacuum", code: "VACUUM_SKIPPED" }]);
+    expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
+  });
+
+  it("FR-10, FR-9: after close every former link, one revoked before close included, is closed in openInviteLink, linkStatus and the shell, and a late submit is COLLECTION_CLOSED with no row", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Etter stenging", 5);
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    await revoke(tokens[4]);
+    expect(await closeCollection({ gameId })).toEqual({ ok: true });
+    const before = await answersOf(ids);
+    for (const token of tokens)
+      expect(await openInviteLink(gameId, token), token).toEqual(CLOSED);
+    expect(await collection.linkStatus(gameId)).toBe("closed");
+    const html = await render(gameId);
+    expect(html).toContain("Innsamlingen er stengt.");
+    expect(html).not.toContain("Etter stenging");
+    for (const token of [tokens[0], tokens[3]])
+      expect(
+        await submitAnswerSet(gameId, token, {
+          answers: setOf(ids, 9),
+          editSecret: newToken(),
+        }),
+      ).toEqual(CLOSED);
+    expect(await answersOf(ids)).toEqual(before);
+    expect((await snapshot(gameId, tokens, ids)).sets).toEqual([]);
+  });
+
+  it("FR-10: a close committed between submit's lookup and its lock refuses the submit with COLLECTION_CLOSED, and its set is not among the Answers", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Kappløp 1", 4);
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    let closing: Promise<void> | undefined;
+    race.hook = async () => {
+      closing = collection.close(hostId, { gameId });
+      await closing;
+    };
+    expect(
+      await submitAnswerSet(gameId, tokens[3], {
+        answers: setOf(ids, 3),
+        editSecret: newToken(),
+      }),
+    ).toEqual(CLOSED);
+    expect(race.hook).toBeNull();
+    await expect(closing).resolves.toBeUndefined();
+    const rows = await answersOf(ids);
+    expect(rows).toHaveLength(18);
+    expect(rows.some((r) => r.text.startsWith("S3 "))).toBe(false);
+    expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
+  });
+
+  it("FR-10: a close started while submit holds the Game lock waits for it, and the submitted set is among the closed Answers", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Kappløp 4", 4);
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    let closing: Promise<void> | undefined;
+    lockRace.hook = () => {
+      closing = collection.close(hostId, { gameId });
+    };
+    expect(
+      await submitAnswerSet(gameId, tokens[3], {
+        answers: setOf(ids, 3),
+        editSecret: newToken(),
+      }),
+    ).toEqual({ ok: true, data: null });
+    expect(lockRace.hook).toBeNull();
+    expect(closing).toBeDefined();
+    await expect(closing).resolves.toBeUndefined();
+    const rows = await answersOf(ids);
+    expect(rows).toHaveLength(24);
+    expect(rows.filter((r) => r.text.startsWith("S3 "))).toHaveLength(6);
+  });
+
+  it("FR-15, AD-9: the grouping panel adds the slow-state sentence only once the Grouping lease has run out", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Treg gruppering", 3);
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    expect(await closeCollection({ gameId })).toEqual({ ok: true });
+    const SLOW =
+      "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt.";
+    const page = async () =>
+      renderToStaticMarkup(
+        await GamePage({
+          params: Promise.resolve({ id: gameId }),
+          searchParams: Promise.resolve({}),
+        }),
+      );
+    const fresh = await page();
+    expect(fresh).toContain("Det tar vanligvis under to minutter.");
+    expect(fresh).not.toContain(SLOW);
+    await (
+      await getDb()
+    )
+      .update(game)
+      .set({ groupingLeaseUntil: sql`now() - interval '1 second'` })
+      .where(eq(game.id, gameId));
+    expect(await page()).toContain(SLOW);
+  });
+
+  it("FR-10, FR-17: the dialog's no-key sentence shows only with neither a model key nor Demo mode", async () => {
+    const { gameId, ids, tokens } = await collectingGame("Nøkkel", 3);
+    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+    const page = async () =>
+      renderToStaticMarkup(
+        await GamePage({
+          params: Promise.resolve({ id: gameId }),
+          searchParams: Promise.resolve({}),
+        }),
+      );
+    const NO_KEY = "Ingen KI-nøkkel er satt opp";
+    const saved = { key: env.OPENROUTER_API_KEY, demo: env.DEMO_MODE };
+    try {
+      expect(await page()).toContain(NO_KEY);
+      env.OPENROUTER_API_KEY = "test-key";
+      expect(await page()).not.toContain(NO_KEY);
+      env.OPENROUTER_API_KEY = undefined;
+      env.DEMO_MODE = true;
+      expect(await page()).not.toContain(NO_KEY);
+    } finally {
+      env.OPENROUTER_API_KEY = saved.key;
+      env.DEMO_MODE = saved.demo;
+    }
+  });
+
+  // shortcut: PGlite runs one transaction at a time, so the race tests above pass even without the row lock; this pins the lock's SQL until Story 7.3's real-Postgres CI job runs the races for real.
+  it("FR-10, FR-9, AD-9: close, submit and revoke each lock the Game row with a select that ends in for update", async () => {
+    const { gameId, ids, tokens, links } = await collectingGame("Låsen", 4);
+    const lockSelects = async (run: () => Promise<unknown>) => {
+      const prepare = vi.spyOn(PgliteSession.prototype, "prepareQuery");
+      try {
+        await run();
+        return prepare.mock.calls
+          .map(([query]) => query.sql)
+          .filter((q) => /^select .* from "game" where /s.test(q));
+      } finally {
+        prepare.mockRestore();
+      }
+    };
+    const LOCK = expect.stringMatching(/ for update$/);
+    for (const k of [0, 1, 2])
+      expect(
+        await lockSelects(() => send(gameId, tokens[k], setOf(ids, k))),
+      ).toContainEqual(LOCK);
+    expect(
+      await lockSelects(() => revokeInviteLink({ gameId, link: links[3] })),
+    ).toContainEqual(LOCK);
+    expect(await lockSelects(() => closeCollection({ gameId }))).toContainEqual(
+      LOCK,
+    );
+  });
 });

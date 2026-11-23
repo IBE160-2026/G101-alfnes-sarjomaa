@@ -129,7 +129,20 @@ Close Collection.
 - `tests/integration/collection.test.ts`: in each of the six states other than _collecting_ a submit is `COLLECTION_CLOSED` and writes no row (Story 2.4).
 - `tests/integration/collection.test.ts`: a link revoked, a Game deleted, or a Game moved to _grouping_ between submit's lookup and its transaction gives `LINK_UNKNOWN`, `LINK_UNKNOWN` and `COLLECTION_CLOSED` and writes no row, so the guards under the Game lock are proven (Epic 2 review, L1).
 - `tests/e2e/answer-form.spec.ts`: a real submit response rewritten to `COLLECTION_CLOSED` replaces the form with the focused "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." and removes the key; rewritten to `LINK_UNKNOWN` it shows the focused unknown heading; to `INTERNAL` the alert with the values kept; to `INVALID_INPUT` with a `qid.0` field error that error under Question 1's Svar 1 (Story 2.4).
-- Pending: Story 3.1.
+- `tests/unit/errors.test.ts`: `TOO_FEW_ANSWER_SETS` is the full wireframe reason and holds no digit below three (Story 3.1, AC2).
+- `tests/integration/collection.test.ts`: with 0, 1 and 2 Answer sets `closeCollection` is `TOO_FEW_ANSWER_SETS` and the Game row (`updated_at` included), links, sets and `answer` rows are unchanged (Story 3.1, AC2).
+- `tests/integration/collection.test.ts`: a close with three sets writes one `answer` row per Answer with `rank` and `text`, calls `grouping.insertAnswers` once, deletes this Game's links and sets but not another collecting Game's, moves the Game to _grouping_ with `grouping_lease_until` 180 s ahead, and logs nothing; a forced VACUUM failure (`db.execute` rejecting with `55P03`) still closes and logs one line `{ module: "collection", op: "vacuum", code: "INTERNAL", sqlstate: "55P03" }` with no Answer, Token, hash or gameId (Story 3.1, AC3).
+- `tests/integration/collection.test.ts`: a close run by a role that does not own `submission` and `invite_link` (so `VACUUM (FULL, SKIP_LOCKED)` skips both, reported by Postgres only as a notice) still closes and logs exactly `{ module: "collection", op: "vacuum", code: "VACUUM_SKIPPED" }`, found by the unchanged `relfilenode` (Epic 3 review, finding 1).
+- `tests/integration/collection.test.ts`: after close every former link, one revoked before close included, is `COLLECTION_CLOSED` in `openInviteLink`, `linkStatus` is `closed`, the shell renders the closed copy, and a late submit is `COLLECTION_CLOSED` with no row; a real `collection.close` run between submit's lookup and its lock refuses the submit with `COLLECTION_CLOSED` and leaves its set out, and that close resolves; a submit before close is among the Answers (the main close test above, which submits every set first) (Story 3.1, AC4).
+- `tests/integration/collection.test.ts`: the Game lock select of a submit, a revoke and a close ends in `for update`, read from the SQL PGlite prepares; checked to fail with `.for("update")` removed from `lockForMutation`. PGlite runs one transaction at a time, so the race tests alone pass without the lock (`shortcut:` until Story 7.3's real-Postgres CI job) (Epic 3 review, finding 3).
+- `tests/integration/collection.test.ts`: from three sets the Game page changes only in the count and the close control, which loses `aria-disabled` and gets the dialog (Story 3.1, AC5).
+- `tests/integration/collection.test.ts`: a real `collection.close` started right after submit's Game lock, while submit's transaction is open, waits for it; submit is ok and its set is among the closed Answers. The dialog's no-key sentence shows with neither `OPENROUTER_API_KEY` nor Demo mode, and not with either (Story 3.1 review).
+- `tests/integration/purge.test.ts`: every retention purge runs `VACUUM (FULL, SKIP_LOCKED) submission, invite_link`, after an idle _collecting_ Game and after an idle _draft_ Game alike, so a VACUUM skipped at close is retried within the hour; run by a role that does not own the tables, it logs exactly `{ module: "games", op: "vacuum", code: "VACUUM_SKIPPED" }` (Story 3.1 review; Epic 3 review, finding 1).
+- `tests/e2e/close.spec.ts`: while the close POST is held, two real Esc presses and a click on "Avbryt" (now `aria-disabled`) leave the dialog open; the shared `ConfirmDialog` `busy` state is also passed by the open-collection, revoke and delete dialogs (Epic 3 review, impeccable M1). The aborted close POST then keeps the dialog open with the focused alert "Fikk ikke kontakt. Sjekk nettet og prøv igjen." and the Game stays _collecting_; confirming in a tab whose Game another tab already closed refreshes it to "Grupperer" (Story 3.1 review).
+- `tests/integration/authz.test.ts`: Host B's `closeCollection` on A's closable Game, a random UUID and `"abc"` is one identical `NOT_FOUND`, and A's Game, links, sets and the `answer` table are unchanged (Story 3.1).
+- `tests/integration/game-state.test.ts`: `collection.close` is `WRONG_STATE` in every state but _collecting_, and the Game row and links are unchanged (Story 3.1).
+- `tests/integration/delete.test.ts`: deleting a _collecting_ Game runs `VACUUM (FULL, SKIP_LOCKED) submission, invite_link` after commit, a forced VACUUM failure still deletes and logs one `games`/`vacuum` line with only the SQLSTATE, and deleting a _draft_ Game runs no VACUUM (Story 3.1, AC3).
+- `tests/e2e/close.spec.ts`: at 360 px "Steng innsamlingen" is `aria-disabled` with the reason as its accessible description at two sets and opens no dialog; at three it opens "Stenge innsamlingen?" with the consequence and the no-key sentence, focus on "Avbryt"; Esc closes it and focus returns to the trigger; confirming shows "Grupperer", the Judge sentence and focuses the "Gruppering" heading (Epic 3 review, impeccable S1); a form opened before close then submits, shows "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret." and its `localStorage` key is gone; axe finds no serious violations in the disabled, dialog and _grouping_ states (Story 3.1, AC5).
 
 ## FR-11
 
@@ -145,7 +158,11 @@ No identity in the answering flow.
 - `tests/e2e/answer-form.spec.ts`: opened in the Host's own browser, the answer form shows no "Logg ut", "Mine spill" or `@` (Story 2.4, AC6).
 - `tests/unit/lint-zones.test.ts`: `AnswerForm.tsx` may not import `@/server/auth` (Story 2.4, AD-6).
 - `tests/unit/next-config.test.ts`: `next.config.ts` sets `logging.serverFunctions` and `logging.browserToTerminal` to `false`, so `next dev` never prints a Server Function's arguments (Token, edit secret) or a guest's browser console (Epic 2 review, H1).
-- Pending: Stories 3.2, 3.3, 6.5.
+- `tests/integration/anonymity.test.ts`: after a real close, no column in any app schema outside `host` and `session` names (case-insensitively) a Participant's email, IP or address, `forwarded`, `ua`, cookie, `user_id`, user agent, device, fingerprint, account, phone, participant or a person-prefixed `*name`, and none has type `inet`, `cidr` or `macaddr`, arrays included; checked to fail with `inet`, `inet[]`, `participant_email`, `EMAIL` or `forwarded_for` added (Story 3.2, AC4).
+- `tests/integration/collection.test.ts`: a driver error forced in `openInviteLink` and in `submit` (the `linkExists` select), carrying the Token, its hash, the edit secret, its hash and an Answer in `message`, `detail`, `query`, `parameters` and `cause.message` with `code: "23514"`, gives exactly `INTERNAL` and one line `{ module: "collection", op, code: "INTERNAL", sqlstate: "23514" }` across stdout, stderr and every `console` method, with no secret in the result or any output; checked to fail with a `console.error(error)` or a `stdout` write of `detail` in `withBoundary` (Story 3.3, AC4).
+- `tests/integration/host-view.test.ts`: no output of any Host read or action during Collection (pages, metadata, module reads, the link shell, `openInviteLink` without a secret, refused edits and close, revoke, new links, delete) holds a Token other than the fresh links it returns, a hash of a Token or edit secret, an edit secret or an Answer; checked to fail with the pasted link echoed in the revoke result (Story 3.3, AC1).
+- `tests/e2e/server-output.spec.ts` with `tests/e2e/server-output.teardown.ts`: both `next start` and a second `next dev` server write their output to files; the teardown fails the run if a file is missing or empty, or holds (word-bounded) any Token, edit secret or Answer the browsers sent or received, or its sha256; in `next dev` a submit plus the Token logged in the guest's `console` leave no Token, edit secret or Answer in `dev.log`, after the submit's `POST /svar/` line proves the capture live; checked to fail with `serverFunctions: true`, `browserToTerminal: true`, a Token or its sha256 written to stdout by the submit action, and `start.log` sent to `/dev/null`; `host-anonymity.spec.ts` asserts `secrets.jsonl` holds its Tokens, edit secrets and Answers, so the scan is never empty; the recorder reads the context's `request` event, so a request a page route forwards with `route.fetch()` is recorded too (Story 3.3, AC3; Epic 3 review, finding 4).
+- Pending: Story 6.5.
 
 ## FR-12
 
@@ -155,14 +172,23 @@ Nothing linkable in the Host's view.
 - `tests/e2e/invite-links.spec.ts`: after "Jeg har kopiert lenkene" and a reload the page holds no link, Token or `/svar/` (Story 2.2, AC4, AC5).
 - `tests/integration/collection.test.ts`: `openInviteLink` with a wrong, missing, malformed or another link's edit secret returns exactly the unused-link response, so a link's holder cannot tell whether it was used (Story 2.5, AC1).
 - `tests/integration/collection.test.ts`: with 4 links, a first submit, a change of that set and a second submit leave the Game page HTML, the Game list HTML ("Sist endret") and the `game` row (`updated_at` included) identical; the third submit changes only "færre enn 3" to "3" on the Game page, and a later change leaves everything identical again (Story 2.6, AC3).
-- Pending: Stories 3.3, 4.3, 5.1.
+- `tests/integration/host-view.test.ts`: every Host read while collecting (`GamesPage`, `GamePage`, `generateMetadata`, `listOwned`, `getOwned`, `questions.list`, `progress`, `linkStatus`, the `/svar` shell, `openInviteLink` for all 5 links, the `WRONG_STATE` question edits and the refused close) is identical after 0, 1, a changed and 2 sets; at 3 only `progress.submissions`, the count text and the close control change; revoking a used and an unused link, and new links before and after, return the same once Tokens are replaced; `deleteGame` redirects to `/spill`; checked to fail with the exact count shown below three (Story 3.3, AC1).
+- `tests/integration/host-view.test.ts`: `envSchema` has exactly its 9 keys, `game` exactly its 9 columns and `host` exactly its 6, so no setting or Host option exists that could weaken anonymity; checked to fail with an added env key and an added `game` column (Story 3.3, AC5).
+- `tests/e2e/host-anonymity.spec.ts`: as a logged-in Host on `next start`, every response body to `/`, `/spill`, the Game page and its 30 s refresh, recorded before and after a Participant submits and after three sets, holds no Token, edit secret or Answer; the Host page sends no request over 29 s of fake time and 1 s of real time after a submit; the count reads "3 av 4 svar mottatt" after three sets; and a used link reopens in a fresh browser as an empty form, like an unused one. That the output is identical before and after a submit is proven in `host-view.test.ts` (AC1), so the e2e no longer repeats it (Story 3.3, AC2; Epic 3 review, ponytail S2).
+- Pending: Stories 4.3, 5.1.
 
 ## FR-13
 
 Unlinkable storage after close.
 
-- None yet.
-- Pending: Stories 3.1, 3.2, 5.5.
+- `tests/unit/shuffle.test.ts`: the shuffle always returns a permutation and leaves its input unmutated, and its swaps come from `node:crypto` `randomInt` as a Fisher-Yates from the end, with `randomInt` called with 4, 3, 2 for four items (Story 3.1, AC1).
+- `tests/integration/collection.test.ts`: after close every `answer.id` and Contributor key is a v4 UUID, there is one key per Answer set and Question (9 keys for 3 sets × 3 Questions, each covering one Question's Answers of one set), and no Token hash, link or set of the Game remains (Story 3.1, AC3).
+- `tests/integration/collection.test.ts`: with 3 sets × 3 Questions × 5 Answers, close calls `shuffle` once with all 45 rows and hands `grouping.insertAnswers` exactly the array it returned (a known reversal stands in for the random one); checked to fail with the rows sorted by rank instead. How the stored rows interleave is proven in `anonymity.test.ts` (Story 3.1, AC3; Epic 3 review, finding 5).
+- `tests/integration/anonymity.test.ts`: on one Game closed through the real actions (3 sets, 1 unused link, 1 set revoked before close), `answer` has exactly six columns with pinned type, nullability and default (`group_id` is added in Story 4.2); in every app schema (all but the system schemas and `drizzle`) no timestamp, date, time, interval or time-range column, arrays included, and no `*_at` column exists outside `host`, `session` and `game`; `answer` has no identity or `nextval` default and no app schema owns a sequence; with `invite_link` and `submission` empty no other table has a `token`/`hash`/`secret`/`link`/`submission` column (any case) or a foreign key into them (Story 3.2, AC1).
+- `tests/integration/anonymity.test.ts`: `invite_link` and `submission` hold no row, and the `relfilenode` of both tables, their TOAST tables and every index of either changed across close, so `VACUUM FULL` rewrote them and no dead tuple keeps a hash; checked to fail with `FULL` dropped from the VACUUM (Epic 3 review, finding 2); a `row_to_json` scan of every row of every base table finds neither the first 16 characters of any of the 6 Tokens, 4 edit secrets or their `sha256` hashes captured before close, nor any text of the set revoked before close (Story 3.2, AC2).
+- `tests/integration/anonymity.test.ts`: no Contributor key appears under two Questions, and every `answer.id` and key is a v4 UUID (Story 3.2, AC3).
+- `tests/integration/anonymity.test.ts`: in `ORDER BY ctid` the 45 rows keep neither each key's rows nor each set's rows contiguous (more than 9 key runs and more than 3 set runs, so whole sets in any block order fail), and all share one `xmin` and one `cmin`, so they came from one statement in one transaction; each check was seen to fail with the matching break in the migration or in `close` (Story 3.2).
+- Pending: Story 5.5.
 
 ## FR-14
 
@@ -176,7 +202,7 @@ Honest anonymity notice.
 
 Judge Grouping at close.
 
-- None yet.
+- `tests/integration/collection.test.ts`: right after close the grouping panel shows the Judge sentence and not "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt."; once `grouping_lease_until` is in the past (DB time) it adds that sentence, the EXPERIENCE.md slow-or-interrupted state, until Grouping itself lands (Epic 3 review, impeccable M2).
 - Pending: Stories 4.1, 4.2, 4.4, 7.1.
 
 ## FR-16
@@ -190,8 +216,9 @@ Ranking and labels.
 
 Manual Grouping fallback.
 
-- None yet.
-- Pending: Stories 3.1, 4.1, 4.2, 5.1.
+- `tests/unit/normalize.test.ts`: `NORMALIZE_VERSION` is 1; normalisation applies NFC, locale-free lower case (Æ, Ø, Å and a Turkish `İ`), trim, inner-whitespace collapse and removal of trailing `.,!?;:…` mixed with spaces, and falls back to the trimmed lower-cased text when nothing else is left (Story 3.1, AC1).
+- `tests/integration/collection.test.ts`: close stores `normalized_text` from `normalize()`, e.g. "Kari Nordmann!!" as "kari nordmann" with rank 1 (Story 3.1, AC3).
+- Pending: Stories 4.1, 4.2, 5.1.
 
 ## FR-18
 

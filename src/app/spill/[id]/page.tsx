@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache, type ReactNode } from "react";
+import { CloseCollection } from "@/components/CloseCollection";
 import { CollectingRefresh } from "@/components/CollectingRefresh";
 import { DeleteGame } from "@/components/DeleteGame";
 import { InviteLinkPanel } from "@/components/InviteLinkPanel";
@@ -10,10 +11,16 @@ import { QuestionEditor } from "@/components/QuestionEditor";
 import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
+import { FEWER_THAN_3 } from "@/lib/limits";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
+import { env } from "@/server/env";
 import * as games from "@/server/games";
 import * as questions from "@/server/questions";
+
+// The close action posts here and inherits this (AD-24): close then VACUUMs, and
+// Grouping (Story 4.2) runs after it.
+export const maxDuration = 300;
 
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
@@ -93,6 +100,11 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
               active={progress.active}
               submissions={progress.submissions}
             />
+            <CloseCollection
+              gameId={game.id}
+              canClose={progress.submissions !== FEWER_THAN_3}
+              noKey={!env.OPENROUTER_API_KEY && !env.DEMO_MODE}
+            />
             <CollectingRefresh />
           </section>,
           links,
@@ -115,6 +127,27 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
             </ol>
           </section>,
         ];
+  } else if (game.state === "grouping") {
+    // The only place the Judge is explained (UX).
+    // shortcut: nothing runs Grouping yet, so the Game stays here; Grouping, progress and 3 s polling arrive in Story 4.2.
+    panel = [
+      <section key="grouping" aria-labelledby="gruppering" className="mt-10">
+        <h2 id="gruppering" className="text-heading">
+          Gruppering
+        </h2>
+        <p className="mt-4 max-w-prose">
+          {/* The no-break space keeps the ellipsis off the start of a line. */}
+          Dommeren, en KI-modell, grupperer svarene&nbsp;… Det tar vanligvis
+          under to minutter.
+        </p>
+        {/* Past the lease Grouping is slow or interrupted (AD-9), so the Host gets the way on. */}
+        {game.leaseExpired && (
+          <p className="mt-2 max-w-prose">
+            Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt.
+          </p>
+        )}
+      </section>,
+    ];
   }
 
   return (
