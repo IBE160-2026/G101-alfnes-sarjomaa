@@ -33,6 +33,7 @@ jobs:
       - name: Fail if schema.ts has changes without a committed migration
         run: test -z "$(git status --porcelain -- drizzle)"
       - run: npm test
+      - run: npm run judge:eval
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       # Last, since Next 16 runs one next dev per repo and the e2e demo server is one.

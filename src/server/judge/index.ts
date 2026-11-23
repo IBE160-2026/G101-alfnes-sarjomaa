@@ -27,3 +27,8 @@ export function getJudge(): Judge {
 export function getLiveJudge(onUsage?: (usage: unknown) => void): Judge {
   return createOpenRouterJudge({ dir: null, onUsage });
 }
+
+// For src/cli: stored rulings from data/rulings only, never a network call (AD-20).
+export function getReplayJudge(): Judge {
+  return createReplayJudge();
+}
