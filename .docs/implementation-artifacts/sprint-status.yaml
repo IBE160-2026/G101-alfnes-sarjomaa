@@ -70,7 +70,7 @@ development_status:
   5-1-review-screen-with-ranked-groups-counts-and-raw-answers: done
   5-2-merge-groups: done
   5-3-move-answers-to-another-group-or-a-new-group: done
-  5-4-rename-discard-and-restore-groups: backlog
+  5-4-rename-discard-and-restore-groups: done
   5-5-mark-questions-reviewed-and-lock-the-board: backlog
   epic-5-retrospective: optional
 
