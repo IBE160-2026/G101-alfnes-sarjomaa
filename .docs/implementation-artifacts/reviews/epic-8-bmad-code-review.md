@@ -215,3 +215,25 @@
   - one piece of copy (6) and one garbled spine sentence (7);
   - three documentation items to defer (9 to 11).
 - **Before the PR:** migrate the pilot and say so in the PR description (finding 1), and decide finding 8. Findings 2 to 7 are each a one-line change or one test.
+
+## Epic 8 review fixes
+
+Fix round of 2026-11-24 on `epic-8-trinn-2`. Each finding was checked against the code and the data before it was acted on. The report was committed unchanged in `a32055f`.
+
+| Finding | Outcome | Commit |
+|---|---|---|
+| 1. Deploy order | Fixed in the checklist. The pilot section of `tests/manual/checklist.md` now says that the migrations run on Neon before a PR whose code reads a new column is merged. Running the migration on the pilot is left to the orchestrator before the merge. | `90c0950` |
+| 2. r2q47 and r2q42 | Fixed. r2q47 now reads "Nevn noe du kan finne på å ødelegge med vilje." "Brekke" was considered and rejected, because Norwegian does not "brekke" a plate, an egg or paper; "ødelegge" fits every cluster on the Board. "Glemte passet" is now "Glemte noe viktig", which covers the whole cluster. Counts are unchanged, and the README list is updated. | `1886bef` |
+| 3. Tie order not pinned | Fixed. The integration test pins r2q12's eight slots, with ties at 19, 11 and 4, as literal labels and Counts. `ATTRIBUTION.md` says that the app orders the slots, so the file order is not the slot order. | `91476c3`, `1886bef` |
+| 4. Set lost after a failed submit | Fixed, together with impeccable M1. The e2e step chooses a set, submits with an empty title, expects the select to keep the set, then fills the title and expects "Klar". It fails without the fix. | `3aab31a` |
+| 5. At least four Groups | Fixed. The unit test asserts at least four Groups per Question. | `91476c3` |
+| 6. "alle svarene" on a set Game | Fixed. A set Game's played page says "Spillet slettes automatisk …", and its *ready* panel says "Brettet er klart". Host-written Games keep both old texts. Checked in e2e. | `03f193d` |
+| 7. Garbled AD-15 sentence | Fixed. Split into one sentence on the tie order and one on `board_slot.group_id` being null. | `c9d1e16` |
+| 8. r2q31 (decision) | Option A. r2q31 is replaced in "Blandet drops" by r1q1, "Nevn noe som er vanskelig å gjette om en person du nettopp har møtt.", translated by hand. It has seven clusters, so there is no cut and no tie at the eighth place, and it is not US-specific. | `1886bef` |
+| 9. Context and planning documents | Fixed. Dated notes in `epic-8-context.md` and Story 8.1 in `epics.md` record the group's decision of 2026-11-23, that the SM-1 gate still applies to 8.2 to 8.4, and the entry point `review.createFromQuestionSet`. | `c9d1e16` |
+| 10. `EXPERIENCE.md` credit layout | Fixed. A dated amendment says that the bar's right end holds two lines for a set Game. | `c9d1e16` |
+| 11. Prompt archive | Deferred. The orchestrator handles `prompting/`. | |
+
+Note on dismissed item 12: the ponytail review's finding 1 removed the Host B test from `question-sets.test.ts`. The owner checks now rest on `authz.test.ts` (`getOwned` and `startPlay` for Host B) and on the first test's `hostId` check on the new row.
+
+Verification: `npm run lint`, `npm run typecheck` and `npm run test` are green on every commit. `npm run test:e2e` ran in full before the last commit and again at the end.

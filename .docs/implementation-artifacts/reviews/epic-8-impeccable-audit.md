@@ -107,3 +107,39 @@ No real names, no brands, no crude content and no exclamation marks appear anywh
 1. M1: keep the select's DOM value in step with its state after a failed submit, and add the e2e step that proves it.
 2. S1: the five Question and label rewordings at lines 475, 912, 665, 87 and 416, then the optional rows in the copy check.
 3. N1 and N2 if time allows.
+
+## Epic 8 review fixes
+
+Fix round of 2026-11-24 on `epic-8-trinn-2`. The report was committed unchanged in `a32055f`. Every changed label was checked against its full English cluster, and every Count is unchanged.
+
+**M1, fixed in `3aab31a`.** The cause was confirmed: React 19 resets the form after the action, and the unchanged controlled select is not re-rendered. An effect sets the select's DOM value back to the state after every action result, including the network-failure result, and the comment that claimed it already worked is corrected. The e2e test chooses a set, submits with an empty title, expects the select to keep the set, fills the title and expects a Game in "Klar". It fails without the fix. The network-failure retry is covered by the same effect, but it was not driven with an aborted request in a test.
+
+**S1 and the copy check, fixed in `1886bef`.** Applied where the wording stays faithful to the cluster:
+
+| Where | Before | After |
+|---|---|---|
+| r2q42 (Question) | Nevn noe som kan få noen til å endre returflyet sitt. | Nevn en grunn til å endre returbilletten. |
+| r1q11 (Question) | Nevn noe som holder barn trygge. | Nevn noe som beskytter barn. |
+| r1q6 (Question) | … Nevn noe du sannsynligvis skal lage. | … Nevn noe du trolig skal lage. |
+| r2q15 (Question) | Nevn noe folk husker lenge, selv når de blir gamle. | Nevn noe folk husker helt til de blir gamle. |
+| r1q10.5 | Lager | Lagerrom |
+| r1q10.3 | Bar eller kino | Bar eller hjemmekino |
+| r1q20.7 | En mobiltelefon | Mobiltelefon |
+| r2q6.6 | TV og datamaskin | TV og PC |
+| r2q7.4 | Løpe | Løpe rundt |
+| r2q14.1 | Kose seg og drive med sport | Slappe av og trene |
+| r2q14.6 | Avtjene verneplikten | Førstegangstjeneste |
+| r2q46.1 | Oppmerksom | Følger godt med |
+| r2q46.2 | Hyggelig person | Hyggelig |
+
+- r2q31 was replaced rather than reworded, as the bmad review recommended. "Blandet drops" now has r1q1, "Nevn noe som er vanskelig å gjette om en person du nettopp har møtt.", with the labels "Alder eller bursdag", "Tanker og interesser", "Navn", "Fortid, jobb eller religion", "Foreldre eller partner", "Høyde, vekt eller IQ" and "Undertøy".
+- r2q47 now says "ødelegge" instead of "knuse", and r2q42's "Glemte passet" is now "Glemte noe viktig" (bmad finding 2).
+- **Rejected: "Basseng eller boblebad".** The cluster is "water tank, tool, tank, pool, a pool", with no hot tub, so the label stays "Basseng eller vanntank".
+- **Rejected: "Løpe inne".** The cluster is "run in circles, run". Nothing in it says indoors, so the label is "Løpe rundt", which also fixes the reading the audit pointed out.
+- **Rejected: "Krølle papir".** The cluster is "envelope, paper sheet, a letter, paper", which is not about crumpling. The Question's verb changed to "ødelegge" instead, and "Papir eller konvolutt" reads correctly under it.
+- **Not applied: the set name "Hus og hjem".** It was optional and is outside S1 and the label list.
+- **Kept on purpose (FR-33):** "Melon" as a vegetable, "Studere likevel", "Treningsklær og sko" and the other dataset quirks the audit listed.
+
+**N1, fixed in `03f193d`, with a branch.** The audit suggested "Brettet er klart" for both paths. For Host-written Games, "Brettet er låst" is true, and `EXPERIENCE.md`, the specs and the tests pin it, so only a set Game gets "Brettet er klart". Its played page says "Spillet slettes automatisk …".
+
+**N2, fixed in `88d31ec`.** Instead of a smaller credit, the two-line block gets `leading-none`. The block is now 48 px, centred in the 64 px bar, and the credit's descenders clear the rounded bottom edge. The bar is still 64 px, and the 1920 × 1080 fit test is green. `EXPERIENCE.md` records the two-line right end (`c9d1e16`).

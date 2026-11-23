@@ -55,3 +55,16 @@ Verdict: Ship. Findings 1 and 2 are test cleanups worth doing before the PR. Fin
 Lean: -70 lines possible (about 50 in duplicated tests, 17 in the unit test that cannot fail, and 3 in the README).
 
 Not checked: the full Vitest and Playwright runs (other reviewers share this working copy), the control-bar fit with Linux CI fonts, and the quality of the Norwegian translations.
+
+## Epic 8 review fixes
+
+Fix round of 2026-11-24 on `epic-8-trinn-2`. The report was committed unchanged in `a32055f`. Each finding was checked against the code first.
+
+| Finding | Outcome | Commit |
+|---|---|---|
+| 1. Five duplicate tests | Fixed. Deleted the logged-out and Host B integration tests, the credit render in the integration test, the unit test of the schema's unknown id and the e2e default-draft block. Each claim was checked: `authz.test.ts` covers the logged-out `createGame` and Host B's `getOwned` and `startPlay`, the e2e covers the credit in the bar, and the integration tests cover the unknown id and the empty select value. The negative credit check in `play.test.ts` stays. `tests/TRACE.md` is updated. | `91476c3` |
+| 2. Unit test that cannot fail | Fixed. Deleted. In its place, the integration test now pins r2q12's Board order with literal labels (bmad finding 3), and the unit test asserts at least four Groups (bmad finding 5). | `91476c3` |
+| 3. README section | Fixed. The change list is dropped from the README, since `ATTRIBUTION.md` holds it. The credit, both links and "oversatt og tilpasset" stay, and the demo sentence is wrapped. | `baf4d60` |
+| 4. Select copies the field markup | Fixed. `TextField.tsx` exports `fieldClass(error)`, and both fields use it. No `Select` component was added. | `2e45836` |
+
+Nothing was rejected or deferred.
