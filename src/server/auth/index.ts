@@ -77,6 +77,20 @@ export function register(input: unknown): Promise<void> {
   });
 }
 
+// A Host without a session or cookie, for the demo seed outside a request (AD-19).
+export function createHost(input: unknown): Promise<{ hostId: string }> {
+  return withBoundary("auth", "createHost", async () => {
+    const { email, password } = validate(registrationSchema, input);
+    const passwordHash = await hashPassword(password);
+    const db = await getDb();
+    const [row] = await db
+      .insert(host)
+      .values({ email, passwordHash })
+      .returning({ id: host.id });
+    return { hostId: row.id };
+  });
+}
+
 export function logIn(input: unknown): Promise<void> {
   return withBoundary("auth", "logIn", async () => {
     const { email, password } = validate(loginSchema, input);

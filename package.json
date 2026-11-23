@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "demo": "tsx --tsconfig tsconfig.cli.json --conditions=react-server --env-file-if-exists=.env.local src/cli/demo.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

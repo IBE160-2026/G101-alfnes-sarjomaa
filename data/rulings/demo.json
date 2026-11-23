@@ -1,0 +1,55 @@
+[
+  {
+    "kind": "partition",
+    "promptVersion": "hand-written",
+    "normalizeVersion": 1,
+    "model": "hand-written",
+    "question": "Hva må være med på hytteturen?",
+    "items": [
+      "kaffe",
+      "kortspill",
+      "kortstokk",
+      "sjokolade",
+      "sovepose",
+      "ullsokker",
+      "varme sokker"
+    ],
+    "assignments": [0, 1, 1, 2, 3, 4, 4]
+  },
+  {
+    "kind": "partition",
+    "promptVersion": "hand-written",
+    "normalizeVersion": 1,
+    "model": "hand-written",
+    "question": "Hva spiser dere til frokost på hytta?",
+    "items": [
+      "brunost",
+      "egg",
+      "egg og bacon",
+      "geitost",
+      "grøt",
+      "havregrøt",
+      "kaffe",
+      "vafler"
+    ],
+    "assignments": [0, 1, 1, 0, 2, 2, 3, 4]
+  },
+  {
+    "kind": "partition",
+    "promptVersion": "hand-written",
+    "normalizeVersion": 1,
+    "model": "hand-written",
+    "question": "Hva gjør dere når det regner på hytta?",
+    "items": [
+      "baker kake",
+      "brettspill",
+      "filmkveld",
+      "kortspill",
+      "leser bok",
+      "ser film",
+      "sover",
+      "spiller kort"
+    ],
+    "assignments": [0, 1, 2, 3, 4, 2, 5, 3]
+  }
+]
