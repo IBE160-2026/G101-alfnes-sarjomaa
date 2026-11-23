@@ -44,16 +44,16 @@ Nyeste øverst. Én rad = én beslutning som er vanskelig å utlede fra koden al
 
 | Spørsmål | Hvorfor det haster |
 |----------|--------------------|
-| Stack og hvilken Claude-modell dommeren skal bruke? (Videresendt fra PRD §10 til arkitekturfasen) | Proposal-en sier Claude Haiku 4.5, men Claude 5-familien er ute. Stacken må også kunne kjøres lokalt uten Supabase-konto eller nøkkel. Avgjøres i arkitekturfasen |
-| Forventes CI? | Pensum del 5 (kap. 20) dekker GitHub Actions, men verken sensorveiledningen eller tilbakemeldingen krever det. CI med tester styrker likevel kvalitetssikring og kjørbarhet. Deploy er avklart, se under |
-| Hvem i gruppa eier Vercel-prosjektet, hvis vi publiserer? | Bare én kan opprette det, og det havner på den personens konto. Se [[kunngjoringer]] |
-| ProtoQA-proveniens og varemerke: er det greit for faglærer? (PRD §10, må avklares før trinn 2) | Datasettets store del er skrapet fra fansider. Vi bruker bare den crowdsourcede delen, men det er ikke klarert |
 | Finnes det en språkpolicy for leveransene? | Ingen i kursmaterialet. Vi valgte engelsk på BMAD-artefaktene, og faglærer kommenterte det ikke |
 
 ### Avklart
 
 | Spørsmål | Svar |
 |----------|------|
+| ~~Stack og modell for dommeren?~~ | Next.js 16, PGlite lokalt og Postgres ved deploy, `deepseek/deepseek-v4.1-flash` via OpenRouter (arkitekturen, 2026-11-21/22) |
+| ~~Forventes CI?~~ | Vi har det uansett: GitHub Actions kjører lint, typecheck, Vitest og Playwright på Node 22 og 26 på hver PR (grønn fra PR #2, 2026-11-23) |
+| ~~Hvem eier Vercel-prosjektet?~~ | Sondre (2026-11-23). Pilot på https://toppsvar.vercel.app med Neon Postgres (Frankfurt), åpen registrering og en OpenRouter-nøkkel med kredittgrense USD 0,10 |
+| ~~ProtoQA-proveniens og varemerke?~~ | Vi spør ikke faglærer (Sondre, 2026-11-23). Bare den crowdsourcede delen brukes, og spørsmålssettene er trinn 2 (FR-33, story 8.1) |
 | ~~Forventes deploy?~~ | Nei. Kunngjøring 2026-11-19: lokal kjøring holder, men README må forklare hvordan, og hvilke API-nøkler som trengs. Vercel er koblet til repoet og gratis hvis vi vil. Se [[kunngjoringer]] |
 | ~~Skal `proposal.md` leveres?~~ | Nei, bare `product-brief.md` (kunngjøring 2026-09-17). Vår ligger der som ekstra. Se [[proposal]] |
 | ~~Har vi bedt om tilbakemelding på den egendefinerte idéen?~~ | Kom uoppfordret 2026-10-06: «Godt utgangspunkt med justeringer», Middels |

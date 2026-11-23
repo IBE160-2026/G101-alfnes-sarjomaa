@@ -24,8 +24,8 @@
 - [x] `proposal.md` — skrevet 2026-09-14 (2626 ord). En ekstra leveranse i fjorårets format, ikke krevd i år. Se [[proposal]]
 - [x] Brief revidert etter tilbakemeldingen — 2026-10-12 (trinn 1/2, testbare kriterier, poeng og dobbeltsvar avklart)
 - [x] `PRD.md` — **ferdig 2026-10-13** (`status: final`), uke 42. Én uke foran sliden
-- [ ] Uke 44–45 — `solution-architecture.md`, `ux-design-specification.md`, `frontend-prompt.md` ← **nå, og forsinket**
-- [ ] Uke 46–47 — implementering
+- [x] Uke 44–45 — UX og arkitektur, ferdig 2026-11-22 (BMAD v6 kaller dem `DESIGN.md`/`EXPERIENCE.md` og `ARCHITECTURE-SPINE.md`)
+- [ ] Uke 46–47 — implementering ← **nå** (epic 1–4 merget 2026-11-23)
 - [ ] Uke 48–49 — refleksjonsrapport + innlevering
 
 ## Kullets faktiske tempo — vi ligger etter (per 2026-11-21)
