@@ -86,7 +86,7 @@ development_status:
   epic-7: in-progress
   7-1-demo-mode-with-one-command: done
   7-2-judge-evaluation-against-protoqa: done
-  7-3-traceability-manual-checklists-and-the-sm-1-gate: backlog
+  7-3-traceability-manual-checklists-and-the-sm-1-gate: done
   7-4-readme-hand-in-zip-and-fresh-clone-check: backlog
   7-5-pilot-deployment-first-to-cut: backlog
   epic-7-retrospective: optional
