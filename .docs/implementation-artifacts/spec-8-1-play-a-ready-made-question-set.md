@@ -2,7 +2,7 @@
 title: 'Story 8.1: Play a ready-made Question set'
 type: 'feature'
 created: '2026-11-23'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '4018755e706a2ad553b3c4522955bd7b38c528d7'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -107,6 +107,50 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-23 — Review pass
+
+Totals: 32 findings — high 0, medium 1, low 25, false 6, maybe-false 0.
+
+**Verification gap**
+- `[medium]` `[patch]` Nothing caught a Host-written Game showing the ProtoQA credit. The `play.test.ts` bar check is a substring match, and TRACE claimed it proved "no credit". *Fixed:* `play.test.ts` now asserts `not.toContain(QUESTION_SET_CREDIT)`, and `question-sets.test.ts` renders `ScreenPage` for the set Game and asserts that the credit is present. TRACE wording updated.
+- `[low]` `[reject]` The report route still serves a set Game on a direct GET while the button is hidden. *Rejected:* it is reachable only by typing the URL, and it returns harmless zero counters with an empty Question list. A route guard adds a branch for a case no user meets.
+
+**Intent alignment**
+- `[low]` `[patch]` (a) Spine AD-15 said the cluster id was "for the tie rule only". In fact, equal Counts are ordered by the nb-collated label first. *Fixed:* the spine is reworded. The tie at the cut is avoided by the data (unit-tested), not applied.
+- `[low]` `[reject]` (b) No credit on Team setup or Final Scores, and the credit is hidden while the failure banner shows. *Rejected:* the credit is visible for the whole round on the play view, and the banner is transient. Adding it to two more screens is extra surface FR-33 does not require.
+- `[low]` `[reject]` (c) EXPERIENCE.md promised the credit "without a layout change", but the right end became a two-line block with `gap-6`. *Rejected as a defect, kept as a decision:* one line does not fit 1920 px in the worst case. Host-written Games keep the old bar exactly. The e2e proves the 64 px bar holds every item.
+- `[false]` `[reject]` (d) Hiding the usage report is a behaviour difference. It is not a defect: a set Game has no Grouping or Review counters to report. The spec chose this explicitly.
+- `[low]` `[reject]` (e) No page-level test opens Review or Collection for a set Game. *Rejected:* those pages are already state-gated and tested. The module actions are tested for `WRONG_STATE`.
+- `[low]` `[reject]` (f) No owner test for `revealSlot` or delete on a set Game. *Rejected:* those actions are not new. Their foreign-id cases are already in `authz.test.ts`, and the set Game goes through the same lock.
+- `[low]` `[reject]` (g) "Norwegian on screen" is not tested. *Rejected:* a test cannot prove a language. The texts were written and reviewed by hand, and the README list makes them reviewable.
+- `[low]` `[patch]` (h) PRD §4.8 says the sets are added to Demo mode. *Fixed:* the README demo paragraph now says the demo Host can create a Game from a set. Seeding them was rejected in Design Notes.
+- `[false]` `[reject]` (i) Docs are uncommitted and the sprint says done. Finalize commits them after triage, which is the workflow's order.
+- `[false]` `[reject]` (j) The anonymity column-count test changed from 9 to 10. The new column holds a set id, not Participant data, and the guard still fails on any further column.
+
+**Edge case**
+- `[low]` `[reject]` The report route for set Games. Same as the verification-gap row above.
+- `[false]` `[reject]` An empty set makes `insert().values([])` throw. Unreachable: the sets are static committed data, and the unit test pins five Questions with at least four Groups each.
+- `[low]` `[reject]` No runtime schema check on the JSON. *Rejected:* it is committed data, checked in CI by `question-sets.test.ts`, with no untrusted input.
+- `[low]` `[reject]` The credit is hidden under the failure banner. Same as (b).
+- `[low]` `[reject]` The e2e takes `groups[0]` as slot 1. *Rejected:* the data is in count order, and the top Group of the first Question (43) has no tie. A tie there would also fail the integration test loudly.
+- `[low]` `[reject]` The integration test is coupled to JSON order. Same reasoning.
+- `[low]` `[reject]` ATTRIBUTION claims the credit is on "the play screen", while setup and final scores show none. Same as (b). The play view is the play screen.
+
+**Blind hunter**
+- `[low]` `[reject]` The report route. Same as above.
+- `[low]` `[patch]` Demo mode. Same as (h).
+- `[low]` `[reject]` Norwegian is not tested. Same as (g).
+- `[low]` `[patch]` The AD-15 test's `group_id` read was not scoped to its Game. *Fixed:* it is limited to the Game's Questions and checks the row count.
+- `[low]` `[reject]` The README duplicates the 25 Questions and may drift. *Rejected:* the group asked for a collapsible list of the sets. Translations change rarely, and both places are reviewed.
+- `[low]` `[reject]` The JSON `source`/`licence` fields are unused and the credit is a constant. *Rejected:* there is one source today. The fields document the file for reviewers.
+- `[low]` `[patch]` The on-screen credit has no authors. *Fixed:* ATTRIBUTION now says the screen carries the short form, and that the full credit with the authors is in ATTRIBUTION and the README.
+- `[low]` `[patch]` The spine's tie-rule wording. Same as (a). The collator duplicate-label part is *rejected*: no two labels on one Board differ only in case or accents.
+- `[false]` `[reject]` The sprint says done before review. Same as (i).
+- `[low]` `[reject]` No decision row in `wiki/` and no prompting entry. *Rejected for this run:* the instructions forbid touching `wiki/`. The decision to start early is logged on `main` by the group.
+- `[false]` `[reject]` The diff leaves out files. The generated drizzle snapshot was left out on purpose, and the spec and context are committed in `3978caa`.
+- `[low]` `[reject]` The e2e end asserts little. *Rejected:* "Utkast" is asserted. Absence of the credit is now proved in `play.test.ts`.
+- `[low]` `[reject]` No runtime bound on set size. Same as the schema-check row.
+
 ## Design Notes
 
 - **Why `review` is the entry point.** AD-4 named `games.createFromQuestionSet`. But `games` is first in the module order and can call neither `questions` nor `review`, the owners of `question` and `board_slot` (AD-1). `review` comes after both. Its entry point composes the owners' `tx` writers, as `confirmBoard` already does with `grouping`.
@@ -120,3 +164,64 @@ deferred: []
 - `npm run test` -- expected: all pass, including the new unit and integration files
 - `npm run test:e2e` -- expected: all pass, including `question-sets.spec.ts`
 - `npx drizzle-kit check` -- expected: no drift
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** A Host picks one of five ready-made sets in the create row ("Spørsmål": "Jeg skriver egne", or a set under "Ferdige sett"). `review.createFromQuestionSet` then creates the Game in *ready*, with 5 Questions and their Boards cut by `rankGroups` and `boardCut`. Play runs unchanged through `review.getBoard`. The control bar credits ProtoQA as translated and adapted. The README and `data/protoqa/ATTRIBUTION.md` carry the full credit.
+
+**Precondition.** PRD §10 item 3 (ProtoQA provenance and trademark with the course staff) is still **open**. By the group's decision it did not block this story. Note that `wiki/prosjekt/beslutninger.md` on main says the group will not ask the course staff (2026-11-23), so the group should confirm which of the two holds.
+
+**Files**
+- **Data**
+  - `data/question-sets/protoqa-nb.json`: the five sets × five Questions, with `sourceId`, `cluster` and unchanged `count`.
+  - `data/protoqa/ATTRIBUTION.md`: the derived-file credit and the list of changes.
+- **Schema**
+  - `src/server/db/schema.ts`, `drizzle/0014_brainy_electro.sql`: the nullable `game.question_set` column.
+- **Library and server code**
+  - `src/lib/question-sets.ts`: the sets, `createFromSetSchema` and the credit text.
+  - `src/lib/game-state.ts`: comment only.
+  - `src/server/games/index.ts`: `insertReady`, and `getOwned` now returns `questionSet`.
+  - `src/server/questions/index.ts`: `insertAll`.
+  - `src/server/review/index.ts`: `createFromQuestionSet`.
+- **Routes and components**
+  - `src/app/spill/actions.ts`: the branch on `questionSet`.
+  - `src/app/spill/page.tsx`, `src/components/CreateGameForm.tsx`: the select.
+  - `src/app/spill/[id]/page.tsx`: no report button for set Games.
+  - `src/app/spill/[id]/skjerm/page.tsx`, `src/components/PlayView.tsx`, `src/components/Board.tsx`: the credit in the bar.
+- **Tests**
+  - `tests/unit/question-sets.test.ts`, `tests/integration/question-sets.test.ts`, `tests/e2e/question-sets.spec.ts`: new tests.
+  - `tests/integration/play.test.ts`: the no-credit check.
+  - `tests/integration/host-view.test.ts`: 10 `game` columns.
+- **Documentation and tracking**
+  - `tests/TRACE.md`: the FR-33 section.
+  - `README.md`: the section on the sets and the demo line.
+  - `ARCHITECTURE-SPINE.md`: AD-1, AD-4, AD-15, the capability map and Deferred.
+  - `sprint-status.yaml`: epic-8 in-progress, 8-1 done.
+
+**Review.**
+- 6 patches applied: 1 medium and 5 low.
+- 0 deferred.
+- 26 rejected. The reasons are in the triage log.
+- Follow-up review recommended: false, since there were no high patches and only one medium.
+
+**AI suggestions rejected or corrected in this run**
+- **The context compiler's reading of AD-4.** It read AD-4 as placing the entry point in `games` (`games.createFromQuestionSet`). That was rejected because of the AD-1 module order, and `review.createFromQuestionSet` composes the owners' writers instead.
+- **The implementer's first credit layout.** It put the credit on one line, and the bar overflowed in the worst case. It was corrected to a two-line right end, with an e2e measurement.
+- **Translation choices.**
+  - The cluster "an iphone" became "En mobiltelefon", with no brand.
+  - r2q31 ("Besides birds…") became "Nevn et kjæledyr folk har i bur, men ikke en fugl.", replacing a first draft that opened with a colon.
+  - r2q14 cluster "study" became "Studere likevel", so it reads sensibly under "i stedet for å studere videre".
+- **Question selection.** Questions with a tie at the eighth place were dropped (r1q14, r2q40, r2q49), so the Board cut needed no tie rule at the boundary. Crude and US-specific Questions were dropped as well (r1q3, r1q9, r1q12, r2q11), and so was r2q19, whose clusters (kangaroos, car batteries) do not translate.
+
+**Verification.**
+- `npm run lint`, `npm run typecheck` and `npm run format:check` are clean, and `npx drizzle-kit check` is clean.
+- `npm run test`: 49 files, 824 passed and 1 skipped (after the patches).
+- `npm run test:e2e`: 100 passed. The review patches touched only integration tests and docs.
+- The worst-case control-bar screenshot at 1920×1080 was inspected: every item fits the 64 px bar.
+
+**Residual risks**
+- **Font width in CI.** The bar is measured with macOS system fonts. On Linux CI, `system-ui` may be wider. The e2e fit check would catch it there.
+- **No credit off the play view.** Team setup and Final Scores show no credit.
+- **No report route guard.** A direct GET of the report for a set Game returns an empty report.
