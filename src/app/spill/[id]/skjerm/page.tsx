@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { cache } from "react";
-import { PlayView } from "@/components/PlayView";
+import { cache, Suspense } from "react";
+import { PlayView, StageLoading } from "@/components/PlayView";
 import { TeamSetup } from "@/components/TeamSetup";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
@@ -46,5 +46,19 @@ export default async function ScreenPage({
   if (game.state === "ready") return <TeamSetup gameId={game.id} />;
   // shortcut: a played Game redirects too until Story 6.4 shows its final Scores here.
   if (game.state !== "playing") redirect(`/spill/${game.id}`);
-  return <PlayView {...await play.load(game.hostId, game.id)} />;
+  return (
+    <Suspense fallback={<StageLoading />}>
+      <PlayStage hostId={game.hostId} gameId={game.id} />
+    </Suspense>
+  );
+}
+
+async function PlayStage({
+  hostId,
+  gameId,
+}: {
+  hostId: string;
+  gameId: string;
+}) {
+  return <PlayView gameId={gameId} {...await play.load(hostId, gameId)} />;
 }

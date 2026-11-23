@@ -92,6 +92,13 @@
       "when": 1795430295178,
       "tag": "0012_living_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795432166814,
+      "tag": "0013_large_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }

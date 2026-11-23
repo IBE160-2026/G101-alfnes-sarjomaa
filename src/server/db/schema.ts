@@ -254,3 +254,24 @@ export const playState = pgTable("play_state", {
     .notNull()
     .references(() => team.id, { onDelete: "cascade" }),
 });
+
+// One row per revealed Board slot (AD-16). A null team_id is an unscored Reveal; Score is
+// never stored, only summed from board_slot.count over a Team's Reveals (AD-11).
+export const reveal = pgTable(
+  "reveal",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => game.id, { onDelete: "cascade" }),
+    boardSlotId: uuid("board_slot_id")
+      .notNull()
+      .references(() => boardSlot.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => team.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+  },
+  (t) => [
+    uniqueIndex("reveal_board_slot_id_key").on(t.boardSlotId),
+    uniqueIndex("reveal_game_seq_key").on(t.gameId, t.seq),
+  ],
+);

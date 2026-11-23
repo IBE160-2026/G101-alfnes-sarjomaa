@@ -17,6 +17,7 @@ import {
   renameGroup,
   restoreGroup,
   revokeInviteLink,
+  revealSlot,
   saveQuestion,
   startPlay,
 } from "@/app/spill/[id]/actions";
@@ -40,6 +41,7 @@ import {
   inviteLink,
   playState,
   question,
+  reveal,
   submission,
   team,
 } from "@/server/db/schema";
@@ -533,6 +535,45 @@ describe("Host B against Host A's Game", () => {
       ["ready", 0],
       ["playing", 2],
     ]);
+  });
+
+  it("FR-25, AD-5: B's play.reveal and revealSlot on A's playing Game, on B's own playing Game with A's slot, a random UUID or a malformed ID give NOT_FOUND, and nothing is revealed", async () => {
+    const db = await getDb();
+    // A playing Game with one Question and one Board slot for `host`.
+    const playingOf = async (host: string) => {
+      const [{ id }] = await db
+        .insert(game)
+        .values({ hostId: host, title: "Spill i gang", state: "ready" })
+        .returning({ id: game.id });
+      const questionId = randomUUID();
+      await db
+        .insert(question)
+        .values({ id: questionId, gameId: id, position: 1, text: "?" });
+      const [{ id: slotId }] = await db
+        .insert(boardSlot)
+        .values({ questionId, position: 1, label: "Kari", count: 3 })
+        .returning({ id: boardSlot.id });
+      await play.start(host, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+      return { id, slotId };
+    };
+    const ofA = await playingOf(hosts.A);
+    const ofB = await playingOf(hosts.B);
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [ofA.id, ofB.id, randomUUID(), "abc"]) {
+      const input = { gameId, boardSlotId: ofA.slotId, scored: true };
+      expect(
+        ((await rejection(play.reveal(hosts.B, input))) as DomainError).code,
+        gameId,
+      ).toBe("NOT_FOUND");
+      expect(await revealSlot(input), gameId).toEqual(notFound);
+    }
+    expect(await db.select().from(reveal)).toEqual([]);
+    expect((await gameRow(ofA.id)).state).toBe("playing");
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {

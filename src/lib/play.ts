@@ -18,3 +18,10 @@ export const startPlaySchema = z.object({
     .min(TEAMS_MIN, TEAM_COUNT)
     .max(TEAMS_MAX, TEAM_COUNT),
 });
+
+// AD-16: the Team comes from play_state under the Game lock, never from the client.
+export const revealSchema = z.object({
+  gameId: z.string(),
+  boardSlotId: z.string(),
+  scored: z.boolean(),
+});

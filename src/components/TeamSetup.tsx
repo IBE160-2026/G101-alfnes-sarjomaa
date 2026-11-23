@@ -12,7 +12,7 @@ import {
 import { startPlay } from "@/app/spill/[id]/actions";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
-import { focusHeading } from "@/components/RouteFocus";
+import { focusPageHeading } from "@/components/RouteFocus";
 import { TextField } from "@/components/TextField";
 import { callAction, NETWORK } from "@/components/useFormAction";
 import { TEAMS_MAX, TEAMS_MIN } from "@/lib/limits";
@@ -38,7 +38,7 @@ export function TeamSetup({ gameId }: { gameId: string }) {
   const [failure, setFailure] = useState<Failure>();
   const [pending, startTransition] = useTransition();
   // On success the refreshed page swaps this form for the play view, so focus goes to
-  // the new <h1> when this unmounts.
+  // its <h1> when this unmounts, once the stage has streamed in past "Henter spillet …".
   const acted = useRef(false);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function TeamSetup({ gameId }: { gameId: string }) {
 
   useEffect(
     () => () => {
-      if (acted.current) focusHeading();
+      if (acted.current) focusPageHeading();
     },
     [],
   );

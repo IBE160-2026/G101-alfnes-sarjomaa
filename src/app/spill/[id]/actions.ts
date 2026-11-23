@@ -146,3 +146,9 @@ export async function confirmBoard(
 export async function startPlay(input: unknown): Promise<ActionResult<void>> {
   return hostAction(play.start, input, "skjerm");
 }
+
+export async function revealSlot(
+  input: unknown,
+): Promise<ActionResult<play.RevealResult>> {
+  return hostAction(play.reveal, input, "skjerm");
+}

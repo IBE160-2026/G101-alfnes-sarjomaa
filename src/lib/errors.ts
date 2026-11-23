@@ -16,6 +16,8 @@ export type ErrorCode =
   | "TOO_FEW_ANSWER_SETS"
   | "NO_GROUPS_ON_BOARD"
   | "QUESTIONS_UNREVIEWED"
+  | "WRONG_QUESTION"
+  | "ALREADY_REVEALED"
   | "INTERNAL";
 
 export const MESSAGES: Record<ErrorCode, string> = {
@@ -35,6 +37,8 @@ export const MESSAGES: Record<ErrorCode, string> = {
   NO_GROUPS_ON_BOARD:
     "Minst én gruppe må være på brettet før du kan markere spørsmålet.",
   QUESTIONS_UNREVIEWED: "Gjennomgå alle spørsmålene først.",
+  WRONG_QUESTION: "Den plassen hører til et annet spørsmål.",
+  ALREADY_REVEALED: "Den plassen er allerede avslørt.",
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",
 };
 

@@ -15,7 +15,13 @@ import { GAME_STATES, type GameState } from "@/lib/game-state";
 import { newToken } from "@/lib/token";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
-import { answerGroup, game, question } from "@/server/db/schema";
+import {
+  answerGroup,
+  boardSlot,
+  game,
+  question,
+  reveal,
+} from "@/server/db/schema";
 import * as play from "@/server/play";
 import * as review from "@/server/review";
 import { cookieJar, run, runAfterTasks } from "./next-mocks";
@@ -136,6 +142,28 @@ describe("deleteGame", () => {
       }
     },
   );
+
+  it("FR-3, FR-25: deleting a playing Game with a Reveal removes its reveal rows", async () => {
+    const db = await getDb();
+    const id = await insertGame("ready");
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: id, position: 1, text: "?" });
+    const [{ id: boardSlotId }] = await db
+      .insert(boardSlot)
+      .values({ questionId, position: 1, label: "Kari", count: 3 })
+      .returning({ id: boardSlot.id });
+    await play.start(hosts.A, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+    await play.reveal(hosts.A, { gameId: id, boardSlotId, scored: true });
+    const reveals = () => db.select().from(reveal).where(eq(reveal.gameId, id));
+    expect(await reveals()).toHaveLength(1);
+    as("A");
+    expect(await run(deleteGame, { gameId: id })).toEqual({
+      redirect: "/spill",
+    });
+    expect(await reveals()).toEqual([]);
+  });
 
   it("FR-1, AD-5: logged out it redirects to /logg-inn and deletes nothing", async () => {
     const id = await insertGame("draft", "Uten konto");

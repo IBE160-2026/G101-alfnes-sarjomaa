@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+import { prerenderToNodeStream } from "react-dom/static";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { startPlay } from "@/app/spill/[id]/actions";
+import { revealSlot, startPlay } from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
 import ScreenPage, {
   generateMetadata as screenMetadata,
@@ -11,7 +13,16 @@ import { DomainError } from "@/lib/errors";
 import type { GameState } from "@/lib/game-state";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
-import { game, playState, question, team } from "@/server/db/schema";
+import {
+  answer,
+  answerGroup,
+  boardSlot,
+  game,
+  playState,
+  question,
+  reveal,
+  team,
+} from "@/server/db/schema";
 import * as games from "@/server/games";
 import * as play from "@/server/play";
 import { cookieJar, nextCache, RedirectError } from "./next-mocks";
@@ -45,8 +56,22 @@ beforeEach(() => {
   nextCache.revalidatePath.mockClear();
 });
 
-// A Game in `state` with three Questions (inserted out of order, so start must sort).
-// Play reads no Board in this story, so none is written.
+// Each Question's locked Board: label and Count per slot, in position order.
+const BOARD = [
+  [
+    ["Kari", 5],
+    ["Ola", 3],
+    ["Per", 2],
+  ],
+  [
+    ["Oslo", 4],
+    ["Bergen", 1],
+  ],
+  [["Molde", 6]],
+] as const;
+
+// A Game in `state` with three Questions (inserted out of order, so start must sort),
+// each with its Board from BOARD (also inserted last first).
 async function gameIn(state: GameState = "ready") {
   const db = await getDb();
   const [{ id }] = await db
@@ -61,7 +86,70 @@ async function gameIn(state: GameState = "ready") {
       position: i + 1,
       text: QUESTIONS[i],
     });
-  return { id, questionIds: ids };
+  const slots = await db
+    .insert(boardSlot)
+    .values(
+      BOARD.flatMap((slots, q) =>
+        slots.map(([label, count], i) => ({
+          questionId: ids[q],
+          position: i + 1,
+          label,
+          count,
+        })),
+      ).reverse(), // last first, so getBoard must sort
+    )
+    .returning({
+      id: boardSlot.id,
+      questionId: boardSlot.questionId,
+      position: boardSlot.position,
+    });
+  // slotIds[q][i]: Question q + 1, position i + 1.
+  const slotIds = ids.map((qid) =>
+    slots
+      .filter((s) => s.questionId === qid)
+      .sort((a, b) => a.position - b.position)
+      .map((s) => s.id),
+  );
+  return { id, questionIds: ids, slotIds };
+}
+
+// A playing Game with Teams Lag 1 and Lag 2, Lag 1 current on Question 1.
+async function playing() {
+  const g = await gameIn();
+  await play.start(hostId, { gameId: g.id, teams: ["Lag 1", "Lag 2"] });
+  const teams = (await rowsOf(g.id)).teams;
+  return { ...g, teamIds: teams.map((t) => t.id) };
+}
+
+const revealsOf = async (gameId: string) =>
+  (await getDb())
+    .select({
+      boardSlotId: reveal.boardSlotId,
+      teamId: reveal.teamId,
+      seq: reveal.seq,
+    })
+    .from(reveal)
+    .where(eq(reveal.gameId, gameId))
+    .orderBy(asc(reveal.seq));
+
+const scoresOf = async (gameId: string) =>
+  (await play.load(hostId, gameId)).teams.map((t) => t.score);
+
+// AD-11 checked independently of play.load: the raw sum over each Team's scored Reveals.
+async function rawSums(gameId: string) {
+  const result = await (
+    await getDb()
+  ).execute(sql`
+    select t.position, coalesce(sum(s.count), 0)::int as score
+    from team t
+    left join reveal r on r.team_id = t.id
+    left join board_slot s on s.id = r.board_slot_id
+    where t.game_id = ${gameId}
+    group by t.id, t.position
+    order by t.position`);
+  return (result as unknown as { rows: { score: number }[] }).rows.map(
+    (r) => r.score,
+  );
 }
 
 async function rowsOf(gameId: string) {
@@ -96,7 +184,16 @@ const props = (id: string) => ({
   params: Promise.resolve({ id }),
   searchParams: Promise.resolve({}),
 });
-const screen = async (id: string) =>
+// Renders the async play view behind its Suspense boundary to the end.
+async function prerender(node: ReactNode) {
+  const { prelude } = await prerenderToNodeStream(node);
+  let html = "";
+  for await (const chunk of prelude) html += chunk;
+  return html;
+}
+const screen = async (id: string) => prerender(await ScreenPage(props(id)));
+// The first flush: only the Suspense fallback of the play view.
+const screenShell = async (id: string) =>
   renderToStaticMarkup(await ScreenPage(props(id)));
 const gamePage = async (id: string) =>
   renderToStaticMarkup(await GamePage(props(id)));
@@ -138,6 +235,11 @@ describe("play.start", () => {
         { id: rows.teams[0].id, name: "Hyttegjengen", score: 0, current: true },
         { id: rows.teams[1].id, name: "Lag 2", score: 0, current: false },
       ],
+      board: [1, 2, 3].map((position) => ({
+        id: expect.any(String),
+        position,
+        revealed: false,
+      })),
     });
   });
 
@@ -222,6 +324,159 @@ describe("play.load", () => {
   });
 });
 
+describe("play.reveal", () => {
+  it("FR-25, AD-16: the revealSlot action reveals slot 1 for the current Team with seq 1, returns label, Count and Team, revalidates the Game and screen pages, and leaves Team 1 current; load shows slot 1 revealed and Scores [5, 0]", async () => {
+    const { id, slotIds, teamIds } = await playing();
+    nextCache.revalidatePath.mockClear();
+    expect(
+      await revealSlot({
+        gameId: id,
+        boardSlotId: slotIds[0][0],
+        scored: true,
+      }),
+    ).toEqual({ ok: true, data: { label: "Kari", count: 5, team: "Lag 1" } });
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(
+      `/spill/${id}/skjerm`,
+    );
+    expect(await revealsOf(id)).toEqual([
+      { boardSlotId: slotIds[0][0], teamId: teamIds[0], seq: 1 },
+    ]);
+    const view = await play.load(hostId, id);
+    expect(view.board).toEqual([
+      {
+        id: slotIds[0][0],
+        position: 1,
+        revealed: true,
+        label: "Kari",
+        count: 5,
+      },
+      { id: slotIds[0][1], position: 2, revealed: false },
+      { id: slotIds[0][2], position: 3, revealed: false },
+    ]);
+    expect(view.teams.map((t) => [t.score, t.current])).toEqual([
+      [5, true],
+      [0, false],
+    ]);
+  });
+
+  it("FR-25, AD-11: with play_state moved to Team 2 by hand, slot 2 goes to Team 2 with seq 2, and each Score equals the raw SQL sum of its scored Counts", async () => {
+    const { id, slotIds, teamIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][0],
+      scored: true,
+    });
+    await (
+      await getDb()
+    )
+      .update(playState)
+      .set({ currentTeamId: teamIds[1] })
+      .where(eq(playState.gameId, id));
+    expect(
+      await play.reveal(hostId, {
+        gameId: id,
+        boardSlotId: slotIds[0][1],
+        scored: true,
+      }),
+    ).toEqual({ label: "Ola", count: 3, team: "Lag 2" });
+    expect((await revealsOf(id)).map((r) => [r.teamId, r.seq])).toEqual([
+      [teamIds[0], 1],
+      [teamIds[1], 2],
+    ]);
+    expect(await scoresOf(id)).toEqual([5, 3]);
+    expect(await rawSums(id)).toEqual([5, 3]);
+  });
+
+  it("FR-25, AD-16: an unscored Reveal stores a null team_id, returns team null and changes no Score", async () => {
+    const { id, slotIds } = await playing();
+    expect(
+      await revealSlot({
+        gameId: id,
+        boardSlotId: slotIds[0][2],
+        scored: false,
+      }),
+    ).toEqual({ ok: true, data: { label: "Per", count: 2, team: null } });
+    expect(await revealsOf(id)).toEqual([
+      { boardSlotId: slotIds[0][2], teamId: null, seq: 1 },
+    ]);
+    expect(await scoresOf(id)).toEqual([0, 0]);
+    expect((await play.load(hostId, id)).board[2]).toMatchObject({
+      revealed: true,
+      label: "Per",
+    });
+  });
+
+  it("FR-25: revealing an already revealed slot is ALREADY_REVEALED, a slot of Question 2 is WRONG_QUESTION, and nothing is written", async () => {
+    const { id, slotIds } = await playing();
+    const input = { gameId: id, boardSlotId: slotIds[0][0], scored: true };
+    await play.reveal(hostId, input);
+    const before = await revealsOf(id);
+    expect(await codeOf(play.reveal(hostId, input))).toBe("ALREADY_REVEALED");
+    expect(await revealSlot(input)).toEqual({
+      ok: false,
+      code: "ALREADY_REVEALED",
+      message: "Den plassen er allerede avslørt.",
+    });
+    const other = { gameId: id, boardSlotId: slotIds[1][0], scored: true };
+    expect(await codeOf(play.reveal(hostId, other))).toBe("WRONG_QUESTION");
+    expect(await revealSlot(other)).toEqual({
+      ok: false,
+      code: "WRONG_QUESTION",
+      message: "Den plassen hører til et annet spørsmål.",
+    });
+    expect(await revealsOf(id)).toEqual(before);
+    expect(await scoresOf(id)).toEqual([5, 0]);
+  });
+
+  it("FR-25, AD-5: a random UUID, a malformed id or another Game's slot is NOT_FOUND, and nothing is written", async () => {
+    const { id } = await playing();
+    const other = await playing();
+    for (const boardSlotId of [randomUUID(), "abc", other.slotIds[0][0]]) {
+      const input = { gameId: id, boardSlotId, scored: true };
+      expect(await codeOf(play.reveal(hostId, input)), boardSlotId).toBe(
+        "NOT_FOUND",
+      );
+      expect(await revealSlot(input), boardSlotId).toMatchObject({
+        ok: false,
+        code: "NOT_FOUND",
+      });
+    }
+    expect(await revealsOf(id)).toEqual([]);
+    expect(await revealsOf(other.id)).toEqual([]);
+  });
+
+  it("FR-25: a missing or non-boolean scored and a non-string boardSlotId are INVALID_INPUT, and nothing is written", async () => {
+    const { id, slotIds } = await playing();
+    for (const input of [
+      { gameId: id, boardSlotId: slotIds[0][0] },
+      { gameId: id, boardSlotId: slotIds[0][0], scored: "true" },
+      { gameId: id, boardSlotId: 1, scored: true },
+    ]) {
+      expect(await codeOf(play.reveal(hostId, input))).toBe("INVALID_INPUT");
+      expect(await revealSlot(input)).toMatchObject({
+        ok: false,
+        code: "INVALID_INPUT",
+      });
+    }
+    expect(await revealsOf(id)).toEqual([]);
+  });
+
+  it.each(["ready", "played"] as const)(
+    "FR-25: a Game in %s is WRONG_STATE and nothing is written",
+    async (state) => {
+      const { id, slotIds } = await gameIn(state);
+      const input = { gameId: id, boardSlotId: slotIds[0][0], scored: true };
+      expect(await codeOf(play.reveal(hostId, input))).toBe("WRONG_STATE");
+      expect(await revealSlot(input)).toMatchObject({
+        ok: false,
+        code: "WRONG_STATE",
+      });
+      expect(await revealsOf(id)).toEqual([]);
+    },
+  );
+});
+
 describe("/spill/[id]/skjerm", () => {
   it("FR-23, UX-DR22: a ready Game shows Team setup with Hvem spiller?, Lag 1 and Lag 2, no Fjern, Legg til lag and Start spillet, titled by the Game", async () => {
     const { id } = await gameIn();
@@ -248,8 +503,81 @@ describe("/spill/[id]/skjerm", () => {
     expect(html).toContain("data-stage");
     expect(html).toContain(`text-tv-question">${QUESTIONS[0]}</h1>`);
     expect(text(html)).toContain(
-      "Spørsmål 1 av 3 Svarer nå Hyttegjengen 0 poeng Lag 2 0 poeng Trykk F for fullskjerm.",
+      "Spørsmål 1 av 3 Svarer nå Hyttegjengen 0 poeng Lag 2 0 poeng 1 2 3 Trykk F for fullskjerm.",
     );
+  });
+
+  it("FR-24, FR-27: the first flush of a playing Game's screen is the stage with Henter spillet …", async () => {
+    const { id } = await playing();
+    expect(await screenShell(id)).toMatch(
+      /<div data-stage=""[^>]*><p role="status" class="animate-appear[^"]*">Henter spillet\u00a0…<\/p><\/div>/,
+    );
+  });
+
+  it("FR-24, FR-25: the playing screen shows one rank-only tile Avslør plass N per slot, a revealed slot with label and Count, and the real Scores", async () => {
+    const { id, slotIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][1],
+      scored: true,
+    });
+    const html = await screen(id);
+    expect(html).toContain('aria-label="Avslør plass 1"');
+    expect(html).toContain('aria-label="Avslør plass 3"');
+    expect(html).not.toContain("Avslør plass 2");
+    expect(text(html)).toContain(
+      "Svarer nå Lag 1 3 poeng Lag 2 0 poeng 1 2 Ola 3 poeng 3",
+    );
+  });
+
+  it("FR-24 (AC2): before and after revealing every slot of Question 1, the screen holds only revealed Board labels, never a hidden label, a discarded or below-limit Group or any Answer text", async () => {
+    const { id, questionIds, slotIds } = await playing();
+    const db = await getDb();
+    const [discarded, below] = [randomUUID(), randomUUID()];
+    await db.insert(answerGroup).values([
+      {
+        id: discarded,
+        questionId: questionIds[0],
+        origin: "host",
+        customLabel: "Forkastet gruppe",
+        discarded: true,
+      },
+      {
+        id: below,
+        questionId: questionIds[0],
+        origin: "fallback",
+        customLabel: "Under grensa",
+      },
+    ]);
+    const answers = ["kari!!", "OLA ola", "Per-Erik", "Svar uten gruppe"];
+    await db.insert(answer).values(
+      answers.map((t, i) => ({
+        questionId: questionIds[0],
+        text: t,
+        normalizedText: t.toLowerCase(),
+        groupId: i === 0 ? discarded : i === 1 ? below : null,
+      })),
+    );
+    const never = ["Forkastet gruppe", "Under grensa", ...answers];
+    const labels = BOARD[0].map(([label]) => label);
+    for (let n = 0; n <= labels.length; n++) {
+      if (n > 0)
+        await play.reveal(hostId, {
+          gameId: id,
+          boardSlotId: slotIds[0][n - 1],
+          scored: true,
+        });
+      const html = await screen(id);
+      for (const label of labels.slice(0, n)) expect(html).toContain(label);
+      for (const label of [
+        ...labels.slice(n),
+        ...BOARD.slice(1)
+          .flat()
+          .map(([l]) => l),
+        ...never,
+      ])
+        expect(html, `${label} after ${n}`).not.toContain(label);
+    }
   });
 
   it("FR-23: the Question is 56 px (text-tv-question) up to 80 characters and 48 px (text-tv-question-long) above", async () => {

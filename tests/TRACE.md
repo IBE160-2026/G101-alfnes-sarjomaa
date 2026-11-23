@@ -322,15 +322,22 @@ Set up Teams.
 
 Show the Board.
 
-- None yet.
-- Pending: Story 6.2.
+- `tests/integration/play.test.ts`: `play.load` returns the current Question's slots in position order, a hidden slot as `{ id, position, revealed: false }` with no label or Count; the playing screen (prerendered behind its Suspense boundary) shows one rank-only tile "Avslør plass N" per hidden slot and label plus Count for a revealed one; its first flush is a `data-stage` stage with "Henter spillet …" in `animate-appear`; with a discarded Group, a Group below the limit and Answers with known texts in the DB, the screen before and after revealing each of Question 1's slots holds only the revealed Board labels, never a hidden label, another Question's label, a discarded or below-limit label or an Answer text (Story 6.2, AC1, AC2).
+- `tests/e2e/play.spec.ts`: a 200-character Question with thirteen Groups (one discarded, eight on the Board, four below the limit) at 1920×1080: the canvas is exactly the window; the Question (48 px), "Spørsmål 1 av 1", Team names and "Svarer nå" are at least 48 px, Scores 80 px, revealed labels and Counts 48 px; the Question ends above tile 1, tile 8 ends above the control bar, and the bar ends inside 1080 px; eight tiles "Avslør plass 1–8"; at 1280×720 the canvas is scaled to 1280×720, and at 1280×1024 it is 1280×720 centred vertically (letterboxed); no Board label is on the page before a Reveal, and after all eight none of the discarded, below-limit or raw Answer texts ("kari!") is; axe is clean with revealed tiles (Story 6.2, AC1, AC2).
+- `tests/e2e/play.spec.ts`: the 6.1 flow now finds the eight hidden tiles as the only buttons on the play view (Story 6.2).
+- `tests/manual/checklist.md`: A1 (48 px on a real TV from 3 m), A7 (no raw Answer, discarded or below-limit Group in a full round), A8 (200 characters and 8 Groups fit 1080 px), A9 (a 40-character wide label wraps, never truncates) (Story 6.2, AC6).
 
 ## FR-25
 
 Mark a match or a miss.
 
-- None yet.
-- Pending: Stories 6.2, 6.3.
+- `tests/unit/play.test.ts`: `revealSchema` accepts `{ gameId, boardSlotId, scored }` with a boolean `scored` and refuses a missing or non-boolean `scored` or a missing slot (Story 6.2, AC3).
+- `tests/integration/play.test.ts`: `revealSlot` (through `play.reveal`) on slot 1 stores a Reveal for the current Team with seq 1, returns `{ label: "Kari", count: 5, team: "Lag 1" }`, revalidates the Game and screen pages and leaves Team 1 current, and `play.load` shows the slot revealed with Scores `[5, 0]`; with `play_state` moved to Team 2 by hand, slot 2 goes to Team 2 with seq 2 and the Scores `[5, 3]` equal a raw SQL sum over each Team's scored Reveals (AD-11); an unscored Reveal stores a null `team_id`, returns `team: null` and changes no Score; a second Reveal of a slot is `ALREADY_REVEALED` and a slot of Question 2 is `WRONG_QUESTION`, with their bokmål messages from the action and nothing written; a random UUID, `abc` and another Game's slot are `NOT_FOUND`; a missing or non-boolean `scored` and a numeric `boardSlotId` are `INVALID_INPUT`; _ready_ and _played_ Games are `WRONG_STATE`; the Board fixture is inserted last position first, so `getBoard`'s order is tested (Story 6.2, AC3).
+- `tests/integration/authz.test.ts`: Host B's `play.reveal` and `revealSlot` with A's slot on A's _playing_ Game, on B's own _playing_ Game, on a random UUID and on `abc` give `NOT_FOUND`, and no Reveal is written (Story 6.2, AD-5).
+- `tests/integration/delete.test.ts`: deleting a _playing_ Game with a Reveal removes its `reveal` rows (Story 6.2); the catalog test covers `reveal`'s foreign keys as `ON DELETE CASCADE`.
+- `tests/e2e/play.spec.ts`: tile 1's border is `stage-line`, and with the reveal POST held until the test releases it, `stage-ink` while the tile is still a button; then the tile shows "Kari" and "3 poeng", is no longer a button, keeps focus as the revealed row, carries the staged animation (`reveal-fill`, `reveal-label`, `reveal-count`), the status says "«Kari», 3 poeng til Lag 1." and Team 1's Score reads "3 poeng", counts up to 3 and its drawn digits have a width; Ctrl+3 and a revealed rank do nothing, key `2` reveals "Bjørn" and the Score becomes "4 poeng"; under reduced motion key `3` reveals with no animation or Score transition; an aborted POST shows "Mistet forbindelsen." in the control-bar row with the tile still hidden; after a second tab reveals tile 4, a click on it here shows it revealed, static (no animation) and focused, with no banner (Story 6.2, AC4).
+- `tests/manual/checklist.md`: T6, a Reveal within one second (Story 6.2, AC6, NFR-5).
+- Pending: Story 6.3 (miss, unscored Reveals from the UI).
 
 ## FR-26
 
@@ -343,8 +350,9 @@ Undo.
 
 Turns and moving on.
 
-- None yet.
-- Pending: Stories 6.2, 6.3, 6.4.
+- `tests/integration/play.test.ts`: a Reveal leaves `play_state` unchanged, so the turn does not pass (Story 6.2).
+- `tests/e2e/play.spec.ts`: a reload after four Reveals restores the Question, "Svarer nå" on Lag 1, the four revealed tiles (static, no animation) and the Score "6 poeng" from the server (Story 6.2, AC5).
+- Pending: Stories 6.3, 6.4.
 
 ## FR-30
 
@@ -411,7 +419,8 @@ Responsiveness: every Host action in Review and play shows its result within one
 - `tests/manual/checklist.md`: T2, move and "Ny gruppe" timing on the sizing Game (Story 5.3). Timed by hand, not in CI.
 - `tests/manual/checklist.md`: T3, rename, discard and "Angre forkasting" timing on the sizing Game (Story 5.4). Timed by hand, not in CI.
 - `tests/manual/checklist.md`: T4, "Marker som gjennomgått" to the next Question, and T5, "Lås brettet" to the Game page, the heaviest Review transaction (Story 5.5). Timed by hand, not in CI.
-- Pending: Epic 6.
+- `tests/manual/checklist.md`: T6, a Reveal from the click or rank key to the revealed label and Score (Story 6.2). Timed by hand, not in CI.
+- Pending: Stories 6.3, 6.4.
 
 ## NFR-6
 
@@ -430,6 +439,7 @@ Accessibility (WCAG 2.1 AA).
 - `tests/e2e/review.spec.ts`: Review at 1280, 1100, 900 and 700 px has a 288 px rail, a 240 px rail, a `<select>` above the main pane with "Lås brettet" at the foot (choosing does not navigate until "Vis", WCAG 3.2.2), and the narrow-screen notice; "Lås brettet" is `aria-disabled` with "Gjennomgå alle spørsmålene først (1 igjen)." as its accessible description; no horizontal scroll and no serious or critical axe violation at any width (Story 5.1, AC5).
 - `tests/e2e/review.spec.ts`: axe finds no serious or critical violations with the SelectionBar open; Space ticks a Group checkbox, Tab moves from the last card to "Slå sammen 2 grupper" and "Fjern valg", each with the inverse focus ring (3 px white) and at least 44 px high, and the checkbox target is 44 px (Story 5.2, AC3).
 - `tests/manual/checklist.md`: A10, the focus ring on every SelectionBar control by keyboard (Story 5.2).
+- `tests/e2e/play.spec.ts`: on the play view a revealed tile keeps focus as a focusable row; the live region announces each Reveal; axe finds no serious or critical violations with revealed tiles (Story 6.2, AC1, AC4).
 - `tests/e2e/review.spec.ts`: axe finds no serious or critical violations with the Answer SelectionBar open and with the rename field open; the "Flytt til gruppe" select, reached by Tab, has the inverse focus ring (3 px white); every bar button is at least 44 px high and a chip checkbox's label is 44 px high (Story 5.3, AC4).
 - `tests/e2e/review.spec.ts`: axe finds no serious or critical violations with the Group menu open and with _Forkastet_ shown; Tab from the last card's checkbox reaches its "Mer for «Ola»" menu button before the SelectionBar (Story 5.4, AC3).
 - `tests/e2e/review.spec.ts`: axe finds no serious or critical violations with the "Låse brettet?" dialog open and on the _ready_ Game page; the dialog opens with focus on "Avbryt" and Esc returns focus to "Lås brettet"; the mark's announcement lives in its own polite region outside the Question-keyed Group list, so it survives the Question change (Story 5.5, AC5).
@@ -475,3 +485,6 @@ Design and experience rules from `DESIGN.md` and `EXPERIENCE.md` that no FR cove
 - `tests/e2e/games.spec.ts`: an aborted create request shows "Fikk ikke kontakt. Sjekk nettet og prøv igjen.", focuses that notice, keeps the typed title and stays on `/spill` (Story 1.4, UX-DR23).
 - `tests/integration/report.test.ts`: the Game page renders "Last ned bruksrapport" as a plain link (no `download` attribute) to `/api/spill/{id}/rapport` in _in review_, _ready_, _playing_ and _played_, and not in _draft_, _collecting_ or _grouping_; `tests/e2e/close.spec.ts`: the link is absent while collecting, visible on _in review_, and axe stays clean (Story 4.3, AC4, UX-DR16).
 - `tests/e2e/play.spec.ts`, `tests/integration/play.test.ts`: Team setup is a light Host page with "Hvem spiller?", fields "Navn på lag N" prefilled "Lag N", "Legg til lag" up to four, "Fjern lag N" only above two, errors under each field and "Start spillet" (Story 6.1, UX-DR22).
+- `tests/e2e/play.spec.ts`: the play view is a 1920×1080 canvas scaled by CSS alone (`tan(atan2())` ratios) and letterboxed: exactly the window at 1920×1080 and 1280×720; the Question, Team column, list and the 64 px control bar stay inside 1080 px with a 200-character Question and eight tiles (Story 6.2, UX-DR21).
+- `tests/e2e/play.spec.ts`, `tests/integration/play.test.ts`: a hidden tile is a button "Avslør plass N" showing only its rank, with a `stage-ink` border while pending; a revealed tile is a focusable row (not a button) with rank, label and Count badge ("N poeng" to screen readers) (Story 6.2, UX-DR13).
+- `tests/e2e/play.spec.ts`: only the tile revealed from this tab animates (`data-revealing`), a reload shows revealed tiles static, reduced motion removes the animations and the Score transition, and failures appear as a banner in the control-bar row, never over the list (Story 6.2, UX-DR14).

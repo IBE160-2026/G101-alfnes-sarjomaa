@@ -134,3 +134,72 @@
 body:has([data-stage]) [data-host-chrome] {
   display: none;
 }
+
+/* The play view's fixed 1920×1080 canvas, centred in the window and scaled to fit with
+   letterboxing, from the first server-rendered paint (UX-DR21).
+   tan(atan2(a, b)) is the unitless ratio a/b. */
+.stage-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  translate: -50% -50%;
+  scale: min(tan(atan2(100vw, 1920px)), tan(atan2(100vh, 1080px)));
+}
+
+/* The staged Reveal (UX-DR14), only on the tile this tab revealed: fill 180 ms, label
+   from 120 ms, Count badge from 300 ms. */
+@keyframes reveal-fill {
+  from {
+    background-color: var(--color-stage-tile);
+    border-color: var(--color-stage-line);
+    color: var(--color-stage-ink);
+  }
+}
+@keyframes reveal-label {
+  from {
+    opacity: 0;
+    translate: -12px 0;
+  }
+}
+@keyframes reveal-count {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+[data-revealing] {
+  animation: reveal-fill 180ms ease-out;
+}
+[data-revealing] .reveal-label {
+  animation: reveal-label 220ms ease-out 120ms both;
+}
+[data-revealing] .reveal-count {
+  animation: reveal-count 160ms ease-out 300ms both;
+}
+
+/* The Score counts up by interpolating a registered integer, drawn as a counter. */
+@property --score {
+  syntax: "<integer>";
+  inherits: false;
+  initial-value: 0;
+}
+.score-count {
+  counter-reset: score var(--score);
+  transition: --score 400ms ease-out 460ms;
+}
+.score-count::after {
+  content: counter(score);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-revealing],
+  [data-revealing] .reveal-label,
+  [data-revealing] .reveal-count {
+    animation: none;
+  }
+  .score-count {
+    transition: none;
+  }
+}
