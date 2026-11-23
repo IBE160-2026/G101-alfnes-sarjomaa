@@ -9,15 +9,26 @@
 - [x] 2026-11-21 [canvas-kunngjoringer](998-2026-11-21-22-56-12-canvas-kunngjoringer.md): vi ligger etter kullet. UX, arkitektur, epics og sprintplan må gå raskt før implementeringen (2 uker til 5. des.) (løst 2026-11-22: fase 3 og epic 1 ferdig)
 - [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): epic 1-reviews før PR: bmad-code-review, ponytail-review, impeccable critique/audit/harden (løst 2026-11-22)
 - [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): sidetitler per side (WCAG 2.4.2) mangler (løst 2026-11-22)
-- [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): push fase-3-planlegging og epic-1-fundament og sjekk CI (Node 22/26)
-- [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): installer Vercel CLI, legg inn DATABASE_URL og OPENROUTER_API_KEY i Vercel og lokal .env
-- [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): epic 7: kjør npm run judge:record med OpenRouter-nøkkelen
+- [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): push fase-3-planlegging og epic-1-fundament og sjekk CI (Node 22/26) (løst 2026-11-23: PR #1–#9 merget, CI grønn)
+- [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): installer Vercel CLI, legg inn DATABASE_URL og OPENROUTER_API_KEY i Vercel og lokal .env (løst 2026-11-23: piloten kjører på Vercel med Neon)
+- [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): epic 7: kjør npm run judge:record med OpenRouter-nøkkelen (løst 2026-11-23: demo- og ProtoQA-kjennelsene tatt opp live)
 - [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): godkjenn teksten på forsiden (løst 2026-11-23: godkjent av Sondre)
-- [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): CRON_SECRET og cron for opprydding ved pilot-deploy (story 7.5)
-- [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): story 5.3–5.5 og review av epic 5; ikke merge epic 5 før 5.5
-- [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): epic 6 og epic 7
-- [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): PR-tekster ligger i prompting/fase-4-implementering/pr/; push og åpne i rekkefølge
+- [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): CRON_SECRET og cron for opprydding ved pilot-deploy (story 7.5) (løst 2026-11-23: månedlig Vercel Cron)
+- [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): story 5.3–5.5 og review av epic 5; ikke merge epic 5 før 5.5 (løst 2026-11-23: epic 5 merget)
+- [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): epic 6 og epic 7 (løst 2026-11-23: PR #7 og #8 merget)
+- [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): PR-tekster ligger i prompting/fase-4-implementering/pr/; push og åpne i rekkefølge (løst 2026-11-24: alle PR-er merget)
 - [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): dommer-fallback over ~120–180 ulike svar per spørsmål
-- [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): låser og VACUUM-skip bare testet på PGlite (story 7.3)
-- [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): manuelle sjekker A2–A4, A10, T1
+- [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): låser og VACUUM-skip bare testet på PGlite (story 7.3) (løst 2026-11-23: CI-jobben kjører integrasjonstestene mot Postgres)
+- [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): manuelle sjekker A2–A4, A10, T1 (erstattet 2026-11-24 av SM-1-punktet under)
 - [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): sjekk caveman-lisens upstream (løst 2026-11-23: godkjent av Sondre)
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): SM-1: manuelle sjekker A1–A10, T1–T8, D1 og F1 på en annen maskin (`tests/manual/`)
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): SM-3: anonymitetsrevisjonen
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): P2: pilotrunden på ekte mobiler
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): Vercel Cron: trykk «Run» én gang og sjekk at slettingen går gjennom
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): Preview-miljøet i Vercel: legg inn DATABASE_URL på nytt
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): bestem om fokusringen på overskriften på storskjermen skal beholdes (impeccable N2, epic 6)
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): refleksjonsrapporten
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): ponytail-debt før frysen 1. des.
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): ponytail-audit og endelig zip før innleveringen 5. des.
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): oppdater status-seksjonen i README ved frysen
+- [ ] 2026-11-24 [epic-6-til-8](995-2026-11-24-00-56-47-epic-6-til-8.md): slett pilotdatabasen på Neon etter emnet
