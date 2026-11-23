@@ -486,7 +486,7 @@ export function AnswerForm({
           type="submit"
           variant="primary"
           pending={pending}
-          pendingLabel="Sender …"
+          pendingLabel={"Sender\u00a0…"}
           className="mt-4 w-full"
         >
           {submitted ? "Lagre endringer" : "Send inn svar"}

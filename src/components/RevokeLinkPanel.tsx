@@ -117,7 +117,7 @@ export function RevokeLinkPanel({
                 type="button"
                 variant="primary"
                 pending={pending}
-                pendingLabel="Trekker tilbake …"
+                pendingLabel={"Trekker tilbake\u00a0…"}
                 onClick={revoke}
               >
                 Trekk tilbake og lag ny

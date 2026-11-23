@@ -1,6 +1,7 @@
 import type { Browser, Page } from "@playwright/test";
 import {
   expect,
+  FOCUS_RING,
   FOCUS_RING_INVERSE,
   localOnly,
   registerHost,
@@ -291,12 +292,31 @@ test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, tw
   const board = page.getByRole("region", { name: "På brettet (8 grupper)" });
   const bar = page.locator("[data-selection-bar]");
   const box = (label: string) =>
-    page.getByRole("checkbox", { name: `Velg «${label}»` });
+    page.getByRole("checkbox", { name: `Velg gruppen «${label}»` });
   const card = (label: string) =>
     page.getByRole("listitem").filter({
       has: page.getByRole("heading", { level: 4, name: label, exact: true }),
     });
   await expect(bar).toHaveCount(0);
+
+  // The sticky bar never covers the focused checkbox (WCAG 2.4.11). At 800 px Frida (rank 7)
+  // ends where the bar appears: ticking lifts it clear, and Tab on to Ola's checkbox,
+  // below the fold, stops above the bar too.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const focusedBottom = () =>
+    page.evaluate(() => document.activeElement!.getBoundingClientRect().bottom);
+  const barTop = async () => (await bar.boundingBox())!.y;
+  await box("Frida").focus();
+  await page.keyboard.press("Space");
+  await expect(bar).toBeVisible();
+  expect(await focusedBottom()).toBeLessThanOrEqual(await barTop());
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(box("Ola")).toBeFocused();
+  expect(await focusedBottom()).toBeLessThanOrEqual(await barTop());
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+  await page.setViewportSize({ width: 1280, height: 900 });
 
   // One Group: the hint, no merge button. Per sits below the line, rank 9.
   await box("Per").check();
@@ -351,6 +371,10 @@ test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, tw
   await expect(card("Frida")).toHaveAttribute("aria-busy", "true");
   await expect(card("Per")).toHaveAttribute("aria-busy", "true");
   await expect(card("Kari")).not.toHaveAttribute("aria-busy");
+  // Every Group menu says it is unavailable while the merge runs.
+  await expect(
+    page.getByRole("button", { name: "Mer for «Kari»" }),
+  ).toHaveAttribute("aria-disabled", "true");
   await expect(merge).toContainText("Slår sammen");
   release();
 
@@ -431,8 +455,8 @@ test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, tw
   // A stale view: another tab merges Dina and Erik; merging Erik here refreshes instead.
   const other = await page.context().newPage();
   await other.goto(page.url());
-  await other.getByRole("checkbox", { name: "Velg «Dina»" }).check();
-  await other.getByRole("checkbox", { name: "Velg «Erik»" }).check();
+  await other.getByRole("checkbox", { name: "Velg gruppen «Dina»" }).check();
+  await other.getByRole("checkbox", { name: "Velg gruppen «Erik»" }).check();
   await other.getByRole("button", { name: "Slå sammen 2 grupper" }).click();
   await expect(other.locator("[data-selection-bar]")).toHaveCount(0);
   await other.close();
@@ -465,7 +489,7 @@ test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clear
   const bar = page.locator("[data-selection-bar]");
   const live = page.locator('p[aria-live="polite"]');
   const box = (label: string) =>
-    page.getByRole("checkbox", { name: `Velg «${label}»` });
+    page.getByRole("checkbox", { name: `Velg gruppen «${label}»` });
   const chip = (text: string) =>
     page.getByRole("checkbox", { name: text, exact: true });
   const heading = (label: string) =>
@@ -700,13 +724,13 @@ test("FR-20, FR-21 (AC3), UX-DR10, UX-DR18, NFR-6: the Group menu opens and clos
 
   // Esc in a menu leaves the selection alone; the next Esc clears it.
   const bar = page.locator("[data-selection-bar]");
-  await page.getByRole("checkbox", { name: "Velg «Dina»" }).check();
+  await page.getByRole("checkbox", { name: "Velg gruppen «Dina»" }).check();
   await expect(bar).toBeVisible();
   await trigger("Erik").click();
   await page.keyboard.press("Escape");
   await expect(trigger("Erik")).toHaveAttribute("aria-expanded", "false");
   await expect(
-    page.getByRole("checkbox", { name: "Velg «Dina»" }),
+    page.getByRole("checkbox", { name: "Velg gruppen «Dina»" }),
   ).toBeChecked();
   await expect(bar).toBeVisible();
   await page.keyboard.press("Escape");
@@ -931,7 +955,14 @@ test("FR-21 (AC2, AC3, AC5), FR-13, UX-DR8, UX-DR17, UX-DR18, NFR-6: a Question 
     "1 av 2 gjennomgått",
   );
 
-  // Mark Q2, the last: it stays, now marked.
+  // Mark Q2, the last: it stays, now marked. The lock becomes available, but focus never
+  // passes through it on the way to the heading.
+  await page.evaluate(() =>
+    document.addEventListener("focusin", (event) => {
+      if ((event.target as HTMLElement).textContent === "Lås brettet")
+        document.body.dataset.lockFocused = "";
+    }),
+  );
   await mark.click();
   await expect(
     header.getByText("✓ Gjennomgått", { exact: true }),
@@ -944,6 +975,7 @@ test("FR-21 (AC2, AC3, AC5), FR-13, UX-DR8, UX-DR17, UX-DR18, NFR-6: a Question 
   await expect(rail.getByRole("heading", { level: 2 })).toHaveText(
     "2 av 2 gjennomgått",
   );
+  await expect(page.locator("body")).not.toHaveAttribute("data-lock-focused");
   await rail.getByRole("link", { name: /^1 / }).click();
   await expect(heading).toContainText("Spørsmål 1 av 2");
   await expect(header).toContainText("✓ Gjennomgått");
@@ -951,9 +983,12 @@ test("FR-21 (AC2, AC3, AC5), FR-13, UX-DR8, UX-DR17, UX-DR18, NFR-6: a Question 
     header.getByRole("link", { name: "Neste spørsmål" }),
   ).toHaveAttribute("href", `${gamePath}/gjennomgang?q=2`);
 
-  // Lås brettet: a dialog with focus on Avbryt; Esc cancels back to the trigger.
+  // Lås brettet: a dialog with focus on Avbryt; Esc cancels back to the trigger and
+  // leaves a ticked Group ticked. The next Esc, outside the dialog, clears it.
   const lock = rail.locator("..").getByRole("button", { name: "Lås brettet" });
   await expect(lock).not.toHaveAttribute("aria-disabled");
+  const ticked = page.getByRole("checkbox", { name: "Velg gruppen «Ola»" });
+  await ticked.check();
   await lock.click();
   const dialog = page.getByRole("dialog", { name: "Låse brettet?" });
   await expect(dialog).toBeVisible();
@@ -965,13 +1000,17 @@ test("FR-21 (AC2, AC3, AC5), FR-13, UX-DR8, UX-DR17, UX-DR18, NFR-6: a Question 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(lock).toBeFocused();
+  await expect(ticked).toBeChecked();
+  await expect(page.locator("[data-selection-bar]")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-selection-bar]")).toHaveCount(0);
 
   // A second tab merges two of Q1's Groups, which clears its mark; this tab still offers the lock.
   const LOCKED = "Brettet er allerede låst. Gå til spillet";
   const second = await page.context().newPage();
   await second.goto(`${gamePath}/gjennomgang?q=1`);
-  await second.getByRole("checkbox", { name: "Velg «Erik»" }).check();
-  await second.getByRole("checkbox", { name: "Velg «Frida»" }).check();
+  await second.getByRole("checkbox", { name: "Velg gruppen «Erik»" }).check();
+  await second.getByRole("checkbox", { name: "Velg gruppen «Frida»" }).check();
   await second.getByRole("button", { name: "Slå sammen 2 grupper" }).click();
   await expect(second.locator("[data-selection-bar]")).toHaveCount(0);
 
@@ -1025,11 +1064,21 @@ test("FR-21 (AC2, AC3, AC5), FR-13, UX-DR8, UX-DR17, UX-DR18, NFR-6: a Question 
     .getByRole("button", { name: "Marker som gjennomgått" })
     .click();
   await expect(staleHeader.getByRole("alert")).toHaveText(LOCKED);
-  await stale.getByRole("checkbox", { name: "Velg «Ola»" }).check();
-  await stale.getByRole("checkbox", { name: "Velg «Per»" }).check();
+  await stale.getByRole("checkbox", { name: "Velg gruppen «Ola»" }).check();
+  await stale.getByRole("checkbox", { name: "Velg gruppen «Per»" }).check();
   const bar = stale.locator("[data-selection-bar]");
   await bar.getByRole("button", { name: "Slå sammen 2 grupper" }).click();
   await expect(bar.getByRole("alert")).toHaveText(LOCKED);
+  // The Notice is light inside the dark bar, so its link keeps the dark focus ring.
+  await stale.keyboard.press("Shift+Tab");
+  const locked = bar.getByRole("link", { name: "Gå til spillet" });
+  await expect(locked).toBeFocused();
+  expect(
+    await locked.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return `${s.outlineWidth} ${s.outlineStyle} ${s.outlineColor}`;
+    }),
+  ).toBe(FOCUS_RING);
   await stale.keyboard.press("Escape");
   await stale.getByRole("button", { name: "Mer for «Anne»" }).click();
   await stale.getByRole("button", { name: "Forkast fra brettet" }).click();

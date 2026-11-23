@@ -63,7 +63,7 @@ export function GroupCard({
           <input
             type="checkbox"
             id={`velg-${id}`}
-            aria-label={`Velg «${label}»`}
+            aria-label={`Velg gruppen «${label}», ${people(count)}`}
             checked={selected}
             onChange={onToggle}
             className="size-5 cursor-pointer accent-primary"

@@ -375,6 +375,8 @@ describe("Review page", () => {
     expect(screen).toContain("Spørsmål 1 av 1");
     expect(html).toMatch(/<h3[^>]*>På brettet \(8 grupper\)<\/h3>/);
     expect(html).toMatch(/<h3[^>]*>Ikke på brettet \(1 gruppe\)<\/h3>/);
+    // The list below the line numbers on from the Board, as its cards do.
+    expect(html).toMatch(/<ol start="9"/);
     expect(screen).toContain("Alt under streken vises ikke i spillet");
     expect(screen).toContain(
       "Vises ikke i spillet. Slå dem sammen med en gruppe over for at de skal telle.",
@@ -872,7 +874,7 @@ describe("review.merge", () => {
     expect(await snapshot(gameId, ids)).toEqual(before);
   });
 
-  it("FR-20, UX-DR12 (AC3): the page renders a checkbox named Velg «label» on every Board and Ikke på brettet card and none under Forkastet", async () => {
+  it("FR-20, UX-DR12 (AC3): the page renders a checkbox named Velg gruppen «label», N personer on every Board and Ikke på brettet card and none under Forkastet", async () => {
     const { gameId, ids } = await reviewGame([
       [
         Q1,
@@ -891,7 +893,8 @@ describe("review.merge", () => {
       .where(eq(answerGroup.id, await groupIdOf(ids[0], "geir")));
     const html = await render(gameId);
     expect(html.match(/type="checkbox"/g)).toHaveLength(9);
-    expect(html).toContain('aria-label="Velg «Per»"');
+    expect(html).toContain('aria-label="Velg gruppen «Per», 1 person"');
+    expect(html).toContain('aria-label="Velg gruppen «Kari», 1 person"');
     const forkastet = html.slice(html.indexOf(">Forkastet"));
     expect(forkastet).toContain(">Geir</h4>");
     expect(forkastet).not.toContain('type="checkbox"');

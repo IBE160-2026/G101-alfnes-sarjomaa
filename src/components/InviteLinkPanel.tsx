@@ -124,7 +124,7 @@ export function InviteLinkPanel({
             type="button"
             variant="primary"
             pending={pending}
-            pendingLabel="Åpner …"
+            pendingLabel={"Åpner\u00a0…"}
             onClick={create}
           >
             Åpne innsamlingen
@@ -145,7 +145,7 @@ export function InviteLinkPanel({
         type="button"
         variant="primary"
         pending={pending}
-        pendingLabel="Lager lenker …"
+        pendingLabel={"Lager lenker\u00a0…"}
         onClick={create}
       >
         Lag lenker

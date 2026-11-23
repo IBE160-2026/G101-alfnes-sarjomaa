@@ -25,13 +25,15 @@ export function LockBoard({
   const [failure, setFailure] = useState<"locked" | "retry">();
   const [pending, startTransition] = useTransition();
   const ready = remaining === 0;
-  const shown = useRef(ready);
+  // Set only by this instance's own refused confirm, so an edit or mark elsewhere that
+  // changes `ready` never pulls focus here.
+  const refused = useRef(false);
 
-  // A refresh swaps the dialog for the disabled button (a second tab un-reviewed a
-  // Question), and focus in the removed dialog falls to <body>.
+  // The refresh after the refusal swaps the dialog for the disabled button (a second
+  // tab un-reviewed a Question), and focus in the removed dialog falls to <body>.
   useEffect(() => {
-    if (shown.current === ready) return;
-    shown.current = ready;
+    if (ready || !refused.current) return;
+    refused.current = false;
     if (document.activeElement === document.body)
       rootRef.current?.querySelector("button")?.focus();
   }, [ready]);
@@ -46,9 +48,10 @@ export function LockBoard({
         else if (
           result?.code === "QUESTIONS_UNREVIEWED" ||
           result?.code === "NOT_FOUND"
-        )
+        ) {
+          refused.current = result.code === "QUESTIONS_UNREVIEWED";
           router.refresh();
-        else setFailure(result?.code === "WRONG_STATE" ? "locked" : "retry");
+        } else setFailure(result?.code === "WRONG_STATE" ? "locked" : "retry");
       });
     });
   }
@@ -88,7 +91,7 @@ export function LockBoard({
             type="button"
             variant="primary"
             pending={pending}
-            pendingLabel={"Låser …"}
+            pendingLabel={"Låser\u00a0…"}
             onClick={lock}
           >
             Lås brettet

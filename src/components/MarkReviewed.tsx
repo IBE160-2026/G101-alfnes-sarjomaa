@@ -103,7 +103,7 @@ export function MarkReviewed({
           type="button"
           variant="primary"
           pending={pending}
-          pendingLabel="Markerer …"
+          pendingLabel={"Markerer\u00a0…"}
           onClick={mark}
         >
           Marker som gjennomgått

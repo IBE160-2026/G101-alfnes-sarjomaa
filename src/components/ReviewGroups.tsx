@@ -155,6 +155,25 @@ export function ReviewGroups({
     return () => document.removeEventListener("keydown", listener);
   }, [hasSelection]);
 
+  // While the sticky bar shows, focus and scrolling stop above it (WCAG 2.4.11): the
+  // page's scroll padding follows the bar's height plus its 16 px offset and 16 px of air.
+  // When it appears, the control just ticked is lifted clear of it.
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!hasSelection || !bar) return;
+    const root = document.documentElement;
+    const pad = () =>
+      (root.style.scrollPaddingBottom = `${bar.offsetHeight + 32}px`);
+    pad();
+    const observer = new ResizeObserver(pad);
+    observer.observe(bar);
+    document.activeElement?.scrollIntoView({ block: "nearest" });
+    return () => {
+      observer.disconnect();
+      root.style.scrollPaddingBottom = "";
+    };
+  }, [hasSelection]);
+
   // A stale view (the Groups changed elsewhere): show the saved state.
   function stale() {
     setSelected([]);
@@ -407,7 +426,8 @@ export function ReviewGroups({
               Vises ikke i spillet. Slå dem sammen med en gruppe over for at de
               skal telle.
             </p>
-            <ol className="mt-3 flex flex-col gap-2">
+            {/* Numbered on from the Board, so list position matches the card's rank. */}
+            <ol start={BOARD_SIZE + 1} className="mt-3 flex flex-col gap-2">
               {below.map((g, i) => card(g, BOARD_SIZE + i + 1, "below"))}
             </ol>
           </section>
@@ -432,7 +452,7 @@ export function ReviewGroups({
                     type="button"
                     variant="secondary"
                     pending={pending && busyId === g.id}
-                    pendingLabel="Angrer …"
+                    pendingLabel={"Angrer\u00a0…"}
                     onClick={() => restore(g)}
                   >
                     Angre forkasting
@@ -452,7 +472,12 @@ export function ReviewGroups({
           className="sticky bottom-4 z-10 mt-8 rounded-lg bg-ink p-4 text-surface shadow-lg [&_:focus-visible]:outline-focus-inverse"
         >
           {failure && (
-            <FailureNotice failure={failure} gameId={gameId} className="mb-4" />
+            // The Notice is light, so its link takes the dark ring back (DESIGN contrast table).
+            <FailureNotice
+              failure={failure}
+              gameId={gameId}
+              className="mb-4 [&_a:focus-visible]:outline-focus-ring"
+            />
           )}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <p className="text-title">
@@ -465,7 +490,7 @@ export function ReviewGroups({
                   type="button"
                   variant="inverse"
                   pending={pending && op === "merge"}
-                  pendingLabel="Slår sammen …"
+                  pendingLabel={"Slår sammen\u00a0…"}
                   onClick={merge}
                 >
                   Slå sammen {n} grupper
@@ -492,7 +517,7 @@ export function ReviewGroups({
                         type="button"
                         variant="inverse"
                         pending={pending && op === "move"}
-                        pendingLabel="Flytter …"
+                        pendingLabel={"Flytter\u00a0…"}
                         onClick={() => move(targetId)}
                       >
                         Flytt
@@ -503,7 +528,7 @@ export function ReviewGroups({
                     type="button"
                     variant="inverse"
                     pending={pending && op === "new"}
-                    pendingLabel="Lager gruppe …"
+                    pendingLabel={"Lager gruppe\u00a0…"}
                     onClick={() => move()}
                   >
                     Ny gruppe

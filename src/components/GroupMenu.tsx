@@ -11,7 +11,8 @@ import { Button } from "@/components/Button";
 
 // A GroupCard's always-visible menu (UX-DR10): a disclosure with "Gi nytt navn" and
 // "Forkast fra brettet". Esc closes it and returns focus to the trigger, a pointer-down
-// outside closes it, and picking an item closes it. While `busy` it does nothing.
+// outside closes it, and picking an item closes it. While `busy` the trigger is
+// aria-disabled and does nothing.
 export function GroupMenu({
   groupId,
   label,
@@ -71,6 +72,7 @@ export function GroupMenu({
         aria-label={`Mer for «${label}»`}
         aria-expanded={open}
         aria-controls={listId}
+        aria-disabled={busy || undefined}
         onClick={() => !busy && setOpen((o) => !o)}
         className="size-11 px-0 text-title"
       >
