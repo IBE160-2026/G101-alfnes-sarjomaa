@@ -7,16 +7,22 @@ import {
   JudgeError,
   type Judge,
 } from "@/server/judge";
-import { evaluate, parseLabelled } from "@/server/judge/eval";
+import { evaluate, FALLBACK, parseLabelled } from "@/server/judge/eval";
 import { PROMPT_VERSION } from "@/server/judge/prompt";
-import { itemsOf, record } from "@/server/judge/record";
+import { record } from "@/server/judge/record";
 import { NORMALIZE_VERSION } from "@/lib/normalize";
 
 // AD-20. Prints aggregates only: never a Question or an Answer.
 const DATASET = "data/protoqa/dev.crowdsourced.jsonl";
 const RULINGS = "data/rulings/protoqa-dev.json";
-const FALLBACK = "fallback: ";
 const USAGE = "Usage: npm run judge:eval [-- --live | -- --file <path>]";
+
+function reportFallback(reasons: string[]) {
+  if (reasons.length > 0)
+    console.log(
+      `Questions that fell back to one Group per item: ${reasons.length} (${reasons.join(", ")}).`,
+    );
+}
 
 function fail(message: string): never {
   console.error(message);
@@ -75,15 +81,14 @@ try {
         calls += error.calls;
         fellBack.push(error.reason);
         if (fellBack.length === questions.length) throw error;
-        const distinct = itemsOf(items);
         rulings.push({
           kind: "partition",
           promptVersion: PROMPT_VERSION,
           normalizeVersion: NORMALIZE_VERSION,
           model: `${FALLBACK}${error.reason}`,
           question,
-          items: distinct,
-          assignments: distinct.map((_, i) => i),
+          items,
+          assignments: items.map((_, i) => i),
         });
       }
     }
@@ -91,10 +96,7 @@ try {
     console.log(
       `Wrote ${rulings.length} rulings to ${RULINGS}; run npx prettier --write ${RULINGS} before committing.`,
     );
-    if (fellBack.length > 0)
-      console.log(
-        `Questions that fell back to one Group per item: ${fellBack.length} (${fellBack.join(", ")}).`,
-      );
+    reportFallback(fellBack);
     liveCalls = calls;
   }
 
@@ -102,6 +104,7 @@ try {
     questions,
     file === undefined ? getReplayJudge() : getLiveJudge(),
   );
+  reportFallback(result.fellBack);
   if (result.uncovered > 0)
     console.error(
       `Warning: items with no stored ruling, each counted as its own Group: ${result.uncovered}; re-record with npm run judge:eval -- --live.`,

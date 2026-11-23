@@ -21,68 +21,47 @@ const ROOT = resolve(".");
 const temp = mkdtempSync(join(tmpdir(), "judge-eval-"));
 afterAll(() => rmSync(temp, { recursive: true, force: true }));
 
-// Preloaded into the CLI: any socket or fetch fails the run, so a green run made no network call.
-const noNetwork = join(temp, "no-network.mjs");
+// Preloaded into the CLI: any socket fails the run, and so does any fetch unless FAKE_OPENROUTER
+// names a stand-in for the OpenRouter endpoint, so a green run made no network call. Every reply
+// groups answers by first letter. "retry": the first request gets a 500, so that Question costs
+// two calls. "half": the first Question is answered and every other one gets invalid output.
+// "down": every request gets a 500.
+const preload = join(temp, "fake-openrouter.mjs");
 writeFileSync(
-  noNetwork,
+  preload,
   `import net from "node:net";
 net.Socket.prototype.connect = () => { throw new Error("network blocked"); };
-globalThis.fetch = () => { throw new Error("network blocked"); };
-`,
-);
-
-// For the live paths: a stand-in for the OpenRouter endpoint, still with no socket. The first
-// request gets a 500, so one Question costs two calls; every reply groups answers by first letter.
-const fakeOpenRouter = join(temp, "fake-openrouter.mjs");
-writeFileSync(
-  fakeOpenRouter,
-  `import net from "node:net";
-net.Socket.prototype.connect = () => { throw new Error("network blocked"); };
+const mode = process.env.FAKE_OPENROUTER;
 let requests = 0;
-globalThis.fetch = async (url, init) => {
-  if (!String(url).startsWith("https://openrouter.ai/")) throw new Error("network blocked");
-  if (requests++ === 0) return new Response("busy", { status: 500 });
-  const { answers } = JSON.parse(JSON.parse(init.body).messages[1].content);
-  const assignments = answers.map((answer) => answer.charCodeAt(0));
-  return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ assignments }) } }] });
-};
-`,
-);
-
-// An endpoint that answers the first Question and returns invalid output for every other one.
-const halfOpenRouter = join(temp, "half-openrouter.mjs");
-writeFileSync(
-  halfOpenRouter,
-  `import net from "node:net";
-net.Socket.prototype.connect = () => { throw new Error("network blocked"); };
 let first;
-globalThis.fetch = async (url, init) => {
-  if (!String(url).startsWith("https://openrouter.ai/")) throw new Error("network blocked");
+globalThis.fetch = (url, init) => {
+  if (!mode || !String(url).startsWith("https://openrouter.ai/")) throw new Error("network blocked");
+  return reply(init);
+};
+async function reply(init) {
+  if (mode === "down" || (mode === "retry" && requests++ === 0)) return new Response("busy", { status: 500 });
   const { question, answers } = JSON.parse(JSON.parse(init.body).messages[1].content);
   first ??= question;
-  const content = question === first ? JSON.stringify({ assignments: answers.map((a) => a.charCodeAt(0)) }) : "not json";
+  const content = mode === "half" && question !== first ? "not json" : JSON.stringify({ assignments: answers.map((a) => a.charCodeAt(0)) });
   return Response.json({ choices: [{ finish_reason: "stop", message: { content } }] });
-};
+}
 `,
 );
 
-// An endpoint that is always down: every request gets a 500.
-const downOpenRouter = join(temp, "down-openrouter.mjs");
-writeFileSync(
-  downOpenRouter,
-  `import net from "node:net";
-net.Socket.prototype.connect = () => { throw new Error("network blocked"); };
-globalThis.fetch = async () => new Response("down", { status: 500 });
-`,
-);
+type Fake = "retry" | "half" | "down";
 
 // No --env-file flag, so a developer's .env or .env.local is never read here. The script and
 // tsconfig are absolute, so the CLI can run in a temporary working directory with its own data.
 function cli(cwd: string, key: string, ...args: string[]) {
-  return run(noNetwork, cwd, key, ...args);
+  return run(undefined, cwd, key, ...args);
 }
 
-function run(preload: string, cwd: string, key: string, ...args: string[]) {
+function run(
+  fake: Fake | undefined,
+  cwd: string,
+  key: string,
+  ...args: string[]
+) {
   return spawnSync(
     join(ROOT, "node_modules/.bin/tsx"),
     [
@@ -98,6 +77,7 @@ function run(preload: string, cwd: string, key: string, ...args: string[]) {
       env: {
         ...process.env,
         OPENROUTER_API_KEY: key,
+        FAKE_OPENROUTER: fake ?? "",
         NODE_OPTIONS: `--import=${pathToFileURL(preload).href}`,
       },
       timeout: 30_000,
@@ -336,7 +316,7 @@ describe("npm run judge:eval", () => {
   });
   it("FR-32 (AC3): --live with a key records one ruling per Question, writes the rulings file, replays it and reports the live calls", () => {
     const dir = workdir("live", []);
-    const { status, stdout, stderr } = run(fakeOpenRouter, dir, "x", "--live");
+    const { status, stdout, stderr } = run("retry", dir, "x", "--live");
     expect(stderr).toBe("");
     expect(stdout).toBe(
       [
@@ -371,7 +351,7 @@ describe("npm run judge:eval", () => {
     mkdirSync(dir);
     writeFileSync(join(dir, "local.jsonl"), TINY);
     const { status, stdout, stderr } = run(
-      fakeOpenRouter,
+      "retry",
       dir,
       "x",
       "--file",
@@ -420,9 +400,82 @@ describe("npm run judge:eval", () => {
     expect(status).toBe(0);
   });
 
+  it("FR-32 (AC2): rulings from another prompt version, with the current model, warn", () => {
+    const { status, stderr } = cli(
+      workdir("prompt-drift", [
+        {
+          ...ruling(
+            FRUIT,
+            ["apple", "banana", "bananas", "pear"],
+            [0, 1, 1, 2],
+          ),
+          promptVersion: "0",
+        },
+        {
+          ...ruling(BEACH, ["sun cream", "sunscreen", "towel"], [0, 0, 1]),
+          promptVersion: "0",
+        },
+      ]),
+      "",
+    );
+    expect(stderr).toBe(
+      `Warning: the rulings come from prompt version 0 and model ${env.JUDGE_MODEL}, but the current ones are prompt version ${PROMPT_VERSION} and model ${env.JUDGE_MODEL}.\n`,
+    );
+    expect(status).toBe(0);
+  });
+
+  it("FR-32 (AC3), FR-17: --file where the Judge fails on one Question scores it as one Group per item, counts its calls and reports the fallback as --live does", () => {
+    const dir = join(temp, "file-half");
+    mkdirSync(dir);
+    writeFileSync(join(dir, "local.jsonl"), TINY);
+    const { status, stdout, stderr } = run(
+      "half",
+      dir,
+      "x",
+      "--file",
+      "local.jsonl",
+    );
+    expect(stderr).toBe("");
+    // The beach items stand alone: recall (10 + 1/3 + 4/3 + 4) / 17 = 47/51, F1 47/49.
+    expect(stdout).toBe(
+      [
+        "Questions that fell back to one Group per item: 1 (INVALID_OUTPUT).",
+        "Data: local labelled set",
+        "Questions: 2",
+        "Answers scored: 17",
+        "B-cubed precision: 1.0000",
+        "B-cubed recall: 0.9216",
+        "B-cubed F1: 0.9592",
+        "Judge calls per Question: 1.50",
+        `Prompt version: ${PROMPT_VERSION}`,
+        `Model: ${env.JUDGE_MODEL}, fallback: INVALID_OUTPUT`,
+        "F1 0.9592 reaches the SM-2 bar of 0.70.",
+        "",
+      ].join("\n"),
+    );
+    expect(status).toBe(0);
+    expect(readdirSync(dir)).toEqual(["local.jsonl"]);
+  });
+
+  it("FR-32 (AC3): --file where the Judge fails on every Question exits 1 with the reason and gives no figure", () => {
+    const dir = join(temp, "file-down");
+    mkdirSync(dir);
+    writeFileSync(join(dir, "local.jsonl"), TINY);
+    const { status, stdout, stderr } = run(
+      "down",
+      dir,
+      "x",
+      "--file",
+      "local.jsonl",
+    );
+    expect(stderr.trim()).toBe("The Judge failed with ERROR after 2 calls.");
+    expect(stdout).toBe("");
+    expect(status).toBe(1);
+  });
+
   it("FR-32 (AC3), FR-17: a --live run where the Judge fails on one Question stores it as one Group per item with the reason as its model, records the others and reports the fallback", () => {
     const dir = workdir("live-half", []);
-    const { status, stdout, stderr } = run(halfOpenRouter, dir, "x", "--live");
+    const { status, stdout, stderr } = run("half", dir, "x", "--live");
     expect(stderr).toBe("");
     expect(status).toBe(0);
     expect(stdout).toContain(
@@ -431,6 +484,8 @@ describe("npm run judge:eval", () => {
     expect(stdout).toContain(
       `Model: ${env.JUDGE_MODEL}, fallback: INVALID_OUTPUT\n`,
     );
+    // One call for the first Question and two (a retry) for the one that fell back.
+    expect(stdout).toContain("Judge calls per Question: 1.50\n");
     const rulings = JSON.parse(
       readFileSync(join(dir, "data/rulings/protoqa-dev.json"), "utf8"),
     );
@@ -447,7 +502,7 @@ describe("npm run judge:eval", () => {
     ]);
     const file = join(dir, "data/rulings/protoqa-dev.json");
     const before = readFileSync(file, "utf8");
-    const { status, stdout, stderr } = run(downOpenRouter, dir, "x", "--live");
+    const { status, stdout, stderr } = run("down", dir, "x", "--live");
     expect(stderr.trim()).toBe(
       "The Judge failed with ERROR after 2 calls; nothing was written.",
     );

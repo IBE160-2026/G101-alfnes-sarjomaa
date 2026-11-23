@@ -69,41 +69,50 @@ export function parseLabelled(jsonl: string): LabelledQuestion[] {
   return questions;
 }
 
+// The model a Question that fell back is stored and reported under, so the version warning skips it.
+export const FALLBACK = "fallback: ";
+
 // One partition per Question, scored as one micro-average over every respondent answer.
 export async function evaluate(questions: LabelledQuestion[], judge: Judge) {
   const scored: { weight: number; gold: string; group: string }[] = [];
   const models = new Set<string>();
   const promptVersions = new Set<string>();
+  const fellBack: string[] = [];
   let calls = 0;
   let uncovered = 0;
   let missed = 0;
   for (const [q, { question, items, weights, gold }] of questions.entries()) {
-    let result;
+    let assignments: number[];
     try {
-      result = await judge.partition(
+      const result = await judge.partition(
         { question, items },
         AbortSignal.timeout(JUDGE_TIMEOUT_MS),
       );
+      calls += result.calls;
+      uncovered += result.uncovered;
+      models.add(result.model);
+      promptVersions.add(result.promptVersion);
+      assignments = result.assignments;
     } catch (error) {
+      if (!(error instanceof JudgeError)) throw error;
       // A replay miss; the CLI refuses a live run without a key before any call.
-      if (
-        error instanceof JudgeError &&
-        (error.reason === "NO_KEY" || error.reason === "NO_STORED_RULING")
-      ) {
+      if (error.reason === "NO_KEY" || error.reason === "NO_STORED_RULING") {
         missed++;
         continue;
       }
-      throw error;
+      // FR-17, as judge:eval --live: a live failure scores the Question as one Group per item.
+      // If every Question fails, the figure would measure nothing, so the run fails instead.
+      calls += error.calls;
+      fellBack.push(error.reason);
+      if (fellBack.length === questions.length) throw error;
+      models.add(`${FALLBACK}${error.reason}`);
+      assignments = items.map((_, i) => i);
     }
-    calls += result.calls;
-    uncovered += result.uncovered;
-    models.add(result.model);
-    promptVersions.add(result.promptVersion);
     items.forEach((_, i) =>
       scored.push({
         weight: weights[i],
         gold: `${q}:${gold[i]}`,
-        group: `${q}:${result.assignments[i]}`,
+        group: `${q}:${assignments[i]}`,
       }),
     );
   }
@@ -117,6 +126,7 @@ export async function evaluate(questions: LabelledQuestion[], judge: Judge) {
     answers: scored.reduce((sum, item) => sum + item.weight, 0),
     calls,
     uncovered,
+    fellBack,
     models: [...models].sort(),
     promptVersions: [...promptVersions].sort(),
   };

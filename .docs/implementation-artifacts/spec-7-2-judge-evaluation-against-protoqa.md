@@ -48,7 +48,7 @@ deferred: []
 | Rulings cover part of a Question | stale items | figures computed with uncovered items as singletons, warning with the uncovered count | No error expected |
 | `--live` / `--file` without key | empty `OPENROUTER_API_KEY` | exit 1, stderr names `OPENROUTER_API_KEY`, nothing read or written | refuse first |
 | `--live` with key | ProtoQA dataset | records one partition per Question via `record()`, writes `data/rulings/protoqa-dev.json`, then replays and reports real calls per Question | a `JudgeError` writes nothing, exit 1 |
-| `--file <path>` with key | local labelled jsonl, ProtoQA format | live Judge, aggregates only, writes nothing | bad line → `Line N ...`, exit 1 |
+| `--file <path>` with key | local labelled jsonl, ProtoQA format | live Judge, aggregates only, writes nothing; a Question the Judge fails on is scored as one Group per item and reported in a fallback line (amended 2026-11-23, see below) | bad line → `Line N ...`, exit 1; every Question failing → exit 1 |
 | Unknown argument | e.g. `--foo` | usage line, exit 1 | |
 
 </intent-contract>
@@ -201,6 +201,10 @@ The second live run (prompt version 1, `deepseek/deepseek-v4.1-flash`, about 1 m
 An earlier live run the same day, with the old call counter, gave F1 0.6739 with 14 fallbacks; the model is not fully deterministic at temperature 0, so figures move by about 0.01 between recordings. The committed file is the second run, and `judge-eval.test.ts` pins its figures.
 
 **What the fallbacks show.** Every fallback was a reply with the wrong number of assignments. The Questions that succeeded have 9 to 61 distinct items, and the ones that fell back 40 to 83, so the model starts miscounting at around 40 items. A fallback puts every answer alone (precision 1, recall low), which is why recall, not precision, pulls F1 under 0.70. A real Game can reach that: up to 50 invite links (`INVITE_LINKS_MAX`) with up to 5 answers per Question each (`ANSWERS_PER_QUESTION_MAX`) gives up to 250 answers per Question, and a big party with spread-out answers passes 40 distinct items easily. The demo Game and the pilot runs (5 to 6 sets) stayed far below it, which is why it never showed there. A prompt that numbers the items, or asks for groups of item numbers instead of one number per item, is the obvious next version to try before the 1 Dec freeze; SM-2 allows tuning until then, with every version tried reported.
+
+## Fallback for `--file` (2026-11-23, after the Epic 7 review)
+
+The Epic 7 code review raised the rejected finding "One failed Question discards a whole `--file` run" again, because the live recording above had already given `--live` the opposite behaviour. The group chose option A. `evaluate()` now treats a `JudgeError` other than the replay misses (`NO_KEY`, `NO_STORED_RULING`) as `--live` does: the Question is scored as one Group per item, its calls count, its model is reported as `fallback: <reason>`, and the output has the same line as `--live`, "Questions that fell back to one Group per item: N (reasons)." If every Question fails, the run exits 1 with the reason, because a figure made only of fallbacks measures nothing. Replay misses still stop the run as before. The I/O matrix row above and AD-20 are amended. A spawned `--file` run against the stand-in endpoint covers one fallback and the all-fail case.
 
 ## Tuning tried: reasoning effort (2026-11-23)
 

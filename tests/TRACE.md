@@ -394,6 +394,7 @@ Judge evaluation.
 - CI runs `npm run judge:eval` after `npm test`, so the examiner's script itself is exercised offline with no key (Story 7.2, AC2).
 - `data/protoqa/` holds only `dev.crowdsourced.jsonl` (sha256 `cd3bec04…7ce5`, verbatim) and `ATTRIBUTION.md`, checked by review (Story 7.2, AC4).
 - `tests/integration/judge-eval.test.ts`, live-recording follow-up: against an endpoint that answers the first Question and returns invalid output for the other, `--live` writes two rulings, the second with one Group per item and `model: "fallback: INVALID_OUTPUT"`, prints "Questions that fell back to one Group per item: 1 (INVALID_OUTPUT)." and the model line with the fallback, with no warning (Story 7.2, AC3, FR-17).
+- `tests/integration/judge-eval.test.ts`, Epic 7 review fixes: the `--live` fallback run also prints 1.50 calls per Question, so the failed Question's two calls count; rulings whose prompt version alone differs warn; `--file` against the same half-failing endpoint scores the failed Question as one Group per item (recall 0.9216, F1 0.9592), prints the same fallback line and model line as `--live` and writes nothing; `--file` against an endpoint that is always down exits 1 with "The Judge failed with ERROR after 2 calls." and no figure (Story 7.2, AC2, AC3, FR-17).
 - `--live` against the real endpoint was run by hand on 2026-11-23 (see the spec); the suite never calls it (AC3).
 
 ## NFR-1
