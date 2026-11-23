@@ -12,7 +12,9 @@ export const GAME_STATES = [
 
 export type GameState = (typeof GAME_STATES)[number];
 
-// Entered only by games.create; the six edges below are the other PRD §4.1 transitions.
+// Entered by games.create. review.createFromQuestionSet inserts a Game directly in ready
+// (FR-33, AD-4); that is a creation, not an operation on a Game, so no PERMITTED row.
+// The six edges below are the other PRD §4.1 transitions.
 export const INITIAL_STATE: GameState = "draft";
 
 export const TRANSITIONS: readonly (readonly [GameState, GameState])[] = [

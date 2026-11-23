@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { and, asc, count as countRows, eq, sql } from "drizzle-orm";
 import { DomainError, validate } from "@/lib/errors";
 import { PERMITTED } from "@/lib/game-state";
@@ -67,6 +68,22 @@ export async function setReviewed(
     .update(question)
     .set({ reviewed })
     .where(eq(question.id, questionId));
+}
+
+// FR-33: a new Game's Questions at positions 1..n (AD-16), in the caller's transaction.
+// Returns their ids in position order.
+export async function insertAll(
+  tx: Tx,
+  gameId: string,
+  texts: string[],
+): Promise<string[]> {
+  const ids = texts.map(() => randomUUID());
+  await tx
+    .insert(question)
+    .values(
+      texts.map((text, i) => ({ id: ids[i], gameId, position: i + 1, text })),
+    );
+  return ids;
 }
 
 // No owner check: callers have already resolved the Game (owned, or by a valid Invite link).

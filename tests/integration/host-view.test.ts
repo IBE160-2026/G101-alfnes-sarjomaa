@@ -238,7 +238,7 @@ describe("fixed lists (FR-12)", () => {
     ]);
   });
 
-  it("FR-12: game has exactly these 9 columns and host these 6, so no Host option exists", async () => {
+  it("FR-12: game has exactly these 10 columns and host these 6, so no Host option exists (question_set, FR-33, picks content, not an anonymity setting)", async () => {
     expect(await columns("game")).toEqual([
       "created_at",
       "grouping_lease_until",
@@ -246,6 +246,7 @@ describe("fixed lists (FR-12)", () => {
       "id",
       "invite_links_issued",
       "played_at",
+      "question_set",
       "state",
       "title",
       "updated_at",

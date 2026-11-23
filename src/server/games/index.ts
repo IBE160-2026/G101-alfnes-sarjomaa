@@ -65,6 +65,31 @@ export function create(
   });
 }
 
+// FR-33: a Game born in ready, for review.createFromQuestionSet (AD-4). The caller validated
+// the input and writes its Questions and Board in the same transaction.
+export async function insertReady(
+  tx: Tx,
+  {
+    hostId,
+    title,
+    questionSet,
+  }: { hostId: string; title: string; questionSet: string },
+): Promise<{ id: string }> {
+  const now = new Date();
+  const [row] = await tx
+    .insert(game)
+    .values({
+      hostId,
+      title,
+      questionSet,
+      state: "ready",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning({ id: game.id });
+  return row;
+}
+
 export function listOwned(hostId: string): Promise<GameSummary[]> {
   return withBoundary("games", "listOwned", async () => {
     const db = await getDb();
@@ -85,6 +110,7 @@ export function getOwned(
     inviteLinksIssued: number;
     leaseExpired: boolean;
     playedAt: Date | null;
+    questionSet: string | null;
   }
 > {
   return withBoundary("games", "getOwned", async () => {
@@ -95,6 +121,7 @@ export function getOwned(
         ...summary,
         inviteLinksIssued: game.inviteLinksIssued,
         playedAt: game.playedAt,
+        questionSet: game.questionSet,
         // DB time, as the Grouping runner compares the lease (AD-9).
         leaseExpired: sql<boolean>`coalesce(${game.groupingLeaseUntil} < now(), false)`,
       })
@@ -120,7 +147,7 @@ export function find(
   });
 }
 
-// The only way a Host or Player mutation locks a Game row. create, transition (called
+// The only way a Host or Player mutation locks a Game row. create, insertReady, transition (called
 // after this in the same transaction) and the bulk purgeExpired write without it.
 // Host calls pass hostId: they are constrained to the owner and count as a Host change
 // (updated_at, for the purge); touch: false skips that write when the row is about to go.
