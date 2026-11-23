@@ -40,20 +40,32 @@ export function PlayView({
           <p className="text-tv-team text-stage-muted">
             Spørsmål {question.position} av {total}
           </p>
-          <ol aria-label="Lag" className="mt-6 flex flex-col gap-4">
+          {/* The Score sits beside the name (beside "Svarer nå" on the active card), so four
+              14-character names of wide letters still fit the 941 px column (A8). */}
+          <ol aria-label="Lag" className="mt-6 flex flex-col gap-3">
             {teams.map((team) => (
               <li
                 key={team.id}
                 aria-current={team.current || undefined}
-                className={`rounded-md px-6 py-4 ${
+                className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 rounded-md px-6 py-4 ${
                   team.current
                     ? "bg-stage-accent text-stage-on-accent"
                     : "bg-stage-raised"
                 }`}
               >
                 {team.current && <p className="text-tv-team">Svarer nå</p>}
-                <p className="text-tv-team break-words">{team.name}</p>
-                <p className="mt-2 text-tv-score tabular-nums">
+                <p
+                  className={`text-tv-team break-words hyphens-auto ${
+                    team.current ? "col-span-2" : ""
+                  }`}
+                >
+                  {team.name}
+                </p>
+                <p
+                  className={`text-tv-score tabular-nums ${
+                    team.current ? "col-start-2 row-start-1" : ""
+                  }`}
+                >
                   {/* Counts up visually by CSS; the real value is the sr-only text. */}
                   <span
                     aria-hidden="true"

@@ -417,6 +417,109 @@ test("FR-24, FR-25, FR-27 (AC1, AC2, AC4, AC5), UX-DR13, UX-DR14, UX-DR21, NFR-5
   expect(await seriousViolations(page)).toEqual([]);
 });
 
+// Manual check A9 and the wide-name case of A8: the widest content the canvas must hold.
+const WIDE_LABEL = "M".repeat(39) + "Ø";
+const WIDE_TEAMS = ["W", "M", "W", "M"].map(
+  (letter, i) => letter.repeat(13) + String(i + 1),
+);
+
+test("FR-24 (A8, A9), UX-DR21: a 40-character label of wide letters wraps inside its tile, scored and unscored, never truncated, with its Count inside the tile and every tile above the control bar; four 14-character Team names of wide letters fit the Team column with every Score in its card", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const { gamePath, links } = await collectingGame(page);
+  await submitSets(browser, baseURL, links);
+  await closeAndOpenReview(page, gamePath);
+  // Kari (three Answers) is rank 1, so the wide label is tile 1.
+  await page
+    .getByRole("button", { name: "Mer for «Kari»", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Gi nytt navn", exact: true }).click();
+  await page.getByLabel("Navn på gruppen").fill(WIDE_LABEL);
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { level: 4, name: WIDE_LABEL, exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Marker som gjennomgått" }).click();
+  await page
+    .getByRole("navigation", { name: "Spørsmål" })
+    .locator("..")
+    .getByRole("button", { name: "Lås brettet" })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Låse brettet?" })
+    .getByRole("button", { name: "Lås brettet" })
+    .click();
+  await expect(page).toHaveURL(gamePath);
+  await page.getByRole("link", { name: "Start spillet" }).click();
+  for (const [i, name] of WIDE_TEAMS.entries()) {
+    if (i > 1) await page.getByRole("button", { name: "Legg til lag" }).click();
+    await page.getByLabel(`Navn på lag ${i + 1}`).fill(name);
+  }
+  await page.getByRole("button", { name: "Start spillet" }).click();
+  await expect(page.locator("h1")).toHaveText(QUESTION);
+
+  const stage = page.locator("[data-stage]");
+  const box = async (locator: Locator) => (await locator.boundingBox())!;
+  const inside = (
+    inner: { x: number; y: number; width: number; height: number },
+    outer: typeof inner,
+  ) => {
+    expect(inner.x).toBeGreaterThanOrEqual(outer.x - 0.5);
+    expect(inner.y).toBeGreaterThanOrEqual(outer.y - 0.5);
+    expect(inner.x + inner.width).toBeLessThanOrEqual(
+      outer.x + outer.width + 0.5,
+    );
+    expect(inner.y + inner.height).toBeLessThanOrEqual(
+      outer.y + outer.height + 0.5,
+    );
+  };
+  const bar = page
+    .getByText("Trykk F for fullskjerm.", { exact: true })
+    .locator("..");
+  const barTop = (await box(bar)).y;
+
+  // A8: every Team card, name and Score inside the canvas and above the control bar.
+  const cards = stage.getByRole("list", { name: "Lag" }).getByRole("listitem");
+  await expect(cards).toHaveCount(4);
+  for (const [i, card] of (await cards.all()).entries()) {
+    await expect(card).toContainText(WIDE_TEAMS[i]);
+    const c = await box(card);
+    expect(c.y + c.height, WIDE_TEAMS[i]).toBeLessThanOrEqual(barTop);
+    inside(c, { x: 0, y: 0, width: 1920, height: 1080 });
+    inside(await box(card.locator(".score-count")), c);
+  }
+
+  // A9: the label wraps inside tile 1, in full, with the Count beside it.
+  const list = stage.locator("ol:has([data-slot])");
+  const tile = (n: number) => stage.locator("[data-slot]").nth(n - 1);
+  const label = tile(1).locator(".reveal-label");
+  const fits = async () => {
+    await expect(label).toHaveText(WIDE_LABEL);
+    expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+      true,
+    );
+    const t = await box(tile(1));
+    inside(t, await box(list));
+    expect(t.height).toBeLessThanOrEqual(112);
+    inside(await box(tile(1).locator(".reveal-count")), t);
+    const last = await box(tile(8));
+    expect(last.y + last.height).toBeLessThanOrEqual(barTop);
+  };
+  await page.keyboard.press("1");
+  await expect(tile(1)).toContainText("3 poeng");
+  await fits();
+  // Unscored: the same label beside the Count and "uten poeng".
+  await page.keyboard.press("z");
+  await expect(tile(1)).toHaveRole("button");
+  await page.keyboard.press("u");
+  await page.keyboard.press("1");
+  await expect(tile(1)).toContainText("uten poeng");
+  await fits();
+});
+
 // The default flow (nine Groups, eight on the Board) to a playing Game with Lag 1 and Lag 2.
 async function playingGame(
   page: Page,

@@ -243,7 +243,8 @@ export function Board({
                 data-slot={slot.id}
                 data-revealing={slot.id === clicked ? "" : undefined}
                 tabIndex={-1}
-                className={`flex flex-1 items-center rounded-md border-2 px-6 ${
+                // min-w-0: an unbroken 40-character label wraps inside the tile (A9).
+                className={`flex min-w-0 flex-1 items-center rounded-md border-2 px-6 ${
                   slot.scored
                     ? "border-stage-ink bg-stage-ink text-ink"
                     : "border-dashed border-stage-line bg-stage-raised text-stage-ink"

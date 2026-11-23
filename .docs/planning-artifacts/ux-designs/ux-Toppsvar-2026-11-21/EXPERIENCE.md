@@ -263,7 +263,7 @@ The wireframe abbreviates the instruction and helper lines (marked "…"); the l
 
 ## Surface: Play view
 
-`/spill/[id]/skjerm`. **Team setup** first, on a light Host page: "Hvem spiller?", two TextFields prefilled "Lag 1" and "Lag 2", "Legg til lag" up to four, "Fjern" down to two (FR-23); names 1–14 characters (AD-16; 14 so four Teams fit the 400 px Team column at 48 px), over-long: "Navnet kan ha maks 14 tegn.". "Start spillet" switches to the play view, with the hint "Trykk F for fullskjerm."
+`/spill/[id]/skjerm`. **Team setup** first, on a light Host page: "Hvem spiller?", two TextFields prefilled "Lag 1" and "Lag 2", "Legg til lag" up to four, "Fjern" down to two (FR-23); names 1–14 characters (AD-16; 14 so four Teams fit the Team column at 48 px, with each Score beside its name), over-long: "Navnet kan ha maks 14 tegn.". "Start spillet" switches to the play view, with the hint "Trykk F for fullskjerm."
 
 ### Wireframe — play view, 1920×1080, Question 3, two Groups revealed, Team 1's turn
 
@@ -295,7 +295,7 @@ The wireframe abbreviates the instruction and helper lines (marked "…"); the l
 ### Play view rules
 
 - **Canvas:** a fixed 1920×1080 layout scaled to fit the window (CSS `transform: scale()` from the window size), so the 48 px minimum (FR-24) holds on the TV whatever the laptop resolution. Background `{colors.stage}`.
-- **Team column:** "Spørsmål N av M" at the top in `{typography.tv-team}` `stage-muted`, then the Teams. The active Team is a mint-filled card (`{components.team-score-active}`) with "Svarer nå" at 48 px above the name. Team names are 1–14 characters.
+- **Team column:** "Spørsmål N av M" at the top in `{typography.tv-team}` `stage-muted`, then the Teams. The active Team is a mint-filled card (`{components.team-score-active}`) with "Svarer nå" at 48 px above the name. Each Score sits to the right: beside the name, and on the active card beside "Svarer nå". Team names are 1–14 characters.
 - **Labels never truncate:** a revealed label that does not fit one line wraps to two (line-height 1.05) and the row grows to 112 px. Question text is 56 px up to 80 characters, 48 px above that, budgeted at four lines.
 - **Never shown:** raw Answers, discarded Groups, Groups below the Board limit, Contributor data (FR-24). The view reads only the confirmed Board.
 - **Hidden tiles** show only their rank, so the number of rows shows how many Groups there are (FR-24). Each tile is a `<button>`: **click = scored Reveal for the current Team** (FR-25). From the click until the server acknowledges, the tile border is `{components.board-tile-pending}` (`stage-ink`). A revealed tile is no longer a button; clicking it does nothing (the refusal in FR-25 is enforced server-side too).
@@ -417,7 +417,7 @@ Behavioral rules; contrast pairs are verified in `DESIGN.md` → Colors.
 | A4 | Answer form at 360 px and 320 px, and at 200 % zoom: no horizontal scroll, keyboard never hides the focused field | NFR-4, NFR-6 |
 | A5 | Run axe (or Lighthouse accessibility) on landing, log in, Game list, Game page in each state, Review, play view, answer form, closed and unknown pages: no serious or critical findings | NFR-6 |
 | A6 | Review end to end with keyboard only: merge, move, new Group, rename, discard, undo discard, mark, confirm | NFR-6, FR-20, FR-21 |
-| A8 | Play view, 200-character Question + 8 Groups: everything fits 1080 px with the control bar visible | FR-24 |
+| A8 | Play view, 200-character Question + 8 Groups, and four 14-character Team names of wide letters (e.g. "WWWW…"): everything fits 1080 px with the control bar and every Score visible | FR-24 |
 | A9 | Play view, a 40-character label of wide letters (e.g. "MMMM…Ø") shows in full, wrapped if needed, never truncated | FR-24 |
 | A10 | Review, keyboard only: the focus ring is visible on every SelectionBar control | NFR-6 |
 | A7 | Play view: no raw Answer, discarded Group or below-limit Group is visible at any point of a full round | FR-24 |
