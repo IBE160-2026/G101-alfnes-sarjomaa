@@ -119,6 +119,17 @@ export async function seriousViolations(page: Page) {
   await expect
     .poll(() => page.title(), { message: "the page never got a <title>" })
     .not.toBe("");
+  // A Reveal fades its tile in. Axe measures contrast on the colours mid-fade, so a slow
+  // runner reported color-contrast on a tile that is fine once the animation ends. Only
+  // finite animations are awaited: an infinite one (a spinner) never finishes.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => {})),
+    ),
+  );
   const { violations } = await new AxeBuilder({ page }).analyze();
   return violations
     .filter((v) => v.impact === "serious" || v.impact === "critical")
