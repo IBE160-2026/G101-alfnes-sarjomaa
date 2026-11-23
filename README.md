@@ -144,9 +144,8 @@ Bakgrunn: [endringsforslaget fra 23. november](.docs/planning-artifacts/sprint-c
 Velg et sett under «Spørsmål» når du lager spillet. Da er brettet klart med en gang, uten
 innsamling og gjennomgang (FR-33, trinn 2). Spørsmålene og tellingene kommer fra
 [ProtoQA](https://github.com/iesl/protoqa-data) av ProtoQA-forfatterne (IESL, UMass Amherst),
-lisensiert under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Vi har oversatt og
-tilpasset dem: 25 av 52 spørsmål, oversatt for hånd, med norske gruppenavn og de opptil åtte
-største gruppene. Tellingene er uendret. Spillskjermen viser kilden.
+lisensiert under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), oversatt og
+tilpasset av oss. Spillskjermen viser kilden.
 [Kreditering og endringer](data/protoqa/ATTRIBUTION.md).
 
 <details>
@@ -233,8 +232,8 @@ npm run demo                # skriver ut innloggingen
 
 Åpne <http://localhost:3000/logg-inn> og logg inn med `demo@toppsvar.test` og `demo-passord`.
 Demospillet er oppdiktet og har seks svarsett. Steng innsamlingen, så grupperer dommeren fra
-lagrede avgjørelser. Demoverten kan også lage et spill fra et ferdig spørsmålssett. `.data/demo` lages på nytt ved hver start. `npm run dev` starter tomt i
-`.data/local`.
+lagrede avgjørelser. Demoverten kan også lage et spill fra et ferdig spørsmålssett.
+`.data/demo` lages på nytt ved hver start. `npm run dev` starter tomt i `.data/local`.
 
 **Appen kjører uten noen nøkkel.** Variablene står i [`.env.example`](.env.example). Kopier den
 til `.env.local` for å endre noe.
