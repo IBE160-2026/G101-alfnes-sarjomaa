@@ -9,3 +9,7 @@ const DATE = new Intl.DateTimeFormat("nb-NO", {
 export function formatDate(date: Date): string {
   return DATE.format(date);
 }
+
+// Review's counts: one copy, so cards, headings and announcements always read alike.
+export const people = (n: number) => (n === 1 ? "1 person" : `${n} personer`);
+export const groups = (n: number) => (n === 1 ? "1 gruppe" : `${n} grupper`);

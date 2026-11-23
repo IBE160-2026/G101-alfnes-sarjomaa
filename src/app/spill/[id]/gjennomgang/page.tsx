@@ -7,6 +7,7 @@ import { GroupCard } from "@/components/GroupCard";
 import { Notice } from "@/components/Notice";
 import { ReviewGroups } from "@/components/ReviewGroups";
 import { DomainError } from "@/lib/errors";
+import { groups } from "@/lib/format";
 import { fallbackNotice } from "@/lib/review";
 import * as auth from "@/server/auth";
 import { env } from "@/server/env";
@@ -38,8 +39,6 @@ export async function generateMetadata({
     throw error;
   }
 }
-
-const groups = (n: number) => (n === 1 ? "1 gruppe" : `${n} grupper`);
 
 function LockBoard({ id, remaining }: { id: string; remaining: number }) {
   return (

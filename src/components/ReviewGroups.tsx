@@ -16,11 +16,9 @@ import { GroupCard } from "@/components/GroupCard";
 import { Notice } from "@/components/Notice";
 import { focusHeading } from "@/components/RouteFocus";
 import { callAction } from "@/components/useFormAction";
+import { groups, people } from "@/lib/format";
 import { BOARD_SIZE } from "@/lib/limits";
 import type { MergeResult, ReviewGroup } from "@/server/review";
-
-const groups = (n: number) => (n === 1 ? "1 gruppe" : `${n} grupper`);
-const people = (n: number) => (n === 1 ? "1 person" : `${n} personer`);
 
 // The Board and Ikke på brettet sections with Group selection and the SelectionBar
 // (FR-20, UX-DR12, UX-DR18). Forkastet comes in as children: it has no checkboxes.
@@ -64,11 +62,7 @@ export function ReviewGroups({
     const first = selected[0];
     setSelected([]);
     setFailure(undefined);
-    if (inBar && first)
-      document
-        .getElementById(`gruppe-${first}`)
-        ?.parentElement?.querySelector("input")
-        ?.focus();
+    if (inBar && first) document.getElementById(`velg-${first}`)?.focus();
   }
 
   const onKey = useEffectEvent((event: KeyboardEvent) => {
@@ -84,6 +78,8 @@ export function ReviewGroups({
 
   function merge() {
     setFailure(undefined);
+    // Empties the live region, so an identical sentence is announced again.
+    setMerged(undefined);
     startTransition(async () => {
       const result = await callAction(() =>
         mergeGroups({ gameId, groupIds: selected }),
@@ -172,9 +168,7 @@ export function ReviewGroups({
             </Notice>
           )}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <p className="text-title">
-              {n === 1 ? "1 gruppe valgt" : `${n} grupper valgt`}
-            </p>
+            <p className="text-title">{groups(n)} valgt</p>
             <div className="ml-auto flex flex-wrap items-center gap-3">
               {n === 1 ? (
                 <p>Velg minst to grupper for å slå sammen.</p>

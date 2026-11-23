@@ -1,3 +1,5 @@
+import { people } from "@/lib/format";
+
 type Chip = { text: string; n: number };
 
 const LOOKS = {
@@ -9,8 +11,6 @@ const LOOKS = {
 // group-card-selected: the inset ring makes the 2 px primary edge without moving the layout.
 const SELECTED =
   "border border-solid border-primary bg-primary-soft inset-ring inset-ring-primary";
-
-const people = (n: number) => (n === 1 ? "1 person" : `${n} personer`);
 
 // Presentational (FR-19). With onToggle it gets the selection checkbox (FR-20); no menu
 // or rename until Story 5.4. Answers stay in the order given, which is alphabetical (FR-13).
@@ -43,6 +43,7 @@ export function GroupCard({
         <label className="-my-2.5 -ml-3 inline-flex size-11 shrink-0 cursor-pointer items-center justify-center self-center">
           <input
             type="checkbox"
+            id={`velg-${id}`}
             aria-label={`Velg «${label}»`}
             checked={selected}
             onChange={onToggle}

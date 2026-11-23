@@ -261,7 +261,7 @@ test("FR-17 (AC4), FR-19 (AC3), UX-DR10, UX-DR11, UX-DR17 (AC5), NFR-4, NFR-6: a
   expect(await seriousViolations(page)).toEqual([]);
 });
 
-test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, two the merge button; a failed merge keeps Groups and selection with the message in the bar; the merge re-sorts the list, focuses the merged heading and announces it; Esc clears; bar controls have the white focus ring and axe is clean with the bar open", async ({
+test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, two the merge button; a failed merge keeps Groups and selection with the message in the bar; the merge re-sorts the list, focuses the merged heading and announces it; Esc clears; bar controls have the white focus ring and axe is clean with the bar open; a merge from a stale tab refreshes the list and clears the selection", async ({
   page,
   browser,
   baseURL,
@@ -404,4 +404,24 @@ test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, tw
   await expect(bar).toHaveCount(0);
   await expect(box("kari")).toBeFocused();
   await expect(box("kari")).not.toBeChecked();
+
+  // A stale view: another tab merges Dina and Erik; merging Erik here refreshes instead.
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await other.getByRole("checkbox", { name: "Velg «dina»" }).check();
+  await other.getByRole("checkbox", { name: "Velg «erik»" }).check();
+  await other.getByRole("button", { name: "Slå sammen 2 grupper" }).click();
+  await expect(other.locator("[data-selection-bar]")).toHaveCount(0);
+  await other.close();
+  await box("erik").check();
+  await box("ola").check();
+  await bar.getByRole("button", { name: "Slå sammen 2 grupper" }).click();
+  await expect(bar).toHaveCount(0);
+  await expect(page.getByRole("checkbox", { checked: true })).toHaveCount(0);
+  await expect(page.getByText("Endringen ble ikke lagret")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { level: 4, name: "erik", exact: true }),
+  ).toHaveCount(0);
+  await expect(card("dina").getByRole("listitem")).toHaveText(["Dina", "Erik"]);
+  await expect(card("ola")).toBeVisible();
 });

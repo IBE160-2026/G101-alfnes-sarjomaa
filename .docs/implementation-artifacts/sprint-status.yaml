@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-22-2026 00:10
-last_updated: 11-23-2026 00:30
+last_updated: 11-23-2026 00:50
 project: Toppsvar
 project_key: NOKEY
 tracking_system: file-system
@@ -68,7 +68,7 @@ development_status:
 
   epic-5: in-progress
   5-1-review-screen-with-ranked-groups-counts-and-raw-answers: done
-  5-2-merge-groups: backlog
+  5-2-merge-groups: done
   5-3-move-answers-to-another-group-or-a-new-group: backlog
   5-4-rename-discard-and-restore-groups: backlog
   5-5-mark-questions-reviewed-and-lock-the-board: backlog

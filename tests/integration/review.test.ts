@@ -278,6 +278,12 @@ describe("review.load", () => {
     expect((await review.load(hostId, gameId, 99)).current.position).toBe(1);
   });
 
+  it("FR-19, FR-13 (AC3): two written forms once each (Kari, kari) give the chip in SQL order, Kari", async () => {
+    const { gameId } = await reviewGame([[Q1, [["Kari"], ["kari"], ["Ola"]]]]);
+    const { current } = await review.load(hostId, gameId);
+    expect(current.board[0].chips).toEqual([{ text: "Kari", n: 2 }]);
+  });
+
   it.each(["draft", "collecting", "grouping", "ready", "playing", "played"])(
     "FR-19, UX-DR17 (AC5): a Game in %s is WRONG_STATE, and the page redirects to the Game page",
     async (state) => {
@@ -711,6 +717,29 @@ describe("review.merge", () => {
     expect(await groupRow(per)).toBeUndefined();
   });
 
+  it("FR-20, AD-11 (AC1): with the top Group discarded, the merge's position is its place among the kept Groups, as the Board shows it", async () => {
+    const { gameId, ids } = await reviewGame([
+      [Q1, [["Kari", "Ola"], ["Kari", "Per"], ["Kari"], ["Anne"]]],
+    ]);
+    await (
+      await getDb()
+    )
+      .update(answerGroup)
+      .set({ discarded: true })
+      .where(eq(answerGroup.id, await groupIdOf(ids[0], "kari")));
+    const result = await review.merge(hostId, {
+      gameId,
+      groupIds: [
+        await groupIdOf(ids[0], "per"),
+        await groupIdOf(ids[0], "anne"),
+      ],
+    });
+    const { current } = await review.load(hostId, gameId);
+    const index = current.board.findIndex((g) => g.id === result.groupId);
+    expect(index).toBe(0);
+    expect(result.position).toBe(index + 1);
+  });
+
   it("FR-20, AD-11 (AC1): a renamed highest-ranked source keeps its custom label", async () => {
     const { gameId, ids } = await reviewGame(SHARED);
     const kari = await groupIdOf(ids[0], "kari");
@@ -844,11 +873,5 @@ describe("review.merge", () => {
     expect(forkastet).not.toContain('type="checkbox"');
     // No selection yet, so no SelectionBar.
     expect(html).not.toContain("valgt");
-  });
-
-  it("FR-19, FR-13: two written forms once each (Kari, kari) give the chip in SQL order, Kari", async () => {
-    const { gameId } = await reviewGame([[Q1, [["Kari"], ["kari"], ["Ola"]]]]);
-    const { current } = await review.load(hostId, gameId);
-    expect(current.board[0].chips).toEqual([{ text: "Kari", n: 2 }]);
   });
 });
