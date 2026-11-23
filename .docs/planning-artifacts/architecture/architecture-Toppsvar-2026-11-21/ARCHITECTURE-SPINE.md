@@ -466,7 +466,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Rule:**
   - **Cascade.** Every child table references `game` with `ON DELETE CASCADE`.
   - **What is purged.** `games.purgeExpired()` deletes Games 30 days after `played_at`, and Games never played 90 days after `updated_at`. `updated_at` reflects Host activity (AD-4).
-  - **When it runs.** At most once an hour per process (the marker is in memory on `globalThis`, and the delete is idempotent). It is triggered from Host requests and from `GET /api/purge`. On the pilot, a daily Vercel Cron calls `/api/purge` with `CRON_SECRET`.
+  - **When it runs.** At most once an hour per process (the marker is in memory on `globalThis`, and the delete is idempotent). It is triggered from Host requests and from `GET /api/purge`. The pilot is meant to add a daily Vercel Cron that calls `/api/purge` with `CRON_SECRET`, but it does not run one yet (see the Story 7.5 bullet in AD-24).
   - **Failure.** A purge failure is caught and never fails the request that triggered it.
   - **Timestamps.** Game-level timestamps (`created_at`, `updated_at`, `played_at`, `grouping_lease_until`) are allowed. Answer-level timestamps are not (AD-10).
 
@@ -491,9 +491,10 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 
 The pilot is Vercel Hobby (300 s per function with fluid compute), with production from `main` only. *Amended 2026-11-23 (group decision):*
 
-- **Open registration.** `REGISTRATION_CODE` is not set, so anyone with the address can create a Host account. `CRON_SECRET` stays set for the daily purge (AD-23).
+- **Open registration.** `REGISTRATION_CODE` is not set, so anyone with the address can create a Host account.
 - **Previews on.** Preview deployments set `DATABASE_URL=pglite:///tmp/toppsvar` and no `OPENROUTER_API_KEY`. They never reach the production database or the Judge, and their data lasts only as long as the function instance.
 - **Production.** Neon Postgres in Frankfurt (EU) and an OpenRouter key with a USD 0.10 credit limit, which is the cost cap. When the credit is used up, OpenRouter refuses the request, the Judge reports `ERROR`, and the Question starts with one Group per distinct normalised Answer (FR-17).
+- *Amended 2026-11-23 in Story 7.5:* `vercel.json` pins the functions to `fra1`, next to the database. `CRON_SECRET` and the daily Cron are not set on the pilot yet: Production has no `CRON_SECRET`, so `/api/purge` answers 404 `disabled`, and `vercel.json` has no `crons` entry. Until the group adds both, the purge on the pilot runs only from Host requests (AD-23). If they are still missing at the Stage 1 freeze, the scheduled expiry slips (PRD §6.5). The steps are in the "Pilot" section of `tests/manual/checklist.md`.
 
 There are no backups beyond Neon's short history, and the pilot database is deleted when the course ends. Any Node host running `next start` with a Postgres URL is equivalent. The README's local path never mentions a host.
 

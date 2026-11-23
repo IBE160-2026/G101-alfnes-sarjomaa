@@ -406,6 +406,7 @@ Local runnability.
 - CI (`.github/workflows/ci.yml`) runs the README scripts on Node 22 and 26 with no key.
 - CI runs `npm run demo` in the background, polls `/api/health` until 200 (failing with the log after 120 s) and stops it; `tests/e2e/server-output.spec.ts` and `demo.spec.ts` run on `npm run demo` on 3101 (Story 7.1, AC1).
 - `README.md`, section "Utvikling": Node.js 22.13+, git, no database or key, the three commands and the test commands; the fresh-clone run is F1 in `tests/manual/checklist.md` (Story 7.4, AC1).
+- `tests/manual/checklist.md`, row P3: the README's local path names no host, and its "Status" section states whether the pilot is live or cut (Story 7.5, AC3).
 
 ## NFR-2
 
@@ -413,7 +414,7 @@ Deployability.
 
 - `tests/integration/db.test.ts`: `postgres://` and `postgresql://` select postgres.js with `prepare: false`, and opening one does not throw with the network guard on, so the same build targets hosted Postgres by configuration alone.
 - CI's `postgres` job runs every integration test on a Postgres 17 service container, each file in its own migrated database (`tests/postgres-setup.ts`), with the PGlite-only checks skipped (`tests/integration/driver.ts`); `tests/integration/db.test.ts` fails that job if it ever runs on PGlite, so the module code is proven on the driver a hosted deployment uses (Story 7.3, AC5).
-- The pilot deployment is optional and first to cut (Story 7.5); the README's "Status" section states that it is live and that Vercel Cron is not set up (Story 7.4).
+- The pilot deployment is optional and first to cut (Story 7.5). Its manual checks for this requirement are rows P1 and P2 in `tests/manual/checklist.md` (row P3 is under NFR-1), which also holds the read-only evidence and what is still open (`CRON_SECRET`, the daily Cron, the real-phone round); the README's "Status" section states that it is live and that Vercel Cron is not set up (Story 7.4).
 
 ## NFR-3
 
