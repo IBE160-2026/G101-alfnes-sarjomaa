@@ -23,7 +23,7 @@ deferred: []
 ## Boundaries & Constraints
 
 **Always:**
-- **Group decisions.** The group decided to start before SM-1 passes. The PRD §10 item 3 precondition (ProtoQA provenance and trademark with the course staff) is recorded as **open** and does not block this story.
+- **Group decisions.** The group decided to start before SM-1 passes. The PRD §10 item 3 precondition (ProtoQA provenance and trademark) is settled: the group decided on 2026-11-23 not to ask the course staff, and only the crowdsourced part (CC BY 4.0) is used (`wiki/prosjekt/beslutninger.md`).
 - **Counts and the Board.** Counts are the dataset's cluster counts, unchanged. Each Board is the top clusters by count, capped at `BOARD_SIZE` (8), ordered by the app's own `rankGroups` and `boardCut`: count, then rank-1 count (0 for all), then the nb collation of the label, then the id.
 - **Text limits.** Labels are 1..`LABEL_MAX` (40) characters. Question texts are 1..`QUESTION_TEXT_MAX` characters.
 - **Translation.** The AI writes the translations by hand, into natural bokmål. No model or API call is made, and `OPENROUTER_API_KEY` is never used.
@@ -171,7 +171,7 @@ Status: done
 
 **Summary.** A Host picks one of five ready-made sets in the create row ("Spørsmål": "Jeg skriver egne", or a set under "Ferdige sett"). `review.createFromQuestionSet` then creates the Game in *ready*, with 5 Questions and their Boards cut by `rankGroups` and `boardCut`. Play runs unchanged through `review.getBoard`. The control bar credits ProtoQA as translated and adapted. The README and `data/protoqa/ATTRIBUTION.md` carry the full credit.
 
-**Precondition.** PRD §10 item 3 (ProtoQA provenance and trademark with the course staff) is still **open**. By the group's decision it did not block this story. Note that `wiki/prosjekt/beslutninger.md` on main says the group will not ask the course staff (2026-11-23), so the group should confirm which of the two holds.
+**Precondition.** PRD §10 item 3 (ProtoQA provenance and trademark) is settled by the group's decision of 2026-11-23 in `wiki/prosjekt/beslutninger.md`: the course staff is not asked, and only the crowdsourced part (CC BY 4.0) is used, credited as translated and adapted.
 
 **Files**
 - **Data**
