@@ -13,16 +13,22 @@ import {
   mergeGroups,
   moveAnswers,
   moveQuestion,
+  nextQuestion,
   removeQuestion,
   renameGroup,
   restoreGroup,
   revokeInviteLink,
+  passTurn,
+  revealSlot,
   saveQuestion,
+  startPlay,
+  undoReveal,
 } from "@/app/spill/[id]/actions";
 import ReviewPage, {
   generateMetadata as reviewMetadata,
 } from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
+import ScreenPage from "@/app/spill/[id]/skjerm/page";
 import { createGame } from "@/app/spill/actions";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import GamesPage from "@/app/spill/page";
@@ -37,10 +43,14 @@ import {
   boardSlot,
   game,
   inviteLink,
+  playState,
   question,
+  reveal,
   submission,
+  team,
 } from "@/server/db/schema";
 import * as games from "@/server/games";
+import * as play from "@/server/play";
 import * as review from "@/server/review";
 import { afterTasks, cookieJar, NotFoundError, run } from "./next-mocks";
 
@@ -475,6 +485,194 @@ describe("Host B against Host A's Game", () => {
     }
     expect(await stateOfA()).toEqual(before);
     expect(before.slots).toEqual([]);
+  });
+
+  it("FR-23, AD-5: B's play.start, startPlay and play.load on A's ready or playing Game, a random UUID or a malformed ID give NOT_FOUND, and A's Games keep their state and Teams", async () => {
+    const db = await getDb();
+    const [{ id: readyOfA }, { id: playingOfA }] = await db
+      .insert(game)
+      .values([
+        { hostId: hosts.A, title: "As klare", state: "ready" },
+        { hostId: hosts.A, title: "As spill i gang", state: "ready" },
+      ])
+      .returning({ id: game.id });
+    for (const gameId of [readyOfA, playingOfA])
+      await db
+        .insert(question)
+        .values({ id: randomUUID(), gameId, position: 1, text: "?" });
+    await play.start(hosts.A, {
+      gameId: playingOfA,
+      teams: ["Lag 1", "Lag 2"],
+    });
+    const stateOfA = async () =>
+      Promise.all(
+        [readyOfA, playingOfA].map(async (id) => ({
+          game: (await gameRow(id)).state,
+          teams: await db.select().from(team).where(eq(team.gameId, id)),
+          play: await db
+            .select()
+            .from(playState)
+            .where(eq(playState.gameId, id)),
+        })),
+      );
+    const before = await stateOfA();
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [readyOfA, playingOfA, randomUUID(), "abc"]) {
+      const input = { gameId, teams: ["B1", "B2"] };
+      expect(
+        ((await rejection(play.start(hosts.B, input))) as DomainError).code,
+        gameId,
+      ).toBe("NOT_FOUND");
+      expect(await startPlay(input), gameId).toEqual(notFound);
+      expect(
+        ((await rejection(play.load(hosts.B, gameId))) as DomainError).code,
+        gameId,
+      ).toBe("NOT_FOUND");
+    }
+    expect(await stateOfA()).toEqual(before);
+    expect(before.map((g) => [g.game, g.teams.length])).toEqual([
+      ["ready", 0],
+      ["playing", 2],
+    ]);
+  });
+
+  it("FR-25, AD-5: B's play.reveal and revealSlot on A's playing Game, on B's own playing Game with A's slot, a random UUID or a malformed ID give NOT_FOUND, and nothing is revealed", async () => {
+    const db = await getDb();
+    // A playing Game with one Question and one Board slot for `host`.
+    const playingOf = async (host: string) => {
+      const [{ id }] = await db
+        .insert(game)
+        .values({ hostId: host, title: "Spill i gang", state: "ready" })
+        .returning({ id: game.id });
+      const questionId = randomUUID();
+      await db
+        .insert(question)
+        .values({ id: questionId, gameId: id, position: 1, text: "?" });
+      const [{ id: slotId }] = await db
+        .insert(boardSlot)
+        .values({ questionId, position: 1, label: "Kari", count: 3 })
+        .returning({ id: boardSlot.id });
+      await play.start(host, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+      return { id, slotId };
+    };
+    const ofA = await playingOf(hosts.A);
+    const ofB = await playingOf(hosts.B);
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [ofA.id, ofB.id, randomUUID(), "abc"]) {
+      const input = { gameId, boardSlotId: ofA.slotId, scored: true };
+      expect(
+        ((await rejection(play.reveal(hosts.B, input))) as DomainError).code,
+        gameId,
+      ).toBe("NOT_FOUND");
+      expect(await revealSlot(input), gameId).toEqual(notFound);
+    }
+    expect(await db.select().from(reveal)).toEqual([]);
+    expect((await gameRow(ofA.id)).state).toBe("playing");
+  });
+
+  it("FR-26, FR-27, AD-5: B's play.undo, undoReveal, play.nextTeam and passTurn on A's playing Game with a Reveal, a random UUID or a malformed ID give NOT_FOUND, and A's Reveal and current Team are unchanged", async () => {
+    const db = await getDb();
+    const [{ id }] = await db
+      .insert(game)
+      .values({ hostId: hosts.A, title: "Spill med avsløring", state: "ready" })
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: id, position: 1, text: "?" });
+    const [{ id: slotId }] = await db
+      .insert(boardSlot)
+      .values({ questionId, position: 1, label: "Kari", count: 3 })
+      .returning({ id: boardSlot.id });
+    await play.start(hosts.A, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+    await play.reveal(hosts.A, {
+      gameId: id,
+      boardSlotId: slotId,
+      scored: true,
+    });
+    const stateOfA = async () => ({
+      reveals: await db.select().from(reveal).where(eq(reveal.gameId, id)),
+      play: await db.select().from(playState).where(eq(playState.gameId, id)),
+    });
+    const before = await stateOfA();
+    expect(before.reveals).toHaveLength(1);
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [id, randomUUID(), "abc"]) {
+      const input = { gameId, boardSlotId: slotId };
+      for (const op of [play.undo, play.nextTeam])
+        expect(
+          ((await rejection(op(hosts.B, input))) as DomainError).code,
+          gameId,
+        ).toBe("NOT_FOUND");
+      expect(await undoReveal(input), gameId).toEqual(notFound);
+      expect(await passTurn({ gameId }), gameId).toEqual(notFound);
+    }
+    expect(await stateOfA()).toEqual(before);
+  });
+
+  it("FR-27, AD-5: B's play.nextQuestion and nextQuestion on A's playing Game, a random UUID or a malformed ID give NOT_FOUND and leave A's play_state and state; once A's Game is played, B's play.finalScores is NOT_FOUND and its screen page calls notFound()", async () => {
+    const db = await getDb();
+    const [{ id }] = await db
+      .insert(game)
+      .values({ hostId: hosts.A, title: "Siste spørsmål", state: "ready" })
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: id, position: 1, text: "?" });
+    await db
+      .insert(boardSlot)
+      .values({ questionId, position: 1, label: "Kari", count: 3 });
+    await play.start(hosts.A, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+    const stateOfA = async () => ({
+      game: (await gameRow(id)).state,
+      play: await db.select().from(playState).where(eq(playState.gameId, id)),
+    });
+    const before = await stateOfA();
+    as("B");
+    for (const gameId of [id, randomUUID(), "abc"]) {
+      const input = { gameId, position: 1 };
+      expect(
+        ((await rejection(play.nextQuestion(hosts.B, input))) as DomainError)
+          .code,
+        gameId,
+      ).toBe("NOT_FOUND");
+      expect(await nextQuestion(input), gameId).toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    }
+    expect(await stateOfA()).toEqual(before);
+    expect(before.game).toBe("playing");
+    await play.nextQuestion(hosts.A, { gameId: id, position: 1 });
+    expect((await gameRow(id)).state).toBe("played");
+    expect(
+      ((await rejection(play.finalScores(hosts.B, id))) as DomainError).code,
+    ).toBe("NOT_FOUND");
+    expect(
+      await rejection(
+        ScreenPage({
+          params: Promise.resolve({ id }),
+          searchParams: Promise.resolve({}),
+        }),
+      ),
+    ).toBeInstanceOf(NotFoundError);
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {

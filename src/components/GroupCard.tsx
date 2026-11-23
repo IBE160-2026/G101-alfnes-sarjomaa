@@ -55,6 +55,14 @@ export function GroupCard({
   onLabelClick?: () => void;
 }) {
   const compact = look !== "discarded" && chips.length === 1;
+  // A raw form and its Answer count, without the label again when it is the only raw form.
+  const raw = (chip: Chip) =>
+    [
+      !(chips.length === 1 && chip.text === label) && chip.text,
+      chip.n > 1 && `${chip.n} svar`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
   const header = (
     <>
       {onToggle && (
@@ -84,10 +92,9 @@ export function GroupCard({
         </h4>
       )}
       {/* The raw form when the label differs (a custom or merged label), so the Host sees what was written (FR-19). */}
-      {compact && (chips[0].text !== label || chips[0].n > 1) && (
+      {compact && raw(chips[0]) && (
         <span className="min-w-0 text-body-sm break-words text-ink-muted">
-          {chips[0].text !== label && `${chips[0].text} `}
-          {chips[0].n > 1 && `· ${chips[0].n} svar`}
+          {raw(chips[0])}
         </span>
       )}
       <span className="ml-auto shrink-0 pl-4 whitespace-nowrap">
@@ -117,14 +124,15 @@ export function GroupCard({
       {notice}
       <div className="flex items-baseline gap-3">{header}</div>
       {look === "discarded" ? (
-        <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-ink-muted">
-          {chips.map((chip) => (
-            <li key={chip.text} className="break-words">
-              {chip.text}
-              {chip.n > 1 && ` · ${chip.n} svar`}
-            </li>
-          ))}
-        </ul>
+        chips.some(raw) && (
+          <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-ink-muted">
+            {chips.filter(raw).map((chip) => (
+              <li key={chip.text} className="break-words">
+                {raw(chip)}
+              </li>
+            ))}
+          </ul>
+        )
       ) : (
         <ul className={`mt-2 flex flex-wrap gap-2 ${indent}`}>
           {chips.map((chip) => {

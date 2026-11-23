@@ -487,3 +487,21 @@ export function confirmBoard(
     });
   });
 }
+
+// AD-15: the locked Board of one Game, the only way play reads board_slot. Returned
+// un-awaited, so play can await the rows or use it as a subquery (`.as("board")`) for
+// the Score sum (AD-11). Takes an owner-checked gameId: it checks nothing itself.
+export function getBoard(db: Db, gameId: string) {
+  return db
+    .select({
+      id: boardSlot.id,
+      questionId: boardSlot.questionId,
+      position: boardSlot.position,
+      label: boardSlot.label,
+      count: boardSlot.count,
+    })
+    .from(boardSlot)
+    .innerJoin(question, eq(question.id, boardSlot.questionId))
+    .where(eq(question.gameId, gameId))
+    .orderBy(asc(question.position), asc(boardSlot.position));
+}

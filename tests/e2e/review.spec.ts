@@ -1,15 +1,17 @@
-import type { Browser, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import {
+  closeAndOpenReview,
+  collectingGame,
   expect,
   FOCUS_RING,
   FOCUS_RING_INVERSE,
-  localOnly,
-  registerHost,
+  QUESTION,
   seriousViolations,
+  SETS,
+  submitSets,
   test,
 } from "./fixtures";
 
-const QUESTION = "Hvem kommer for sent til hytta?";
 const NO_KEY =
   "Ingen KI-nøkkel er satt opp, så alle spørsmålene starter med én gruppe per ulikt svar.";
 const NARROW =
@@ -17,95 +19,8 @@ const NARROW =
 const REASON = "Gjennomgå alle spørsmålene først (1 igjen).";
 const BELOW =
   "Vises ikke i spillet. Slå dem sammen med en gruppe over for at de skal telle.";
-// Nine distinct normalised Answers, Kari written in two cases: nine Groups after the no-key fallback.
-const SETS = [
-  ["Kari", "Ola", "Per"],
-  ["Anne", "Bjørn", "Cato", "kari"],
-  ["Dina", "Erik", "Frida", "Kari"],
-];
-
 // Answer sets for a second Question: three distinct Answers.
 const SETS_Q2 = [["Rød"], ["Blå"], ["Grønn"]];
-
-// Set i answers Question q with sets[q][i].
-async function submitSets(
-  browser: Browser,
-  baseURL: string | undefined,
-  links: string[],
-  sets: string[][][] = [SETS],
-) {
-  const context = await browser.newContext({ baseURL });
-  await localOnly(context);
-  const page = await context.newPage();
-  for (const [i, link] of links.entries()) {
-    // Links share a path, so a bare hash change would not reload the form.
-    await page.goto("/");
-    await page.goto(link);
-    for (const [q, questionSets] of sets.entries()) {
-      const fieldset = page.locator("fieldset").nth(q);
-      const [first, ...rest] = questionSets[i];
-      await fieldset.getByLabel("Svar 1", { exact: true }).fill(first);
-      for (const [j, text] of rest.entries()) {
-        if (j > 0)
-          await fieldset.getByRole("button", { name: "Legg til svar" }).click();
-        await fieldset.getByLabel(`Svar ${j + 2} (valgfritt)`).fill(text);
-      }
-    }
-    await page.getByRole("button", { name: "Send inn svar" }).click();
-    await expect(
-      page.getByRole("heading", { name: "Svarene dine er lagret." }),
-    ).toBeVisible();
-  }
-  await context.close();
-}
-
-// A new Host's collecting Game with the given Questions and three links; returns the Game path.
-async function collectingGame(page: Page, questions = [QUESTION]) {
-  await registerHost(page);
-  await page.getByLabel("Navn på spillet").fill("Hyttetur");
-  await page.getByRole("button", { name: "Lag spill" }).click();
-  await expect(page.locator("h1")).toHaveText("Hyttetur");
-  for (const [i, text] of questions.entries()) {
-    await page.getByRole("button", { name: "Legg til spørsmål" }).click();
-    await page.getByLabel(`Spørsmål ${i + 1}`, { exact: true }).fill(text);
-    await page.keyboard.press("Tab");
-    await expect(
-      page
-        .getByRole("region", { name: "Spørsmål" })
-        .getByRole("listitem")
-        .nth(i)
-        .getByRole("status"),
-    ).toHaveText("Lagret");
-  }
-  await page.getByLabel("Antall lenker").fill("3");
-  await page.getByRole("button", { name: "Lag lenker" }).click();
-  await page
-    .getByRole("dialog", { name: "Åpne innsamlingen?" })
-    .getByRole("button", { name: "Åpne innsamlingen" })
-    .click();
-  await expect(page.locator("[data-link]")).toHaveCount(3);
-  const links = await page.locator("[data-link]").allTextContents();
-  await page.getByRole("button", { name: "Jeg har kopiert lenkene" }).click();
-  return { gamePath: new URL(page.url()).pathname, links };
-}
-
-// Closes the collecting Game on its page and follows "Gå til gjennomgangen".
-async function closeAndOpenReview(page: Page, gamePath: string) {
-  await page.reload();
-  await page
-    .getByRole("region", { name: "Innsamling" })
-    .getByRole("button", { name: "Steng innsamlingen", exact: true })
-    .click();
-  await page
-    .getByRole("dialog", { name: "Stenge innsamlingen?" })
-    .getByRole("button", { name: "Steng innsamlingen" })
-    .click();
-  await expect(page.getByText("Til gjennomgang", { exact: true })).toBeVisible({
-    timeout: 10_000,
-  });
-  await page.getByRole("link", { name: "Gå til gjennomgangen" }).click();
-  await expect(page).toHaveURL(`${gamePath}/gjennomgang`);
-}
 
 const noHorizontalScroll = (page: Page) =>
   page.evaluate(
@@ -189,7 +104,7 @@ test("FR-17 (AC4), FR-19 (AC3), UX-DR10, UX-DR11, UX-DR17 (AC5), NFR-4, NFR-6: a
   ]);
   // FR-16, FR-19: the default label is the written form, so the compact row adds only the Answer count.
   await expect(board.getByRole("listitem").first()).toHaveText(
-    /^1\.\s*Kari\s*· 3 svar\s*3 personer\s*⋯$/,
+    /^1\.\s*Kari\s*3 svar\s*3 personer\s*⋯$/,
     // innerText leaves out the closed Group menu's items.
     { useInnerText: true },
   );
@@ -800,6 +715,10 @@ test("FR-20, FR-21 (AC3), UX-DR10, UX-DR18, NFR-6: the Group menu opens and clos
     "line-through",
   );
   await expect(forkastet.getByRole("checkbox")).toHaveCount(0);
+  // Its only raw Answer equals the label, so the card shows "Kari" once, then "3 svar"
+  // (the other match is Angre's sr-only name).
+  expect((await forkastet.innerText()).match(/Kari/g)).toHaveLength(2);
+  await expect(forkastet.getByText("3 svar", { exact: true })).toBeVisible();
   await expect(trigger("Kari")).toHaveCount(0);
   await expect(
     forkastet.getByRole("button", { name: "Angre forkasting av «Kari»" }),

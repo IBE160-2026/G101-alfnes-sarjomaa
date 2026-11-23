@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-22-2026 00:10
-last_updated: 11-23-2026 11:13
+last_updated: 11-23-2026 14:19
 project: Toppsvar
 project_key: NOKEY
 tracking_system: file-system
@@ -75,12 +75,12 @@ development_status:
   5-6-teacher-feedback-handoff: done
   epic-5-retrospective: optional
 
-  epic-6: backlog
-  6-1-name-the-teams-and-start-play: backlog
-  6-2-show-the-board-on-the-shared-screen-and-make-scored-reveals: backlog
-  6-3-misses-undo-turns-and-unscored-reveals: backlog
-  6-4-next-question-final-scores-and-the-played-game: backlog
-  6-5-a-full-round-without-a-model-key-end-to-end: backlog
+  epic-6: done
+  6-1-name-the-teams-and-start-play: done
+  6-2-show-the-board-on-the-shared-screen-and-make-scored-reveals: done
+  6-3-misses-undo-turns-and-unscored-reveals: done
+  6-4-next-question-final-scores-and-the-played-game: done
+  6-5-a-full-round-without-a-model-key-end-to-end: done
   epic-6-retrospective: optional
 
   epic-7: backlog

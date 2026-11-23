@@ -38,6 +38,7 @@ import {
   type MockRuling,
 } from "@/server/judge/providers/mock";
 import { createReplayJudge } from "@/server/judge/providers/replay";
+import * as play from "@/server/play";
 import * as review from "@/server/review";
 import { cookieJar, RedirectError, run } from "./next-mocks";
 
@@ -653,7 +654,22 @@ describe("Game page", () => {
   it.each(GAME_STATES)(
     'FR-18, UX-DR16 (AC4): in %s "Last ned bruksrapport" is a link to the report only from in review onward',
     async (state) => {
-      const { gameId } = await seed([], state);
+      // A playing Game's page reads play_state, so that one is started for real.
+      const playing = state === "playing";
+      const { gameId } = await seed(
+        playing ? [[Q1, []]] : [],
+        playing ? "ready" : state,
+      );
+      if (playing)
+        await play.start(hostId, { gameId, teams: ["Lag 1", "Lag 2"] });
+      // A played Game's page shows the deletion date from played_at, so set it as finish would.
+      if (state === "played")
+        await (
+          await getDb()
+        )
+          .update(game)
+          .set({ playedAt: new Date() })
+          .where(eq(game.id, gameId));
       const html = renderToStaticMarkup(
         await GamePage({
           params: Promise.resolve({ id: gameId }),

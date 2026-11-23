@@ -48,3 +48,10 @@ export const PURGE_INTERVAL_MS = HOUR_MS;
 // AD-11: the Board is the top eight non-discarded Groups; labels are at most 40 characters.
 export const BOARD_SIZE = 8;
 export const LABEL_MAX = 40;
+
+// FR-23, AD-16: two to four Teams. 14 characters: four names of wide letters ("WWW…")
+// fit the Team column at 48 px with the Score beside each name and Scores up to two digits.
+// shortcut: three-digit Scores with four such names overflow, raise only if a real round gets there.
+export const TEAMS_MIN = 2;
+export const TEAMS_MAX = 4;
+export const TEAM_NAME_MAX = 14;

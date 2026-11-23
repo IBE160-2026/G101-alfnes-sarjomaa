@@ -16,20 +16,43 @@ import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import { REPORT_STATES } from "@/lib/game-state";
+import { formatDate } from "@/lib/format";
 import { FEWER_THAN_3 } from "@/lib/limits";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
 import { env } from "@/server/env";
 import * as games from "@/server/games";
 import * as grouping from "@/server/grouping";
+import * as play from "@/server/play";
 import * as questions from "@/server/questions";
 
 // The close action posts here and inherits this (AD-24): close then VACUUMs, and
 // Grouping runs after it.
 export const maxDuration = 300;
 
+const PRIMARY_LINK =
+  "mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover";
+
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
+
+// Each Team and its Score, on the playing and the played Game page.
+const scoreList = (teams: { id: string; name: string; score: number }[]) => (
+  <dl className="mt-4 max-w-md border-t border-line">
+    {teams.map((team) => (
+      <div
+        key={team.id}
+        className="flex items-baseline justify-between gap-4 border-b border-line py-3"
+      >
+        <dt className="min-w-0 break-words">{team.name}</dt>
+        <dd className="text-title tabular-nums">
+          {team.score}
+          <span className="sr-only"> poeng</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+);
 
 // cache(): generateMetadata and the page share one owner-checked read per request.
 const ownedGame = cache(async (gameId: string) => {
@@ -193,10 +216,7 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
             </div>
           ))}
         </dl>
-        <Link
-          href={`/spill/${game.id}/gjennomgang`}
-          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover"
-        >
+        <Link href={`/spill/${game.id}/gjennomgang`} className={PRIMARY_LINK}>
           Gå til gjennomgangen
         </Link>
       </section>,
@@ -204,7 +224,6 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
   } else if (game.state === "ready") {
     const { hostId } = await auth.requireHost();
     const n = (await questions.list(hostId, game.id)).length;
-    // shortcut: no way forward from ready until Epic 6, add the primary "Start spillet" link to /spill/[id]/skjerm here in Story 6.1.
     panel = [
       <section key="ready" aria-labelledby="brettet" className="mt-10">
         <h2 id="brettet" className="text-heading">
@@ -213,6 +232,43 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <p className="mt-4">
           {n === 1 ? "1 spørsmål er klart." : `${n} spørsmål er klare.`}
         </p>
+        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+          Start spillet
+        </Link>
+      </section>,
+    ];
+  } else if (game.state === "playing") {
+    const { hostId } = await auth.requireHost();
+    const { question, total, teams } = await play.load(hostId, game.id);
+    panel = [
+      <section key="playing" aria-labelledby="i-gang" className="mt-10">
+        <h2 id="i-gang" className="text-heading">
+          Spillet er i gang
+        </h2>
+        <p className="mt-4">
+          Spørsmål {question.position} av {total}.
+        </p>
+        {scoreList(teams)}
+        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+          Fortsett spillet
+        </Link>
+      </section>,
+    ];
+  } else if (game.state === "played") {
+    const { hostId } = await auth.requireHost();
+    const { teams, deleteAfter } = await play.finalScores(hostId, game.id);
+    panel = [
+      <section key="played" aria-labelledby="sluttstilling" className="mt-10">
+        <h2 id="sluttstilling" className="text-heading">
+          Sluttstilling
+        </h2>
+        {scoreList(teams)}
+        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+          Vis sluttstilling
+        </Link>
+        <Notice tone="info" className="mt-6 max-w-prose">
+          Spillet og alle svarene slettes automatisk {formatDate(deleteAfter)}.
+        </Notice>
       </section>,
     ];
   }

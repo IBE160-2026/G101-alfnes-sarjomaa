@@ -80,7 +80,13 @@ export function listOwned(hostId: string): Promise<GameSummary[]> {
 export function getOwned(
   hostId: string,
   gameId: string,
-): Promise<GameSummary & { inviteLinksIssued: number; leaseExpired: boolean }> {
+): Promise<
+  GameSummary & {
+    inviteLinksIssued: number;
+    leaseExpired: boolean;
+    playedAt: Date | null;
+  }
+> {
   return withBoundary("games", "getOwned", async () => {
     assertGameId(gameId);
     const db = await getDb();
@@ -88,6 +94,7 @@ export function getOwned(
       .select({
         ...summary,
         inviteLinksIssued: game.inviteLinksIssued,
+        playedAt: game.playedAt,
         // DB time, as the Grouping runner compares the lease (AD-9).
         leaseExpired: sql<boolean>`coalesce(${game.groupingLeaseUntil} < now(), false)`,
       })
@@ -186,7 +193,7 @@ export async function transition(
   gameId: string,
   from: GameState,
   to: GameState,
-): Promise<void> {
+): Promise<{ playedAt: Date | null }> {
   if (!canTransition(from, to)) throw new DomainError("WRONG_STATE");
   assertGameId(gameId);
   let extra: PgUpdateSetSource<typeof game> = {};
@@ -196,8 +203,9 @@ export async function transition(
     .update(game)
     .set({ state: to, ...extra })
     .where(and(eq(game.id, gameId), eq(game.state, from)))
-    .returning({ id: game.id });
+    .returning({ playedAt: game.playedAt });
   if (!row) throw new DomainError("WRONG_STATE");
+  return row;
 }
 
 // The one cap check (AD-8): every link creation reserves here, under the caller's lock.

@@ -452,19 +452,37 @@ describe("Review page", () => {
     expect(html.indexOf(">Kari</h4>")).toBeGreaterThan(
       html.indexOf("Forkastet"),
     );
-    // The Forkastet card lists its raw Answer as plain text, never as a compact row.
+    // The Forkastet card is never a compact row, and its only raw Answer equals the label,
+    // so "Kari" is not repeated under it: only the label and Angre's sr-only name remain.
     const forkastet = html.slice(html.indexOf(">Forkastet"));
-    expect(forkastet).toContain('<li class="break-words">Kari</li>');
     expect(forkastet).not.toContain("min-h-13");
+    expect(forkastet).not.toContain('<li class="break-words">Kari</li>');
+    expect(text(forkastet).match(/Kari/g)).toHaveLength(2);
   });
 
-  it("FR-16, FR-19, FR-13 (AC3): a one-chip Group of Kari, kari, Kari is a compact row showing the label Kari, then only · 3 svar", async () => {
+  it("FR-20: a discarded Group renamed away from its raw Answer still lists that Answer as plain text", async () => {
+    const { gameId, ids } = await reviewGame([
+      [Q1, [["Kari", "Ola"], ["Per"], ["Anne"]]],
+    ]);
+    const db = await getDb();
+    const id = await groupIdOf(ids[0], "kari");
+    await db
+      .update(answerGroup)
+      .set({ discarded: true, customLabel: "Noe om Kari" })
+      .where(eq(answerGroup.id, id));
+    const html = await render(gameId);
+    const forkastet = html.slice(html.indexOf(">Forkastet"));
+    expect(forkastet).toContain('<li class="break-words">Kari</li>');
+  });
+
+  it("FR-16, FR-19, FR-13 (AC3): a one-chip Group of Kari, kari, Kari is a compact row showing the label Kari, then only 3 svar with no loose separator", async () => {
     const { gameId } = await reviewGame(
       [[Q1, [["Kari"], ["kari"], ["Kari"]]]],
       createReplayJudge({ dir: emptyDir(), hasKey: false }),
     );
     const html = await render(gameId);
-    expect(text(html)).toContain("1. Kari · 3 svar 3 personer");
+    expect(text(html)).toContain("1. Kari 3 svar 3 personer");
+    expect(text(html)).not.toContain("·");
     expect(html.match(/min-h-13/g)).toHaveLength(1);
   });
 
@@ -1769,7 +1787,7 @@ describe("Game page in ready", () => {
       ),
     );
 
-  it("FR-21, UX-DR17 (AC5): shows Brettet er låst with the Question count, 9 spørsmål er klare and 1 spørsmål er klart, and keeps the report link", async () => {
+  it("FR-21, FR-23, UX-DR17 (AC5): shows Brettet er låst with the Question count, 9 spørsmål er klare and 1 spørsmål er klart, the Start spillet link, and keeps the report link", async () => {
     for (const [n, sentence] of [
       [9, "9 spørsmål er klare."],
       [1, "1 spørsmål er klart."],
@@ -1786,6 +1804,7 @@ describe("Game page in ready", () => {
       expect(screen).toContain(`Brettet er låst ${sentence}`);
       expect(screen).toContain("Last ned bruksrapport");
       expect(screen).not.toContain("Gå til gjennomgangen");
+      expect(screen).toContain("Start spillet");
     }
   });
 });

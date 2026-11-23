@@ -12,8 +12,32 @@ export function focusHeading(
   heading.focus();
 }
 
+// Focuses the heading with this id once mounted, for a stage that replaced the focused
+// control (the Board and its live region unmount when the Game finishes).
+export function FocusOnMount({ id }: { id: string }) {
+  useEffect(() => focusHeading(document.getElementById(id)), [id]);
+  return null;
+}
+
+// Focuses the page's <h1>; behind a loading state (which has no <h1>) it waits for the
+// heading to stream in. Returns a cleanup that stops waiting.
+export function focusPageHeading(): () => void {
+  const h1 = document.querySelector("h1");
+  if (h1) {
+    focusHeading(h1);
+    return () => {};
+  }
+  const observer = new MutationObserver(() => {
+    const found = document.querySelector("h1");
+    if (!found) return;
+    observer.disconnect();
+    focusHeading(found);
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  return () => observer.disconnect();
+}
+
 // Moves focus to the new page's <h1> after a client route change, never on first load.
-// Behind a loading.tsx skeleton (which has no <h1>) it waits for the heading to stream in.
 export function RouteFocus() {
   const pathname = usePathname();
   const previous = useRef(pathname);
@@ -21,16 +45,7 @@ export function RouteFocus() {
   useEffect(() => {
     if (previous.current === pathname) return;
     previous.current = pathname;
-    const h1 = document.querySelector("h1");
-    if (h1) return focusHeading(h1);
-    const observer = new MutationObserver(() => {
-      const found = document.querySelector("h1");
-      if (!found) return;
-      observer.disconnect();
-      focusHeading(found);
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    return focusPageHeading();
   }, [pathname]);
 
   return null;

@@ -116,9 +116,9 @@ The board-limit divider "Alt under streken vises ikke i spillet" sits between ra
 | *På brettet* | Heading `<h3>` in `{typography.title}` `ink`, sentence case: "På brettet (8 grupper)". GroupCards ranked 1 to 8 in Board order (FR-16, FR-21) | Count shown as "1 person" / "N personer" (Count = distinct Contributor keys, FR-15). |
 | Board-limit divider | 2 px solid `line-strong` line, label in `{typography.label}` `ink`: "Alt under streken vises ikke i spillet" | Only when >8 non-discarded Groups. |
 | *Ikke på brettet* | Heading `<h3>`: "Ikke på brettet (1 gruppe)". Groups ranked 9+ (FR-19) | Same GroupCard, on `surface-sunken` with a `1px dashed {colors.line-strong}` border, with the sentence "Vises ikke i spillet. Slå dem sammen med en gruppe over for at de skal telle." Omitted when empty. |
-| *Forkastet* | Heading `<h3>`: "Forkastet (1 gruppe)". Discarded Groups (FR-20) | Read-only cards, label struck through, Answers listed as plain text, one "Angre forkasting" button. No checkboxes. Omitted when empty. |
+| *Forkastet* | Heading `<h3>`: "Forkastet (1 gruppe)". Discarded Groups (FR-20) | Read-only cards, label struck through, Answers listed as plain text, one "Angre forkasting" button. A Group whose only Answer equals its label does not repeat it; only "N svar" follows when there are several. No checkboxes. Omitted when empty. |
 | Marker som gjennomgått | Primary button in the Question header, right-aligned (not below the sections) | Marks the Question reviewed and moves to the next unreviewed Question. Its error shows directly under the button. |
-| Compact single-Answer row | A Group with one chip whose text equals its label | Renders as one 52 px row (checkbox · rank · label · Count · menu) without a chip row; if renamed, the raw Answer follows the label in `body-sm` `ink-muted`. **Presentation only:** it is still an ordinary Group (AD-15), and "Flytt" or "Ny gruppe" on it equals selecting the Group. Keeps a fallback Question with ~40 singleton Groups to roughly 2,100 px instead of ~3,400 px. |
+| Compact single-Answer row | A Group with one chip whose text equals its label | Renders as one 52 px row (checkbox · rank · label · Count · menu) without a chip row; if renamed, the raw Answer follows the label in `body-sm` `ink-muted`. With several identical Answers the count follows as "· N svar", or as "N svar" alone when the label is the raw Answer. **Presentation only:** it is still an ordinary Group (AD-15), and "Flytt" or "Ny gruppe" on it equals selecting the Group. Keeps a fallback Question with ~40 singleton Groups to roughly 2,100 px instead of ~3,400 px. |
 | SelectionBar | Appears when anything is selected | See Component Patterns. |
 
 ### Review operations
@@ -263,7 +263,7 @@ The wireframe abbreviates the instruction and helper lines (marked "…"); the l
 
 ## Surface: Play view
 
-`/spill/[id]/skjerm`. **Team setup** first, on a light Host page: "Hvem spiller?", two TextFields prefilled "Lag 1" and "Lag 2", "Legg til lag" up to four, "Fjern" down to two (FR-23); names 1–14 characters (AD-16; 14 so four Teams fit the 400 px Team column at 48 px), over-long: "Navnet kan ha maks 14 tegn.". "Start spillet" switches to the play view, with the hint "Trykk F for fullskjerm."
+`/spill/[id]/skjerm`. **Team setup** first, on a light Host page: "Hvem spiller?", two TextFields prefilled "Lag 1" and "Lag 2", "Legg til lag" up to four, "Fjern" down to two (FR-23); names 1–14 characters (AD-16; 14 so four Teams fit the Team column at 48 px, with each Score beside its name), over-long: "Navnet kan ha maks 14 tegn.". "Start spillet" switches to the play view, with the hint "Trykk F for fullskjerm."
 
 ### Wireframe — play view, 1920×1080, Question 3, two Groups revealed, Team 1's turn
 
@@ -295,11 +295,11 @@ The wireframe abbreviates the instruction and helper lines (marked "…"); the l
 ### Play view rules
 
 - **Canvas:** a fixed 1920×1080 layout scaled to fit the window (CSS `transform: scale()` from the window size), so the 48 px minimum (FR-24) holds on the TV whatever the laptop resolution. Background `{colors.stage}`.
-- **Team column:** "Spørsmål N av M" at the top in `{typography.tv-team}` `stage-muted`, then the Teams. The active Team is a mint-filled card (`{components.team-score-active}`) with "Svarer nå" at 48 px above the name. Team names are 1–14 characters.
+- **Team column:** "Spørsmål N av M" at the top in `{typography.tv-team}` `stage-muted`, then the Teams. The active Team is a mint-filled card (`{components.team-score-active}`) with "Svarer nå" at 48 px above the name. Each Score sits to the right: beside the name, and on the active card beside "Svarer nå". Team names are 1–14 characters.
 - **Labels never truncate:** a revealed label that does not fit one line wraps to two (line-height 1.05) and the row grows to 112 px. Question text is 56 px up to 80 characters, 48 px above that, budgeted at four lines.
 - **Never shown:** raw Answers, discarded Groups, Groups below the Board limit, Contributor data (FR-24). The view reads only the confirmed Board.
 - **Hidden tiles** show only their rank, so the number of rows shows how many Groups there are (FR-24). Each tile is a `<button>`: **click = scored Reveal for the current Team** (FR-25). From the click until the server acknowledges, the tile border is `{components.board-tile-pending}` (`stage-ink`). A revealed tile is no longer a button; clicking it does nothing (the refusal in FR-25 is enforced server-side too).
-- **Scored Reveal** (CSS transitions only, no dependency, starting after the server acknowledges; about 700 ms in all): t = 0 tile fill `stage-tile` → `stage-ink` (180 ms); t = 120 ms label fades in with a 12 px slide (220 ms); t = 300 ms Count badge fades in, scaling 0.9 → 1 (160 ms); t = 460 ms the active Team's Score counts up over 400 ms with digits in `stage-accent`, returning to `stage-ink` at the end. With `prefers-reduced-motion` all of it is instant and the colour change is kept. Announced: "«Jeg kjenner eieren», 6 poeng til Hyttegjengen."
+- **Scored Reveal** (CSS transitions only, no dependency, starting after the server acknowledges; about 700 ms in all): t = 0 tile fill `stage-tile` → `stage-ink` (180 ms); t = 120 ms label fades in with a 12 px slide (220 ms); t = 300 ms Count badge fades in, scaling 0.9 → 1 (160 ms); t = 460 ms the active Team's Score counts up over 400 ms in the card's own text colour. The scored Team's card is always the mint active card, so the digits stay `stage-on-accent` (10.7:1); `stage-accent` digits there would be mint on mint, 1:1 (decision from Story 6.2). With `prefers-reduced-motion` all of it is instant and the tile's colour change is kept. Announced: "«Jeg kjenner eieren», 6 poeng til Hyttegjengen."
 - **Bom [M]:** shows the word "Bom" centred over the list in `{typography.tv-score}` 80 px `stage-ink`, on a `stage-raised` panel with a 2 px `stage-line` border and padding 24 / 64 px; 150 ms in, 1.2 s hold, 150 ms out. No icon, no sound, no state change, not undoable (FR-26 covers Reveals only). The turn does not pass by itself.
 - **Angre [Z]:** undoes the most recent Reveal on the current Question, scored or unscored (FR-26); hidden when there is none. Announced: "Angret. «Jeg kjenner eieren» er skjult igjen, 6 poeng trukket fra Hyttegjengen."
 - **Neste lag [T]:** moves the "Svarer nå" card to the next Team in order, wrapping (FR-27).
@@ -417,7 +417,7 @@ Behavioral rules; contrast pairs are verified in `DESIGN.md` → Colors.
 | A4 | Answer form at 360 px and 320 px, and at 200 % zoom: no horizontal scroll, keyboard never hides the focused field | NFR-4, NFR-6 |
 | A5 | Run axe (or Lighthouse accessibility) on landing, log in, Game list, Game page in each state, Review, play view, answer form, closed and unknown pages: no serious or critical findings | NFR-6 |
 | A6 | Review end to end with keyboard only: merge, move, new Group, rename, discard, undo discard, mark, confirm | NFR-6, FR-20, FR-21 |
-| A8 | Play view, 200-character Question + 8 Groups: everything fits 1080 px with the control bar visible | FR-24 |
+| A8 | Play view, 200-character Question + 8 Groups, and four 14-character Team names of wide letters (e.g. "WWWW…"): everything fits 1080 px with the control bar and every Score visible | FR-24 |
 | A9 | Play view, a 40-character label of wide letters (e.g. "MMMM…Ø") shows in full, wrapped if needed, never truncated | FR-24 |
 | A10 | Review, keyboard only: the focus ring is visible on every SelectionBar control | NFR-6 |
 | A7 | Play view: no raw Answer, discarded Group or below-limit Group is visible at any point of a full round | FR-24 |

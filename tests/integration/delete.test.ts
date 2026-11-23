@@ -15,7 +15,14 @@ import { GAME_STATES, type GameState } from "@/lib/game-state";
 import { newToken } from "@/lib/token";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
-import { answerGroup, game, question } from "@/server/db/schema";
+import {
+  answerGroup,
+  boardSlot,
+  game,
+  question,
+  reveal,
+} from "@/server/db/schema";
+import * as play from "@/server/play";
 import * as review from "@/server/review";
 import { cookieJar, run, runAfterTasks } from "./next-mocks";
 
@@ -135,6 +142,28 @@ describe("deleteGame", () => {
       }
     },
   );
+
+  it("FR-3, FR-25: deleting a playing Game with a Reveal removes its reveal rows", async () => {
+    const db = await getDb();
+    const id = await insertGame("ready");
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: id, position: 1, text: "?" });
+    const [{ id: boardSlotId }] = await db
+      .insert(boardSlot)
+      .values({ questionId, position: 1, label: "Kari", count: 3 })
+      .returning({ id: boardSlot.id });
+    await play.start(hosts.A, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+    await play.reveal(hosts.A, { gameId: id, boardSlotId, scored: true });
+    const reveals = () => db.select().from(reveal).where(eq(reveal.gameId, id));
+    expect(await reveals()).toHaveLength(1);
+    as("A");
+    expect(await run(deleteGame, { gameId: id })).toEqual({
+      redirect: "/spill",
+    });
+    expect(await reveals()).toEqual([]);
+  });
 
   it("FR-1, AD-5: logged out it redirects to /logg-inn and deletes nothing", async () => {
     const id = await insertGame("draft", "Uten konto");
@@ -332,7 +361,24 @@ describe("Game page", () => {
   it.each(GAME_STATES)(
     'FR-3, UX-DR8: in %s it renders the "Slett spillet" button',
     async (state) => {
-      const id = await insertGame(state);
+      // A playing Game's page reads play_state, so that one is started for real.
+      const id = await insertGame(state === "playing" ? "ready" : state);
+      if (state === "playing") {
+        await (
+          await getDb()
+        )
+          .insert(question)
+          .values({ id: randomUUID(), gameId: id, position: 1, text: "?" });
+        await play.start(hosts.A, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+      }
+      // A played Game's page shows the deletion date from played_at, so set it as finish would.
+      if (state === "played")
+        await (
+          await getDb()
+        )
+          .update(game)
+          .set({ playedAt: new Date() })
+          .where(eq(game.id, id));
       as("A");
       const html = renderToStaticMarkup(
         await GamePage({

@@ -16,13 +16,15 @@ export function HostChrome({
 }) {
   return (
     <>
+      {/* data-host-chrome: hidden under the play view's stage (globals.css). */}
       <a
+        data-host-chrome=""
         href="#innhold"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-10 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-md focus:bg-surface focus:px-4"
       >
         Hopp til innhold
       </a>
-      <header className="border-b border-line">
+      <header data-host-chrome="" className="border-b border-line">
         <div className="mx-auto flex max-w-320 items-center justify-between gap-4 px-4 py-2 sm:px-8">
           <Link
             href={signedIn ? "/spill" : "/"}
