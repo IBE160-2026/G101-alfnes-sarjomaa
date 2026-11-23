@@ -7,7 +7,7 @@ paradigm: 'modular monolith, layered (routes -> server modules -> db) in one Nex
 scope: 'Toppsvar Stage 1, the whole system in one deployable Next.js app, with Stage 2 (FR-22, FR-28, FR-29, FR-33) kept possible'
 status: final
 created: '2026-11-21'
-updated: '2026-11-22'
+updated: '2026-11-23'
 binds: [FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, FR-7, FR-8, FR-9, FR-10, FR-11, FR-12, FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-23, FR-24, FR-25, FR-26, FR-27, FR-30, FR-31, FR-32, NFR-1, NFR-2, NFR-3, NFR-4, NFR-5, NFR-6, NFR-7, NFR-8]
 sources:
   - .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md
@@ -405,7 +405,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 | `JUDGE_PROVIDER` | derived (AD-13) | `openrouter`, `replay` or `mock` |
 | `JUDGE_MODEL` | `deepseek/deepseek-v4.1-flash` | OpenRouter model ID for the live provider |
 | `DEMO_MODE` | empty | `1` shows the demo login hint and band, from the `src/lib` demo credentials constant (AD-19) |
-| `REGISTRATION_CODE` | empty | if set, registration requires it (pilot) |
+| `REGISTRATION_CODE` | empty | if set, registration requires it. *Amended 2026-11-23:* not set on the pilot, whose registration is open (AD-24) |
 | `CRON_SECRET` | empty | if set, enables `/api/purge` (pilot) |
 
 ### AD-22 — Test layout, guards and CI [ADOPTED]
@@ -470,9 +470,16 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 | Local dev (`npm run dev`) | `pglite://.data/local` | automatic (PGlite only) | if a key is in `.env.local` |
 | Demo (`npm run demo`) | `pglite://.data/demo`, recreated | automatic | never (`replay`) |
 | Test and CI | `pglite://:memory:`, temp directory, Postgres service | automatic in setup | never |
-| Pilot | Neon free tier, EU region, pooled URL | explicit `npm run db:migrate` deploy step | yes, the key has a console spend limit |
+| Pilot (production) | Neon Postgres, Frankfurt (EU), pooled URL | explicit `npm run db:migrate` deploy step | yes, through a key with a USD 0.10 credit limit |
+| Pilot previews | `pglite:///tmp/toppsvar`, per function instance | automatic (PGlite only) | never (no key) |
 
-The pilot is Vercel Hobby (300 s per function with fluid compute), production from `main` only, with previews disabled. `REGISTRATION_CODE` and `CRON_SECRET` are set there. There are no backups beyond Neon's short history, and the pilot database is deleted when the course ends. Any Node host running `next start` with a Postgres URL is equivalent. The README's local path never mentions a host.
+The pilot is Vercel Hobby (300 s per function with fluid compute), with production from `main` only. *Amended 2026-11-23 (group decision):*
+
+- **Open registration.** `REGISTRATION_CODE` is not set, so anyone with the address can create a Host account. `CRON_SECRET` stays set for the daily purge (AD-23).
+- **Previews on.** Preview deployments set `DATABASE_URL=pglite:///tmp/toppsvar` and no `OPENROUTER_API_KEY`. They never reach the production database or the Judge, and their data lasts only as long as the function instance.
+- **Production.** Neon Postgres in Frankfurt (EU) and an OpenRouter key with a USD 0.10 credit limit, which is the cost cap. When the credit is used up, OpenRouter refuses the request, the Judge reports `ERROR`, and the Question starts with one Group per distinct normalised Answer (FR-17).
+
+There are no backups beyond Neon's short history, and the pilot database is deleted when the course ends. Any Node host running `next start` with a Postgres URL is equivalent. The README's local path never mentions a host.
 
 ## Consistency Conventions
 
@@ -515,7 +522,7 @@ Do not keep the Next starter's `@types/node ^20` (vitest 5 rejects it), its `nex
 | `prettier` / `eslint-config-prettier` | 3.10.1 / 10.1.8 |
 | `tsx` / `server-only` | 4.23.15 / 0.0.1 |
 | `@fontsource-variable/bricolage-grotesque` (self-hosted display font) | 5.3.0 |
-| Pilot hosting | Vercel Hobby (Node runtime) + Neon free tier (EU) |
+| Pilot hosting | Vercel Hobby (Node runtime) + Neon Postgres, Frankfurt (EU) |
 
 ## Structural Seed
 
@@ -547,7 +554,7 @@ flowchart LR
     N --> FX["data/rulings/*.json (replay)"]
   end
   subgraph Pilot["Pilot (optional, main only)"]
-    V["Vercel function, Node runtime"] --> HP["Neon Postgres, EU, pooled"]
+    V["Vercel function, Node runtime"] --> HP["Neon Postgres, Frankfurt (EU), pooled"]
     V --> FX2["data/rulings (traced into bundle)"]
     C["Vercel Cron daily"] --> V
     V -. "only if OPENROUTER_API_KEY" .-> A["OpenRouter chat completions, deepseek/deepseek-v4.1-flash"]
