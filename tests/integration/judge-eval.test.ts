@@ -49,6 +49,23 @@ globalThis.fetch = async (url, init) => {
 `,
 );
 
+// An endpoint that answers the first Question and returns invalid output for every other one.
+const halfOpenRouter = join(temp, "half-openrouter.mjs");
+writeFileSync(
+  halfOpenRouter,
+  `import net from "node:net";
+net.Socket.prototype.connect = () => { throw new Error("network blocked"); };
+let first;
+globalThis.fetch = async (url, init) => {
+  if (!String(url).startsWith("https://openrouter.ai/")) throw new Error("network blocked");
+  const { question, answers } = JSON.parse(JSON.parse(init.body).messages[1].content);
+  first ??= question;
+  const content = question === first ? JSON.stringify({ assignments: answers.map((a) => a.charCodeAt(0)) }) : "not json";
+  return Response.json({ choices: [{ finish_reason: "stop", message: { content } }] });
+};
+`,
+);
+
 // An endpoint that is always down: every request gets a 500.
 const downOpenRouter = join(temp, "down-openrouter.mjs");
 writeFileSync(
@@ -213,27 +230,25 @@ describe("evaluate", () => {
 });
 
 describe("npm run judge:eval", () => {
-  it("FR-32 (AC2): with no key, replays the committed rulings offline, prints the pinned aggregates and the 0.70 line, warns about the versions and exits 0", () => {
+  it("FR-32 (AC2): with no key, replays the committed rulings offline, prints the pinned aggregates, the fallback and the 0.70 line, and exits 0", () => {
     const { status, stdout, stderr } = cli(ROOT, "");
     expect(stdout).toBe(
       [
         "Data: ProtoQA crowdsourced dev",
         "Questions: 52",
         "Answers scored: 4887",
-        "B-cubed precision: 1.0000",
-        "B-cubed recall: 0.4032",
-        "B-cubed F1: 0.5747",
+        "B-cubed precision: 0.9809",
+        "B-cubed recall: 0.5261",
+        "B-cubed F1: 0.6849",
         "Judge calls per Question: 0.00",
-        "Prompt version: placeholder",
-        "Model: placeholder: every item alone (no Judge)",
-        "F1 0.5747 is below the SM-2 bar of 0.70.",
+        `Prompt version: ${PROMPT_VERSION}`,
+        `Model: ${env.JUDGE_MODEL}, fallback: INVALID_OUTPUT`,
+        "F1 0.6849 is below the SM-2 bar of 0.70.",
         "ProtoQA is English, so the figure says nothing direct about Norwegian Answers.",
         "",
       ].join("\n"),
     );
-    expect(stderr).toBe(
-      `Warning: the rulings come from prompt version placeholder and model placeholder: every item alone (no Judge), but the current ones are prompt version ${PROMPT_VERSION} and model ${env.JUDGE_MODEL}.\n`,
-    );
+    expect(stderr).toBe("");
     expect(status).toBe(0);
   });
 
@@ -403,6 +418,27 @@ describe("npm run judge:eval", () => {
       `Warning: the rulings come from prompt version ${PROMPT_VERSION} and model other/model, but the current ones are prompt version ${PROMPT_VERSION} and model ${env.JUDGE_MODEL}.\n`,
     );
     expect(status).toBe(0);
+  });
+
+  it("FR-32 (AC3), FR-17: a --live run where the Judge fails on one Question stores it as one Group per item with the reason as its model, records the others and reports the fallback", () => {
+    const dir = workdir("live-half", []);
+    const { status, stdout, stderr } = run(halfOpenRouter, dir, "x", "--live");
+    expect(stderr).toBe("");
+    expect(status).toBe(0);
+    expect(stdout).toContain(
+      "Wrote 2 rulings to data/rulings/protoqa-dev.json; run npx prettier --write data/rulings/protoqa-dev.json before committing.\nQuestions that fell back to one Group per item: 1 (INVALID_OUTPUT).\n",
+    );
+    expect(stdout).toContain(
+      `Model: ${env.JUDGE_MODEL}, fallback: INVALID_OUTPUT\n`,
+    );
+    const rulings = JSON.parse(
+      readFileSync(join(dir, "data/rulings/protoqa-dev.json"), "utf8"),
+    );
+    expect(rulings).toHaveLength(2);
+    expect(rulings[1].model).toBe("fallback: INVALID_OUTPUT");
+    expect(rulings[1].assignments).toEqual(
+      rulings[1].items.map((_: string, i: number) => i),
+    );
   });
 
   it("FR-32 (AC3): a --live run whose Judge fails exits 1 and leaves the existing rulings file unchanged", () => {

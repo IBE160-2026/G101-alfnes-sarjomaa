@@ -9,11 +9,13 @@ import {
 } from "@/server/judge";
 import { evaluate, parseLabelled } from "@/server/judge/eval";
 import { PROMPT_VERSION } from "@/server/judge/prompt";
-import { record } from "@/server/judge/record";
+import { itemsOf, record } from "@/server/judge/record";
+import { NORMALIZE_VERSION } from "@/lib/normalize";
 
 // AD-20. Prints aggregates only: never a Question or an Answer.
 const DATASET = "data/protoqa/dev.crowdsourced.jsonl";
 const RULINGS = "data/rulings/protoqa-dev.json";
+const FALLBACK = "fallback: ";
 const USAGE = "Usage: npm run judge:eval [-- --live | -- --file <path>]";
 
 function fail(message: string): never {
@@ -58,14 +60,41 @@ try {
         return result;
       },
     };
-    const rulings = await record(
-      questions.map(({ question, items }) => ({ question, answers: items })),
-      counting,
-    );
+    // FR-17: a Question the Judge fails on falls back to one Group per item, as in the app. It
+    // is stored that way with the reason as its model, so the offline run reproduces the figure
+    // and shows the fallback. If every Question fails, nothing is written.
+    const rulings: Awaited<ReturnType<typeof record>> = [];
+    const fellBack: string[] = [];
+    for (const { question, items } of questions) {
+      try {
+        rulings.push(
+          ...(await record([{ question, answers: items }], counting)),
+        );
+      } catch (error) {
+        if (!(error instanceof JudgeError)) throw error;
+        calls += error.calls;
+        fellBack.push(error.reason);
+        if (fellBack.length === questions.length) throw error;
+        const distinct = itemsOf(items);
+        rulings.push({
+          kind: "partition",
+          promptVersion: PROMPT_VERSION,
+          normalizeVersion: NORMALIZE_VERSION,
+          model: `${FALLBACK}${error.reason}`,
+          question,
+          items: distinct,
+          assignments: distinct.map((_, i) => i),
+        });
+      }
+    }
     await writeFile(RULINGS, `${JSON.stringify(rulings, null, 2)}\n`);
     console.log(
       `Wrote ${rulings.length} rulings to ${RULINGS}; run npx prettier --write ${RULINGS} before committing.`,
     );
+    if (fellBack.length > 0)
+      console.log(
+        `Questions that fell back to one Group per item: ${fellBack.length} (${fellBack.join(", ")}).`,
+      );
     liveCalls = calls;
   }
 
@@ -79,7 +108,9 @@ try {
     );
   if (
     result.promptVersions.some((version) => version !== PROMPT_VERSION) ||
-    result.models.some((model) => model !== env.JUDGE_MODEL)
+    result.models.some(
+      (model) => model !== env.JUDGE_MODEL && !model.startsWith(FALLBACK),
+    )
   )
     console.error(
       `Warning: the rulings come from prompt version ${result.promptVersions.join(", ")} and model ${result.models.join(", ")}, but the current ones are prompt version ${PROMPT_VERSION} and model ${env.JUDGE_MODEL}.`,
