@@ -2,6 +2,8 @@
 
 <!-- Generated from planning artifacts. Regenerate with compile-epic-context if planning docs change. -->
 
+*Amended 2026-11-24, recording the group's decision of 2026-11-23 (`wiki/prosjekt/beslutninger.md`, row 2026-11-23 on Story 8.1):* Story 8.1 started before SM-1 passed, by the group's decision. The PRD §10 item 3 precondition is settled by the group without asking the course staff: only the crowdsourced part of ProtoQA (CC BY 4.0) is used. The entry point is `review.createFromQuestionSet`, not `games.createFromQuestionSet`, because of the AD-1 module order (see the AD-15 amendment in the spine). The SM-1 gate still applies to Stories 8.2 to 8.4.
+
 ## Goal
 
 Add the Stage 2 features that sit on top of the finished Stage 1 loop. FR-33 comes first: a Host creates a Game from a ready-made ProtoQA Question set and plays at once, with no Collection, Grouping or Review. The remaining stories (reorder Groups, assisted Guess matching, strikes and steals) follow only if time allows. No story starts until SM-1 passes in full on `main`. Design detail is decided now, inside AD-4, AD-13, AD-15 and AD-16, and the spine is amended in the same change.
