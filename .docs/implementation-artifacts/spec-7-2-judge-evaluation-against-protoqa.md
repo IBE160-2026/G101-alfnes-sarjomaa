@@ -201,3 +201,19 @@ The second live run (prompt version 1, `deepseek/deepseek-v4.1-flash`, about 1 m
 An earlier live run the same day, with the old call counter, gave F1 0.6739 with 14 fallbacks; the model is not fully deterministic at temperature 0, so figures move by about 0.01 between recordings. The committed file is the second run, and `judge-eval.test.ts` pins its figures.
 
 **What the fallbacks show.** Every fallback was a reply with the wrong number of assignments. The Questions that succeeded have 9 to 61 distinct items, and the ones that fell back 40 to 83, so the model starts miscounting at around 40 items. A fallback puts every answer alone (precision 1, recall low), which is why recall, not precision, pulls F1 under 0.70. A real Game can reach that: up to 50 invite links (`INVITE_LINKS_MAX`) with up to 5 answers per Question each (`ANSWERS_PER_QUESTION_MAX`) gives up to 250 answers per Question, and a big party with spread-out answers passes 40 distinct items easily. The demo Game and the pilot runs (5 to 6 sets) stayed far below it, which is why it never showed there. A prompt that numbers the items, or asks for groups of item numbers instead of one number per item, is the obvious next version to try before the 1 Dec freeze; SM-2 allows tuning until then, with every version tried reported.
+
+## Tuning tried: reasoning effort (2026-11-23)
+
+A group member suggested turning the model's reasoning on, since every fallback above was a miscount. Both settings were run live once, with `MAX_TOKENS` raised from 2048 to 16000 so the reasoning tokens fit, and with everything else as prompt version 1. Neither change was kept; the code and the committed rulings stay at `effort: "none"`.
+
+| Reasoning effort | B-cubed F1 | Precision | Recall | Fallbacks | Reason | Calls per Question | Run time (52 Questions in sequence) |
+|---|---|---|---|---|---|---|---|
+| `none` (committed) | **0.6849** | 0.9809 | 0.5261 | 15 | `INVALID_OUTPUT` | 1.40 | 1 m 45 s |
+| `medium` | 0.6545 | 0.9911 | 0.4886 | 25 | `TIMEOUT` | 1.04 | 20 m 38 s |
+| `high` | 0.6304 | 0.9979 | 0.4607 | 33 | `TIMEOUT` | 1.00 | 22 m 28 s |
+
+Reasoning removes the miscounts: with `medium`, no Question fell back on `INVALID_OUTPUT`, and the Questions with 72 and 83 items were grouped. But the model writes thousands of reasoning tokens first (one small smoke call went from about 30 to 1,131 output tokens and took 4 s), so large Questions pass the 30 s Judge timeout (`JUDGE_TIMEOUT_MS`) and fall back anyway. Raising the timeout would break the 180 s Grouping lease for a full Game. The two runs cost about USD 0.35.
+
+Decision: the figure is reported at prompt version 1 without reasoning, and SM-2 is not tuned further before the freeze. Ready-made Question sets (FR-33, Story 8.1) do not depend on the Judge at all.
+
+**Which key.** `--env-file` does not override a variable already exported in the shell, so the two prompt-version-1 recordings above (and the live `data/rulings/demo.json` from Story 7.1) were billed to another project's key exported in the developer's shell, not to the group's key in `.env`. The model and settings were the same, so the rulings stand. The reasoning runs used `env -u OPENROUTER_API_KEY` so that `.env` applied. The README should tell developers to check for an exported `OPENROUTER_API_KEY` before running the key scripts (Story 7.4).
