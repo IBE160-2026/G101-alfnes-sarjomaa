@@ -10,6 +10,16 @@ describe("errors", () => {
     );
   });
 
+  it("FR-5: QUESTIONS_REQUIRED and LINK_CAP_REACHED have their exact bokmål messages", () => {
+    expect(MESSAGES.QUESTIONS_REQUIRED).toBe("Skriv minst ett spørsmål først.");
+    expect(MESSAGES.LINK_CAP_REACHED).toBe("Spillet har nådd maks 50 lenker.");
+  });
+
+  it("FR-9, FR-10: LINK_UNKNOWN and COLLECTION_CLOSED have their exact bokmål messages", () => {
+    expect(MESSAGES.LINK_UNKNOWN).toBe("Vi finner ikke denne lenken.");
+    expect(MESSAGES.COLLECTION_CLOSED).toBe("Innsamlingen er stengt.");
+  });
+
   it("AD-17: toFailure gives the action result shape for a DomainError", () => {
     expect(
       toFailure(

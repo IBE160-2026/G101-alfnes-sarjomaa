@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { INVITE_LINKS_MAX, QUESTIONS_MAX } from "@/lib/limits";
 
 export type ErrorCode =
   | "INVALID_INPUT"
@@ -7,6 +8,11 @@ export type ErrorCode =
   | "REGISTRATION_CODE_WRONG"
   | "NOT_FOUND"
   | "WRONG_STATE"
+  | "QUESTION_CAP_REACHED"
+  | "QUESTIONS_REQUIRED"
+  | "LINK_CAP_REACHED"
+  | "LINK_UNKNOWN"
+  | "COLLECTION_CLOSED"
   | "INTERNAL";
 
 export const MESSAGES: Record<ErrorCode, string> = {
@@ -16,6 +22,11 @@ export const MESSAGES: Record<ErrorCode, string> = {
   REGISTRATION_CODE_WRONG: "Registreringskoden stemmer ikke.",
   NOT_FOUND: "Vi finner ikke dette spillet.",
   WRONG_STATE: "Spillet er i en annen fase nå. Last inn siden på nytt.",
+  QUESTION_CAP_REACHED: `Du har nådd maks ${QUESTIONS_MAX} spørsmål.`,
+  QUESTIONS_REQUIRED: "Skriv minst ett spørsmål først.",
+  LINK_CAP_REACHED: `Spillet har nådd maks ${INVITE_LINKS_MAX} lenker.`,
+  LINK_UNKNOWN: "Vi finner ikke denne lenken.",
+  COLLECTION_CLOSED: "Innsamlingen er stengt.",
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",
 };
 

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import ErrorPage from "@/app/error";
 import GlobalError from "@/app/global-error";
 import SpillError from "@/app/spill/error";
+import SvarError from "@/app/svar/error";
 
 const SENTENCE = "Noe gikk galt hos oss. Prøv igjen om litt.";
 const render = (Page: typeof ErrorPage) =>
@@ -13,6 +14,7 @@ describe.each([
   ["error.tsx", ErrorPage],
   ["global-error.tsx", GlobalError],
   ["spill/error.tsx", SpillError],
+  ["svar/error.tsx", SvarError],
 ])("%s", (_, Page) => {
   const html = render(Page);
 
@@ -53,4 +55,11 @@ it("UX-DR15: spill/error.tsx renders no chrome of its own", () => {
 
 it('UX-DR23: global-error.tsx renders its own <html lang="nb">', () => {
   expect(render(GlobalError)).toMatch(/^<html lang="nb">/);
+});
+
+it("FR-1, UX-DR27: svar/error.tsx shows only the wordmark: no link, nav or skip link", () => {
+  const html = render(SvarError);
+  expect(html).toContain(">Toppsvar</p>");
+  for (const text of ["<a ", "<nav", "Hopp til innhold", "Logg ut"])
+    expect(html).not.toContain(text);
 });

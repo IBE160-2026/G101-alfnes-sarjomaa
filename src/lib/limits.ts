@@ -17,6 +17,23 @@ export const SCRYPT_CONCURRENCY = 2;
 export const GAME_TITLE_MAX = 80;
 export const GAME_TITLE_COUNTER_FROM = 60;
 
+export const QUESTIONS_MAX = 20;
+export const QUESTION_TEXT_MAX = 200;
+export const QUESTION_COUNTER_FROM = 160;
+
+export const INVITE_LINKS_MAX = 50;
+// The FR-8 count floor, and the FR-10 close floor Story 3.1 reuses.
+export const SUBMISSIONS_MIN = 3;
+// What progress() reports instead of a count below SUBMISSIONS_MIN.
+export const FEWER_THAN_3 = "fewer-than-3";
+export const COLLECTING_REFRESH_MS = 30_000; // AD-17
+
+export const ANSWER_TEXT_MAX = 80;
+export const ANSWER_COUNTER_FROM = 60;
+export const ANSWERS_PER_QUESTION_MAX = 5;
+// The fields without "Fjern" that the answer form always shows per Question.
+export const ANSWER_FIELDS_DEFAULT = 2;
+
 // FR-3 retention: 30 days after played, 90 days after the last Host change otherwise.
 export const RETENTION_PLAYED_MS = 30 * DAY_MS;
 export const RETENTION_IDLE_MS = 90 * DAY_MS;

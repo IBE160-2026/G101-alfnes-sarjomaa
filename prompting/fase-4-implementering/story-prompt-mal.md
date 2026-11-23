@@ -2,7 +2,7 @@
 
 Orkestratoren (Claude Opus 5.5 i Claude Code) kjører hver story som én subagent med
 `bmad-build-auto`, på epicens branch. Malen under ble brukt fra og med story 1.1
-(2026-11-22). `{…}` fylles inn per story. Avvik fra malen og alt orkestratoren måtte rette
+(2026-11-22). Fra story 2.5 kom linjene om RTK og caveman i tillegg, for å spare tokens. `{…}` fylles inn per story. Avvik fra malen og alt orkestratoren måtte rette
 etterpå, noteres i `prompting/fase-4-implementering/<dato>-epic-N.md`.
 
 ```
@@ -26,6 +26,12 @@ Rules:
 - Commit messages in Norwegian (bokmål), short imperative subject, ending with the line
   "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". Never push. Never commit .env.
 - No API keys exist in this environment; tests must pass without network (NFR-3).
+- Run checks as `npm run test` (not `npm test`), `npm run test:e2e`, `npm run lint`,
+  `npm run typecheck`, so the RTK hook compresses their output. Use `rtk proxy <cmd>` only if
+  the output is unusable.
+- Invoke the Skill tool with skill "caveman" (argument "full") before writing your final
+  report, and write that report in caveman style. Files and commit messages stay in normal
+  full sentences.
 - No real names (public repo).
 - If you reject or correct an AI suggestion during review, say so in the story spec's
   review section (this is grading evidence).

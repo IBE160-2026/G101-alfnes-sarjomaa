@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, type ReactNode } from "react";
+import { CollectingRefresh } from "@/components/CollectingRefresh";
 import { DeleteGame } from "@/components/DeleteGame";
+import { InviteLinkPanel } from "@/components/InviteLinkPanel";
+import { ProgressCount } from "@/components/ProgressCount";
+import { QuestionEditor } from "@/components/QuestionEditor";
+import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
+import * as collection from "@/server/collection";
 import * as games from "@/server/games";
+import * as questions from "@/server/questions";
 
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
@@ -41,20 +48,73 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
     throw error;
   }
 
-  // One route; later stories add their state's panel as a case here.
-  let panel = null;
-  switch (game.state) {
-    case "draft":
-      panel = (
-        <section aria-labelledby="sporsmal" className="mt-10">
-          <h2 id="sporsmal" className="text-heading">
-            Spørsmål
-          </h2>
-          {/* shortcut: neutral copy while there is no question editor; restore the EXPERIENCE.md sentence ("Skriv det første …") with the editor in Epic 2. */}
-          <p className="mt-2">Ingen spørsmål ennå.</p>
-        </section>
-      );
-      break;
+  // One route; later stories add their state's panel here. Sections are keyed so the
+  // Invite link panel (key "links") keeps its client state, the only copy of the new
+  // links, when the first batch refreshes the page from draft to collecting.
+  let panel: ReactNode[] = [];
+  if (game.state === "draft" || game.state === "collecting") {
+    const { hostId } = await auth.requireHost();
+    const list = await questions.list(hostId, game.id);
+    const progress = await collection.progress(hostId, game.id);
+    const draft = game.state === "draft";
+    const links = (
+      <section key="links" aria-labelledby="lenker" className="mt-10">
+        <h2 id="lenker" className="text-heading">
+          {draft ? "Lag invitasjonslenker" : "Flere lenker"}
+        </h2>
+        <InviteLinkPanel
+          gameId={game.id}
+          state={game.state}
+          issued={progress.issued}
+          questionCount={list.length}
+        />
+      </section>
+    );
+    panel = draft
+      ? [
+          <section key="questions" aria-labelledby="sporsmal" className="mt-10">
+            <h2 id="sporsmal" className="text-heading">
+              Spørsmål
+            </h2>
+            <QuestionEditor gameId={game.id} questions={list} />
+          </section>,
+          links,
+        ]
+      : [
+          <section
+            key="progress"
+            aria-labelledby="innsamling"
+            className="mt-10"
+          >
+            <h2 id="innsamling" className="text-heading">
+              Innsamling
+            </h2>
+            <ProgressCount
+              active={progress.active}
+              submissions={progress.submissions}
+            />
+            <CollectingRefresh />
+          </section>,
+          links,
+          <section key="revoke" aria-labelledby="erstatt" className="mt-10">
+            <h2 id="erstatt" className="text-heading">
+              Erstatt en tapt lenke
+            </h2>
+            <RevokeLinkPanel gameId={game.id} issued={progress.issued} />
+          </section>,
+          <section key="locked" aria-labelledby="sporsmal" className="mt-10">
+            <h2 id="sporsmal" className="text-heading">
+              Spørsmål (låst)
+            </h2>
+            <ol className="mt-4 flex list-decimal flex-col gap-2 pl-6">
+              {list.map((q) => (
+                <li key={q.id} className="break-words">
+                  {q.text}
+                </li>
+              ))}
+            </ol>
+          </section>,
+        ];
   }
 
   return (
