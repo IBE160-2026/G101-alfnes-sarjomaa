@@ -82,9 +82,8 @@ Open items:
 - Demo content: D1.
 - Fresh clone: F1 (Story 7.4).
 - SM-3 anonymity audit: `tests/manual/anonymity-audit.md` has no recorded run.
-- README items marked "Open" in `tests/TRACE.md` (Story 7.4): the anonymity section and its limits (FR-14), the three commands and printed demo login (FR-31, NFR-1), and the environment table and hand-in zip (NFR-8).
 
-SM-2 is reported, not gated. The live ProtoQA figure, recorded 2026-11-23 with prompt version 1 and `deepseek/deepseek-v4.1-flash`, is B-cubed F1 0.6849 (precision 0.9809, recall 0.5261), 1.40 calls per Question, with 15 of 52 Questions falling back on `INVALID_OUTPUT`. Reasoning was tried and rejected (see `.docs/implementation-artifacts/spec-7-2-judge-evaluation-against-protoqa.md`). The figure is below 0.70, which does not fail SM-1. The README (Story 7.4) reports it.
+SM-2 is reported, not gated. The live ProtoQA figure, recorded 2026-11-23 with prompt version 1 and `deepseek/deepseek-v4.1-flash`, is B-cubed F1 0.6849 (precision 0.9809, recall 0.5261), 1.40 calls per Question, with 15 of 52 Questions falling back on `INVALID_OUTPUT`. Reasoning was tried and rejected (see `.docs/implementation-artifacts/spec-7-2-judge-evaluation-against-protoqa.md`). The figure is below 0.70, which does not fail SM-1. The README reports it, with every version tried, in its "Status" section.
 
 The slip list in PRD §6.5 has three items. What is known about each:
 
@@ -92,4 +91,4 @@ The slip list in PRD §6.5 has three items. What is known about each:
 - `judge:eval --live`, the live regeneration of the rulings: run on 2026-11-23 (Story 7.2).
 - SM-4, the local measurement on real Answers: not run in this repository.
 
-The README (Story 7.4) must state which of them slipped.
+The README's "Status" section states that none has slipped yet, and that SM-4 moves to Stage 2 if it is not run by the freeze.

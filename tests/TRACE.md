@@ -206,7 +206,7 @@ Honest anonymity notice.
 
 - `tests/e2e/answer-form.spec.ts`: above the first Question the info Notice reads exactly "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet, og svarene kan bli sendt til en ekstern KI-tjeneste for gruppering.", with the instruction line as a separate paragraph and no horizontal scroll at 360 px (Story 2.4, AC1; amended FR-14, Story 5.6). The e2e run uses replay only; the notice is one constant in `AnswerForm.tsx` with no condition in code, so it reads the same with every Judge provider.
 - `tests/manual/checklist.md`: A3, the notice is read by VoiceOver or TalkBack (Story 2.4, AC6).
-- Open: the README's anonymity section, which repeats the notice and lists its limits (Story 7.4).
+- `README.md`, section "Anonymitet": the notice (nobody can see who wrote an Answer, and Answers may be sent to an external AI service for grouping), retention only while the app runs, pilot database deletion, the eight limits from `delivery-notes.md` plus the unsent draft, and a link to the sprint change proposal of 2026-11-23 (Story 7.4, AC2).
 
 ## FR-15
 
@@ -380,7 +380,7 @@ Demo mode.
 - `tests/integration/demo-replay.test.ts`: the demo seed (`src/server/demo.ts`, through `auth.createHost`, `games.create`, `questions.save`, `collection.createInviteLinks` and `collection.submit`) gives a Host with the demo email and one _collecting_ Game with eight links and six Answer sets; `collection.close` and `grouping.run` with `JUDGE_PROVIDER=replay` give every Question `source = replay`, `uncovered_items = 0`, `fell_back = false`, no fallback reason, zero Judge calls and model `hand-written`, every Group of origin `judge`, the Game _in_review_, and `fetch` is never called; each Question's ruling in `data/rulings/demo.json` has exactly the sorted distinct normalised seeded Answers as items, and its Group count equals the ruling's distinct assignments; checked to fail when one item is removed from `data/rulings/demo.json` (Story 7.1, AC2).
 - `tests/e2e/demo.spec.ts`, on the demo server (`npm run demo` on 3101): `/` and `/logg-inn` show the demo login, "Fyll inn demobrukeren" fills email and password and logs in; "Mine spill", the demo Game page ("6 av 8 svar mottatt") and Review show the band sentence; closing the demo Game reaches _Til gjennomgang_, and Review groups "Kortstokk" with "Kortspill", shows no "Manuell" and no fallback Notice; no serious axe violation on `/logg-inn` and Review; after marking all three Questions, locking the Board and starting play, the band is hidden under the play stage. On the normal server (3100), `/` and `/logg-inn` show no demo login and "Mine spill" no band (Story 7.1, AC1, AC3).
 - `tests/manual/checklist.md` D1: the demo content is invented and nothing in it derives from `.idea/` (Story 7.1, AC4).
-- Open: the README's three commands and printed demo login (Story 7.4).
+- `README.md`, section "Utvikling": `git clone`, `npm install`, `npm run demo` and the login `src/cli/demo.ts` prints from `DEMO_HOST` (Story 7.4, AC1); the fresh-clone run is F1 in `tests/manual/checklist.md`.
 
 ## FR-32
 
@@ -405,7 +405,7 @@ Local runnability.
 - `tests/integration/db.test.ts`: `DATABASE_URL` parsing, PGlite directory creation and migration on open, the health route.
 - CI (`.github/workflows/ci.yml`) runs the README scripts on Node 22 and 26 with no key.
 - CI runs `npm run demo` in the background, polls `/api/health` until 200 (failing with the log after 120 s) and stops it; `tests/e2e/server-output.spec.ts` and `demo.spec.ts` run on `npm run demo` on 3101 (Story 7.1, AC1).
-- Open: the README's prerequisites and commands, and the fresh-clone run recorded in `tests/manual/checklist.md` (Story 7.4).
+- `README.md`, section "Utvikling": Node.js 22.13+, git, no database or key, the three commands and the test commands; the fresh-clone run is F1 in `tests/manual/checklist.md` (Story 7.4, AC1).
 
 ## NFR-2
 
@@ -413,7 +413,7 @@ Deployability.
 
 - `tests/integration/db.test.ts`: `postgres://` and `postgresql://` select postgres.js with `prepare: false`, and opening one does not throw with the network guard on, so the same build targets hosted Postgres by configuration alone.
 - CI's `postgres` job runs every integration test on a Postgres 17 service container, each file in its own migrated database (`tests/postgres-setup.ts`), with the PGlite-only checks skipped (`tests/integration/driver.ts`); `tests/integration/db.test.ts` fails that job if it ever runs on PGlite, so the module code is proven on the driver a hosted deployment uses (Story 7.3, AC5).
-- The pilot deployment is optional and first to cut (Story 7.5); the README states whether it is live or cut (Story 7.4).
+- The pilot deployment is optional and first to cut (Story 7.5); the README's "Status" section states that it is live and that Vercel Cron is not set up (Story 7.4).
 
 ## NFR-3
 
@@ -494,7 +494,8 @@ Secrets.
 - `tests/integration/env.test.ts`: `.env.example` keys equal `env.ts` keys; invalid values throw naming keys only.
 - `tests/integration/db.test.ts`: a bad `DATABASE_URL` and a DB failure never echo the URL or the error message.
 - `tests/integration/manual-tools.test.ts`: `npm run db:dump` spawned with an unreachable `postgres://` URL holding a password exits 1 with "db:dump failed (CODE). Check DATABASE_URL." on stderr, no password and no dump; with a PGlite directory that does not exist it exits 1 and creates nothing (Story 7.3).
-- Open: the README's environment table equal to `.env.example`, and `scripts/make-zip.sh` building from `git archive HEAD` (Story 7.4).
+- `tests/integration/env.test.ts`: the README's environment table lists exactly the `env.ts` keys (Story 7.4, AC3).
+- `tests/integration/make-zip.test.ts`: `scripts/make-zip.sh` builds from `git archive HEAD`, every entry under `G101-alfnes-sarjomaa/`, with no `.env` other than `.env.example`, no `.env.local`, `.idea/`, `.data/`, `.next/` or `node_modules/`, and warns on stderr exactly when the tree is dirty (Story 7.4, AC4).
 
 ## UX
 

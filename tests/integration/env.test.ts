@@ -9,10 +9,21 @@ function exampleKeys(): string[] {
     .filter((key): key is string => key !== undefined);
 }
 
+// The rows of the README's environment table: | `KEY` | default | meaning |
+function readmeKeys(): string[] {
+  return [
+    ...readFileSync("README.md", "utf8").matchAll(/^\| `([A-Z0-9_]+)` \|/gm),
+  ].map((match) => match[1]);
+}
+
 describe("env", () => {
   it("NFR-8: .env.example lists exactly the keys env.ts reads", () => {
     expect(exampleKeys().sort()).toEqual(Object.keys(envSchema.shape).sort());
     expect(exampleKeys()).toHaveLength(9);
+  });
+
+  it("NFR-8: the README's environment table lists exactly the keys env.ts reads", () => {
+    expect(readmeKeys().sort()).toEqual(Object.keys(envSchema.shape).sort());
   });
 
   it("NFR-1: an empty source gives the no-key defaults", () => {
