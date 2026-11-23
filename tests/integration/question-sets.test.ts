@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
+import { prerenderToNodeStream } from "react-dom/static";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeCollection,
@@ -11,9 +12,10 @@ import {
   saveQuestion,
   startPlay,
 } from "@/app/spill/[id]/actions";
+import ScreenPage from "@/app/spill/[id]/skjerm/page";
 import { createGame } from "@/app/spill/actions";
 import { DomainError } from "@/lib/errors";
-import { QUESTION_SETS } from "@/lib/question-sets";
+import { QUESTION_SET_CREDIT, QUESTION_SETS } from "@/lib/question-sets";
 import { boardCut, rankGroups } from "@/lib/ranking";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
@@ -133,7 +135,9 @@ describe("createGame with a Question set", () => {
     ).toEqual(expected);
     const rows = await db
       .select({ groupId: boardSlot.groupId })
-      .from(boardSlot);
+      .from(boardSlot)
+      .where(inArray(boardSlot.questionId, [...texts.keys()]));
+    expect(rows).toHaveLength(slots.length);
     expect(rows.every((r) => r.groupId === null)).toBe(true);
   });
 
@@ -246,5 +250,18 @@ describe("a Game from a Question set", () => {
     });
     const after = await play.load(hosts.A, gameId);
     expect(after.teams[0].score).toBe(home.questions[0].groups[0].count);
+
+    // AC3: the stage of a set Game carries the source credit in its control bar.
+    as("A");
+    const { prelude } = await prerenderToNodeStream(
+      await ScreenPage({
+        params: Promise.resolve({ id: gameId }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    let html = "";
+    for await (const chunk of prelude) html += chunk;
+    expect(html).toContain("data-stage");
+    expect(html).toContain(QUESTION_SET_CREDIT);
   });
 });
