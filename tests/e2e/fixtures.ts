@@ -85,7 +85,8 @@ export async function registerHost(page: Page): Promise<string> {
   await page.getByLabel("E-post").fill(email);
   await page.getByLabel("Passord").fill(PASSWORD);
   await page.getByRole("button", { name: "Opprett konto" }).click();
-  await expect(page).toHaveURL("/spill");
+  // scrypt at N=2^17 can take several seconds under CPU load (a full e2e run with two servers).
+  await expect(page).toHaveURL("/spill", { timeout: 15_000 });
   return email;
 }
 
