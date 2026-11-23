@@ -273,7 +273,7 @@ async function columnsHolding(marker: string): Promise<string[]> {
 }
 
 describe("text scan", () => {
-  it("FR-3 (4.4): after create, submit, close, Grouping, rename and delete, no column holds the Game's text", async () => {
+  it("FR-3 (4.4): after a Question, submit, close, Grouping, rename and delete, no column holds the Game's text", async () => {
     const marker = `zq-${randomUUID()}`;
     const id = await insertGame("draft");
     const db = await getDb();

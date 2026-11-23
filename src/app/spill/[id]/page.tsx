@@ -204,6 +204,7 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
   } else if (game.state === "ready") {
     const { hostId } = await auth.requireHost();
     const n = (await questions.list(hostId, game.id)).length;
+    // shortcut: no way forward from ready until Epic 6, add the primary "Start spillet" link to /spill/[id]/skjerm here in Story 6.1.
     panel = [
       <section key="ready" aria-labelledby="brettet" className="mt-10">
         <h2 id="brettet" className="text-heading">
