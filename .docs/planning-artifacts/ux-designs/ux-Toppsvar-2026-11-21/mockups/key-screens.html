@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toppsvar – nøkkelskjermer (mock)</title>
+<style>
+/*
+  Static key-screen mock for Toppsvar UX (2026-11-21). No JS, no network, system fonts only
+  (Bricolage Grotesque is substituted by system-ui here). Illustrative: DESIGN.md and
+  EXPERIENCE.md win on any conflict.
+  Governs: EXPERIENCE.md "Surface: Review", "Surface: Answer form", "Surface: Play view",
+  Component Patterns (GroupCard, AnswerChip, SelectionBar, AnswerFieldset, Notice, BoardTile,
+  TeamScore) and State Patterns (Review fallback notice, answer form error summary).
+*/
+:root{
+  --paper:#FAF7F2;--surface:#FFFFFF;--sunken:#F1ECE4;--ink:#1E1A22;--muted:#5A5363;--line:#E2DBD0;--line-strong:#857D8C;
+  --primary:#7B2D5E;--primary-soft:#F5E7F0;--success:#1D6B45;--success-soft:#E2F1E8;--warning:#7A4E00;--warning-soft:#FCEFD2;
+  --danger:#A8231A;--danger-soft:#FBE9E7;
+  --stage:#10201E;--stage-raised:#1A302C;--stage-tile:#24413C;--stage-line:#739690;--stage-ink:#F6F1E7;--stage-muted:#A7BAB4;--accent:#7FE0C2;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#E9E4DC;color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:32px 16px 64px}
+h1.doc{font-size:28px;margin:0 0 4px}
+p.doc{margin:0 0 32px;color:var(--muted);max-width:900px}
+section.screen{margin:0 auto 56px;max-width:1340px}
+section.screen>h2{font-size:20px;margin:0 0 4px}
+section.screen>p{margin:0 0 16px;color:var(--muted);font-size:14px}
+.frame{background:var(--paper);border:1px solid var(--line-strong);border-radius:12px;overflow:hidden}
+/* host chrome */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--line)}
+.wordmark{font-weight:800;font-size:20px;letter-spacing:-.01em;color:var(--primary)}
+.topbar nav a{margin-left:24px;color:var(--ink);text-decoration:none;font-weight:600;font-size:14px}
+.crumb{padding:16px 32px 0;font-size:14px;color:var(--muted)}
+.notice{border-radius:10px;padding:12px 16px;font-size:15px}
+.notice b{font-weight:700}
+.n-info{background:var(--primary-soft);color:var(--ink)}
+.n-warn{background:var(--warning-soft);color:var(--warning)}
+.n-danger{background:var(--danger-soft);color:var(--danger)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:10px;font:600 16px/1 system-ui,sans-serif;border:1px solid transparent;cursor:pointer}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-secondary{background:var(--surface);color:var(--primary);border-color:var(--line-strong)}
+.btn-ghost{background:transparent;color:var(--ink)}
+.btn[aria-disabled=true]{opacity:.6}
+.help{font-size:14px;color:var(--muted);margin:6px 0 0}
+/* review */
+.review{display:grid;grid-template-columns:288px 1fr;gap:24px;padding:16px 32px 32px}
+.rail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;align-self:start}
+.rail h3{margin:0 0 12px;font-size:14px;font-weight:600}
+.rail ol{list-style:none;margin:0 0 16px;padding:0}
+.rail li{padding:8px;border-radius:6px;font-size:14px;line-height:1.35}
+.rail li .q{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rail li .st{font-size:13px;color:var(--muted)}
+.rail li .ok{color:var(--success);font-weight:600}
+.rail li[aria-current]{background:var(--primary-soft);outline:2px solid var(--primary)}
+.tag{display:inline-block;background:var(--warning-soft);color:var(--warning);border-radius:999px;padding:0 8px;font-size:12px;font-weight:600;margin-right:4px}
+.main{min-width:0;position:relative}
+.qhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}
+.qhead small{font-size:14px;font-weight:600;color:var(--muted)}
+.qhead h2{font-size:24px;line-height:1.25;margin:2px 0 0}
+.pill{border-radius:999px;padding:4px 12px;font-size:14px;font-weight:600;background:var(--sunken);white-space:nowrap}
+.sec{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:8px}
+.card.sel{background:var(--primary-soft);border:2px solid var(--primary)}
+.card.below{background:var(--sunken)}
+.card.disc{background:var(--sunken);color:var(--muted)}
+.card.disc .label{text-decoration:line-through}
+.ch{display:flex;align-items:center;gap:10px}
+.box{width:20px;height:20px;border:2px solid var(--line-strong);border-radius:4px;background:#fff;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:14px;line-height:1;color:#fff}
+.box.on{background:var(--primary);border-color:var(--primary)}
+.rank{font-weight:700;font-size:18px;width:28px}
+.label{font-weight:600;font-size:18px;flex:1}
+.count{font-size:14px;font-weight:600}
+.menu{border:1px solid var(--line-strong);border-radius:6px;padding:2px 10px;font-weight:700;background:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 30px}
+.chip{display:inline-flex;align-items:center;gap:8px;background:var(--sunken);border:2px solid transparent;border-radius:6px;padding:8px 10px;min-height:44px}
+.chip.on{background:var(--primary-soft);border-color:var(--primary)}
+.chip i{font-style:normal;color:var(--muted)}
+.limit{border-top:2px dashed var(--line-strong);margin:16px 0 4px;padding-top:6px;font-size:14px;font-weight:600;color:var(--muted);text-align:center}
+.selbar{position:sticky;bottom:0;margin-top:16px;background:var(--ink);color:#fff;border-radius:16px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+.selbar .sum{font-weight:600;font-size:18px;flex:1}
+.selbar .btn{background:#fff;color:var(--ink)}
+.selbar select{min-height:44px;border-radius:10px;padding:0 10px;font-size:16px}
+/* phones */
+.phones{display:flex;gap:40px;flex-wrap:wrap;justify-content:center}
+.phone{width:360px;background:var(--paper);border:10px solid #2b2730;border-radius:36px;overflow:hidden}
+.phone .in{padding:16px;height:740px;overflow:hidden}
+.phone .cap{font-size:13px;text-align:center;color:var(--muted);margin-top:8px}
+.pt{font-size:13px;font-weight:800;color:var(--primary)}
+.ptitle{font-size:26px;font-weight:800;margin:2px 0 12px;letter-spacing:-.01em}
+fieldset{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:12px 16px 8px;margin:12px 0}
+fieldset.err{border:2px solid var(--danger)}
+legend{padding:0 4px;font-size:14px;font-weight:600;color:var(--muted)}
+.qtext{font-size:18px;font-weight:600;line-height:1.35;margin:0 0 8px}
+label{display:block;font-size:14px;font-weight:600;margin:8px 0 4px}
+.field{height:48px;border:1px solid var(--line-strong);border-radius:6px;background:#fff;padding:12px;font-size:16px}
+.field.bad{border:2px solid var(--danger)}
+.errtxt{color:var(--danger);font-weight:600;font-size:15px;margin:0 0 6px}
+.add{color:var(--primary);font-weight:600;padding:10px 0;display:inline-block}
+.summary a{color:var(--danger);font-weight:600}
+.summary ul{margin:6px 0 0;padding-left:18px}
+/* tv */
+.tvwrap{width:960px;height:540px;margin:0 auto;border:10px solid #111;border-radius:8px;overflow:hidden;background:var(--stage)}
+.tv{width:1920px;height:1080px;transform:scale(.5);transform-origin:0 0;background:var(--stage);color:var(--stage-ink);
+  display:grid;grid-template-columns:1312px 448px;grid-template-rows:1fr 64px;column-gap:32px;padding:64px 64px 0;font-family:system-ui,sans-serif}
+.tvmain{min-width:0}
+.tvq small{font-size:48px;color:var(--stage-muted);font-weight:600;display:block}
+.tvq h3{font-size:56px;line-height:1.15;margin:4px 0 24px;font-weight:800}
+.tile{height:80px;border-radius:10px;margin-bottom:8px;display:flex;align-items:center;padding:0 24px;font-size:48px;font-weight:700}
+.tile.hid{background:var(--stage-tile);border:2px solid var(--stage-line)}
+.tile.rev{background:var(--stage-ink);color:var(--ink)}
+.tile .r{width:72px}
+.tile .l{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.tile .c{background:var(--primary);color:#fff;border-radius:10px;min-width:120px;text-align:center;padding:2px 16px;font-weight:800}
+.teams{padding-top:8px}
+.team{background:var(--stage-raised);border-radius:10px;padding:20px 24px;margin-bottom:24px}
+.team.act{border-left:6px solid var(--accent)}
+.team .badge{display:inline-block;background:var(--accent);color:var(--stage);font-size:24px;font-weight:800;border-radius:999px;padding:2px 16px;margin-bottom:8px}
+.team .n{font-size:48px;font-weight:600;line-height:1.15}
+.team .s{font-size:80px;font-weight:800;line-height:1}
+.ctrl{grid-column:1 / span 2;margin:0 -64px;background:var(--stage-raised);display:flex;align-items:center;gap:48px;padding:0 64px;font-size:24px;font-weight:600;color:var(--stage-muted)}
+.ctrl span:last-child{margin-left:auto}
+</style>
+</head>
+<body>
+<h1 class="doc">Toppsvar — nøkkelskjermer</h1>
+<p class="doc">Static mock for the UX phase (2026-11-21). Review is the most demanding surface and comes first. Content is invented. Fonts are system substitutes. <code>DESIGN.md</code> and <code>EXPERIENCE.md</code> win on any conflict.</p>
+
+<section class="screen" id="review">
+  <h2>1 · Review (laptop, 1280 px) — Question 3 of 9, three Answers selected, fallback notice</h2>
+  <p>EXPERIENCE.md → Surface: Review. Shows På brettet with the board-limit divider, Ikke på brettet, Forkastet, the Question rail with reviewed and Manuell states, aria-disabled "Lås brettet", and the SelectionBar.</p>
+  <div class="frame">
+    <div class="topbar"><span class="wordmark">Toppsvar</span><nav><a href="#review">Mine spill</a><a href="#review">Logg ut</a></nav></div>
+    <div class="crumb">Mine spill › Hyttetur 2026 › Gjennomgang</div>
+    <div style="padding:12px 32px 0"><div class="notice n-warn"><b>Dommeren rakk ikke spørsmål 4 og 7.</b> De starter med én gruppe per ulikt svar, så du slår sammen for hånd. De andre spørsmålene har dommerens forslag.</div></div>
+    <div class="review">
+      <aside class="rail" aria-label="Spørsmål">
+        <h3>2 av 9 gjennomgått</h3>
+        <ol>
+          <li><span class="q">1 Hva gjør Maren når hun har forsovet seg?</span><span class="st ok">✓ Gjennomgått</span></li>
+          <li><span class="q">2 Hvem forsvinner først på en bytur?</span><span class="st ok">✓ Gjennomgått</span></li>
+          <li aria-current="page"><span class="q">3 Hva sier Jonas til dørvakten som aldri funker?</span><span class="st">Ikke gjennomgått</span></li>
+          <li><span class="q">4 Hva finner Siri i lomma dagen derpå?</span><span class="st"><span class="tag">Manuell</span>Ikke gjennomgått</span></li>
+          <li><span class="q">5 Hva er Eiriks mest brukte unnskyldning?</span><span class="st">Ikke gjennomgått</span></li>
+          <li><span class="q">6 Hvor ender Maren etter nachspiel?</span><span class="st">Ikke gjennomgått</span></li>
+          <li><span class="q">7 Hva gjør Jonas på dansegulvet?</span><span class="st"><span class="tag">Manuell</span>Ikke gjennomgått</span></li>
+          <li><span class="q">8 Hva bestiller Siri alltid?</span><span class="st">Ikke gjennomgått</span></li>
+          <li><span class="q">9 Hvem sovner først på hytta?</span><span class="st">Ikke gjennomgått</span></li>
+        </ol>
+        <span class="btn btn-primary" aria-disabled="true" style="width:100%">Lås brettet</span>
+        <p class="help">Gjennomgå alle spørsmålene først (7 igjen).</p>
+      </aside>
+      <div class="main">
+        <div class="qhead"><div><small>Spørsmål 3 av 9</small><h2>Hva sier Jonas til dørvakten som aldri funker?</h2></div><span class="pill">Ikke gjennomgått</span></div>
+        <div class="sec">På brettet · 8 grupper</div>
+        <div class="card"><div class="ch"><span class="box"></span><span class="rank">1.</span><span class="label">Jeg kjenner eieren</span><span class="count">5 personer</span><span class="menu" aria-label="Mer for «Jeg kjenner eieren»">⋯</span></div>
+          <div class="chips"><span class="chip"><span class="box"></span>jeg kjenner eieren <i>· 3 svar</i></span><span class="chip"><span class="box"></span>kjenner sjefen</span><span class="chip"><span class="box"></span>eieren er kompisen min</span></div></div>
+        <div class="card"><div class="ch"><span class="box"></span><span class="rank">2.</span><span class="label">Jeg står på gjestelista</span><span class="count">4 personer</span><span class="menu">⋯</span></div>
+          <div class="chips"><span class="chip"><span class="box"></span>jeg er på gjestelista</span><span class="chip"><span class="box"></span>jeg skal bare hente jakka</span><span class="chip on"><span class="box on">✓</span>står på lista <i>· 2 svar</i></span></div></div>
+        <div class="card"><div class="ch"><span class="box"></span><span class="rank">3.</span><span class="label">Jeg er bare her for å hente noen</span><span class="count">3 personer</span><span class="menu">⋯</span></div>
+          <div class="chips"><span class="chip"><span class="box"></span>henter bare en venn</span><span class="chip on"><span class="box on">✓</span>skal hente søsteren min</span></div></div>
+        <p class="help" style="margin:8px 0">… gruppe 4–8 …</p>
+        <div class="limit">Brettgrense: maks 8 grupper vises i spillet</div>
+        <div class="sec">Ikke på brettet · 1 gruppe</div>
+        <p class="help" style="margin:0 0 8px">Vises ikke i spillet. Slå dem sammen med en gruppe over for at de skal telle.</p>
+        <div class="card below"><div class="ch"><span class="box"></span><span class="rank">9.</span><span class="label">Han lager scene</span><span class="count">1 person</span><span class="menu">⋯</span></div>
+          <div class="chips"><span class="chip on"><span class="box on">✓</span>lager scene i døra</span></div></div>
+        <div class="sec">Forkastet · 1 gruppe</div>
+        <div class="card disc"><div class="ch"><span class="label">Noe om eksen</span><span class="count">2 personer</span><span class="btn btn-secondary">Angre forkasting</span></div>
+          <p style="margin:6px 0 0;font-size:15px">noe om eksen · tar opp eksen</p></div>
+        <div style="margin-top:16px"><span class="btn btn-primary">Marker som gjennomgått</span></div>
+        <div class="selbar" role="region" aria-label="Valgte svar"><span class="sum">3 svar valgt</span>
+          <select aria-label="Flytt til gruppe"><option>Jeg kjenner eieren (5)</option></select><span class="btn">Flytt</span><span class="btn">Ny gruppe</span><span class="btn">Fjern valg</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="form">
+  <h2>2 · Answer form (phone, 360 px) — first visit, and submit with missing Answers</h2>
+  <p>EXPERIENCE.md → Surface: Answer form. The anonymity notice sits above the first Question (FR-14). Right: error summary with focus and links, plus inline fieldset error.</p>
+  <div class="phones">
+    <div><div class="phone"><div class="in">
+      <div class="pt">Toppsvar</div><div class="ptitle">Hyttetur 2026</div>
+      <div class="notice n-info">Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet.</div>
+      <p style="margin:12px 0 0">Gi 1–5 svar per spørsmål, det viktigste først.</p>
+      <fieldset><legend>Spørsmål 1 av 9</legend><p class="qtext">Hva gjør Maren når hun har forsovet seg?</p>
+        <label>Svar 1</label><div class="field">Later som ingenting</div>
+        <label>Svar 2 (valgfritt)</label><div class="field"></div>
+        <span class="add">+ Legg til svar</span></fieldset>
+      <fieldset><legend>Spørsmål 2 av 9</legend><p class="qtext">Hvem forsvinner først på en bytur?</p>
+        <label>Svar 1</label><div class="field"></div></fieldset>
+    </div></div><div class="cap">Første besøk</div></div>
+    <div><div class="phone"><div class="in">
+      <div class="notice n-danger summary" role="alert"><b>2 spørsmål mangler svar</b><ul><li><a href="#form">Spørsmål 4: Hva finner Siri i lomma…</a></li><li><a href="#form">Spørsmål 7: Hva gjør Jonas på…</a></li></ul></div>
+      <p class="help" style="margin:8px 0">…</p>
+      <fieldset class="err"><legend>Spørsmål 4 av 9</legend><p class="errtxt">Skriv minst ett svar.</p><p class="qtext">Hva finner Siri i lomma dagen derpå?</p>
+        <label>Svar 1</label><div class="field bad"></div>
+        <label>Svar 2 (valgfritt)</label><div class="field"></div>
+        <span class="add">+ Legg til svar</span></fieldset>
+      <p class="help" style="margin:8px 0">…</p>
+      <p style="margin:16px 0 8px;font-size:15px">7 av 9 spørsmål har svar</p>
+      <span class="btn btn-primary" style="width:100%">Send inn svar</span>
+      <p class="help">Utkastet lagres bare på denne enheten til du sender inn.</p>
+    </div></div><div class="cap">Innsending med manglende svar</div></div>
+  </div>
+</section>
+
+<section class="screen" id="play">
+  <h2>3 · Play view (TV, 1920×1080 shown at 50 %) — Question 3, two Groups revealed, Hyttegjengen's turn</h2>
+  <p>EXPERIENCE.md → Surface: Play view. Single-column top list; everything the room reads is ≥ 48 px at full size; the 24 px control bar is for the Host.</p>
+  <div class="tvwrap"><div class="tv">
+    <div class="tvmain">
+      <div class="tvq"><small>Spørsmål 3 av 9</small><h3>Hva sier Jonas til dørvakten som aldri funker?</h3></div>
+      <div class="tile rev"><span class="r">1</span><span class="l">Jeg kjenner eieren</span><span class="c">6</span></div>
+      <div class="tile hid"><span class="r">2</span></div>
+      <div class="tile rev"><span class="r">3</span><span class="l">Jeg er bare her for å hente noen</span><span class="c">3</span></div>
+      <div class="tile hid"><span class="r">4</span></div>
+      <div class="tile hid"><span class="r">5</span></div>
+    </div>
+    <div class="teams">
+      <div class="team act"><span class="badge">Sin tur</span><div class="n">Hyttegjengen</div><div class="s">23</div></div>
+      <div class="team"><div class="n">Lag 2</div><div class="s">14</div></div>
+    </div>
+    <div class="ctrl"><span>Bom [M]</span><span>Angre [Z]</span><span>Neste lag [T]</span><span>Vis resten uten poeng [U]</span><span>Neste spørsmål [N]</span><span>? Hjelp</span></div>
+  </div></div>
+</section>
+</body>
+</html>

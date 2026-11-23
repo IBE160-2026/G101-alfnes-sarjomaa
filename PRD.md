@@ -18,7 +18,7 @@ Stage 1 proves that loop end to end and keeps it stable: write, collect, group, 
 
 - **No moat.** Asking a language model whether two short Answers mean the same thing is a standard technique, and the Stage 2 Question set comes from a public dataset. The advantage is a continuous flow and careful execution, and both can be copied.
 - **The Judge's call is contestable.** Merging too eagerly kills the distinction that made a Question funny; merging too timidly splits one answer across three rows. Whether two Answers are "the same" often depends on the group's humour, which no model knows. A Host who disagrees with the Judge is frequently right, applying knowledge of the group rather than correcting an error; that is the substantive reason for Review, not merely a safety net. Slang, nicknames and near-misses that must stay apart make this harder than the general case.
-- **Anonymity has edges.** Nobody can see who wrote an Answer, but the Host reads every Answer as written, so writing style is not anonymised. Before Collection closes, someone with direct database access could correlate hashed Tokens with Answer sets. Duplicate Answer sets are prevented per Invite link, not per person: the Host decides who gets which link.
+- **Anonymity has edges.** Nobody can see who wrote an Answer, but the Host reads every Answer as written, so writing style is not anonymised. Before Collection closes, someone with direct database access could correlate hashed Tokens with Answer sets. Duplicate Answer sets are prevented per Invite link, not per person: the Host decides who gets which link. The three-set minimum (FR-10) does not protect against a Host who answers through links they keep. When live Grouping is used, Answer text is sent to the model provider; Demo mode and the manual fallback send nothing. Changing Answers from another device means starting over (FR-7). The README states all of these.
 - **One origin.** All evidence for the problem comes from one party. Whether it generalises is what the pilot goals (SM-6, SM-7) test first.
 
 ### 1.2 Beyond Stage 2 (non-binding)
@@ -191,11 +191,12 @@ A Participant who opens a valid Invite link sees every Question and can give one
 - The answer form shows no name, email address, account indicator or other identity.
 
 #### FR-7: Change a submitted Answer set — Stage 1
-A Participant who opens the same Invite link again sees their earlier Answers and can add, change or remove Answers until Collection closes, keeping at least one Answer per Question.
+A Participant who opens the same Invite link again **on the device they submitted from** sees their earlier Answers and can add, change or remove Answers until Collection closes, keeping at least one Answer per Question. (Amended 2026-11-21: the Host holds every Invite link, so showing earlier Answers to anyone who opens the link would let the Host read Answers before close, against FR-12. Architecture AD-8 keeps an edit secret on the submitting device.)
 
 **Consequences (testable):**
 - Opening an Invite link a second time edits its one Answer set. No Invite link can produce two Answer sets.
-- After submitting, the Participant is told that their Answers are saved and can be changed until Collection closes.
+- Opening the Invite link without the submitting device's edit secret shows an empty form, exactly like an unused link, and submitting from there replaces the earlier Answer set.
+- After submitting, the Participant is told that their Answers are saved and can be changed on this device until Collection closes.
 
 #### FR-8: Collection progress — Stage 1
 While Collection is open, the Host sees how many Answer sets have been submitted out of the number of active Invite links.
@@ -560,9 +561,10 @@ The draft's assumptions were decided on 2026-10-13, by delegation from the group
 
 **Departures from the brief**
 
-Two requirements deliberately differ from the brief's Solution and Scope sections. The brief is left as delivered, so its revision history stays readable, and this PRD takes precedence.
+Three requirements deliberately differ from the brief's Solution and Scope sections. The brief is left as delivered, so its revision history stays readable, and this PRD takes precedence.
 
 - §4.6 FR-20 — Discard is Stage 1, not Stage 2 as in the brief and the instructor's staging. Answers name people who did not consent, and without discard a hurtful Group could only be renamed before it reached a shared screen.
+- §4.3 FR-7 — Reopening the Invite link shows earlier Answers only on the submitting device (amended 2026-11-21 after architecture review found FR-7 contradicted FR-12). The brief's criterion "reopen and extend through the same link" still holds on that device.
 - §4.7 FR-25 — In Stage 1 the Host does not type the Guess, as the brief describes, but clicks the Group it hits or marks a miss. A typed Guess is only useful once the Judge can match it, so typing arrives with assisted matching in Stage 2 (FR-28).
 
 **Numeric parameters**
