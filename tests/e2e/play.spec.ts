@@ -761,8 +761,8 @@ test("FR-25, FR-26, FR-27 (AC1, AC4), UX-DR21, NFR-5, NFR-6: Bom shows the 80 px
   await expect(teams).toHaveText(lag1);
 
   // Every tile revealed, the last one unscored: the hint, and axe with both looks.
-  const allShown = bar.getByRole("status");
-  await expect(allShown).toHaveText("");
+  const allShown = bar.getByText("Alle svarene er avslørt.", { exact: true });
+  await expect(allShown).toHaveCount(0);
   for (const n of [1, 2, 3, 4, 5, 6, 7]) {
     await page.keyboard.press(String(n));
     await expect(tile(n)).not.toHaveRole("button");
@@ -770,7 +770,12 @@ test("FR-25, FR-26, FR-27 (AC1, AC4), UX-DR21, NFR-5, NFR-6: Bom shows the 80 px
   await page.keyboard.press("u");
   await page.keyboard.press("8");
   await expect(tile(8)).toContainText("uten poeng");
-  await expect(allShown).toHaveText("Alle svarene er avslørt.");
+  await expect(allShown).toBeVisible();
+  // One live region: the last Reveal's announcement carries the hint too, the bar has none.
+  await expect(status).toHaveText(
+    /^«.+» er avslørt uten poeng\. Alle svarene er avslørt\.$/,
+  );
+  await expect(bar.getByRole("status")).toHaveCount(0);
   expect(await style(allShown, "color")).toBe("rgb(246, 241, 231)");
   // The fullest bar (Angre shown, toggle on, both hints) does not overflow its row.
   expect(
@@ -913,7 +918,12 @@ test("FR-3, FR-27 (AC2, AC3), UX-DR21, NFR-5, NFR-6: Neste spørsmål by N and �
   await page.keyboard.press("u");
   await page.keyboard.press("1");
   await expect(tile(1)).toContainText("uten poeng");
-  await expect(bar.getByRole("status")).toHaveText("Alle svarene er avslørt.");
+  await expect(
+    bar.getByText("Alle svarene er avslørt.", { exact: true }),
+  ).toBeVisible();
+  await expect(status).toHaveText(
+    "«Oslo» er avslørt uten poeng. Alle svarene er avslørt.",
+  );
   expect(await style(next, "font-weight")).toBe("700");
   expect(await style(next, "color")).toBe("rgb(246, 241, 231)");
   await expect(teams).toHaveText(["Lag 13 poeng", "Svarer nåLag 22 poeng"]);

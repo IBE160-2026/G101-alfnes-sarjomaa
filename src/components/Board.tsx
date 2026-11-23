@@ -115,13 +115,18 @@ export function Board({
     const focusRow = () => {
       if (hadFocus) focusAfter.current = { id, revealed: true };
     };
+    // The last hidden tile: the one live region says both sentences (EXPERIENCE.md).
+    const done =
+      board.filter((s) => !s.revealed).length === 1
+        ? " Alle svarene er avslørt."
+        : "";
     run(
       () => revealSlot({ gameId, boardSlotId: id, scored: !unscored }),
       ({ label, count, team }) => {
         setSaid(
-          team
+          (team
             ? `«${label}», ${count} poeng til ${team}.`
-            : `«${label}» er avslørt uten poeng.`,
+            : `«${label}» er avslørt uten poeng.`) + done,
         );
         focusRow();
       },
@@ -356,10 +361,7 @@ export function Board({
             </button>
           </>
         )}
-        <p
-          role="status"
-          className={failure ? "hidden" : "ml-auto text-stage-ink"}
-        >
+        <p className={failure ? "hidden" : "ml-auto text-stage-ink"}>
           {allRevealed && "Alle svarene er avslørt."}
         </p>
         {/* Kept mounted under the banner, so F still works. */}
