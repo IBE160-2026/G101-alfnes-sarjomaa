@@ -405,7 +405,9 @@ Responsiveness: every Host action in Review and play shows its result within one
 
 - `tests/manual/checklist.md`: T1, merge timing on the sizing Game (Story 5.2, AC4). Timed by hand, not in CI, so no flaky timing test.
 - `tests/manual/checklist.md`: T2, move and "Ny gruppe" timing on the sizing Game (Story 5.3). Timed by hand, not in CI.
-- Pending: Stories 5.4, 5.5 and Epic 6.
+- `tests/manual/checklist.md`: T3, rename, discard and "Angre forkasting" timing on the sizing Game (Story 5.4). Timed by hand, not in CI.
+- `tests/manual/checklist.md`: T4, "Marker som gjennomgått" to the next Question, and T5, "Lås brettet" to the Game page, the heaviest Review transaction (Story 5.5). Timed by hand, not in CI.
+- Pending: Epic 6.
 
 ## NFR-6
 
