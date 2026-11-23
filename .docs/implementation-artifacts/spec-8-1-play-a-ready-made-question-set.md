@@ -18,7 +18,7 @@ deferred: []
 
 **Problem:** A Host can only play after a full Collection, Grouping and Review. FR-33 promises a Game that is playable at once, from a ready-made Question set built from ProtoQA's crowdsourced clusters, translated to Norwegian and credited.
 
-**Approach:** Commit five hand-translated Question sets of five Questions each (25 ProtoQA crowdsourced dev Questions) as one reviewable JSON file with the source ids. The existing create form gets a native `<select>` for the set. Choosing a set calls a new entry point, `review.createFromQuestionSet`. In one transaction it inserts the Game in *ready* (marked with `game.question_set`), the Questions at dense positions and the `board_slot` rows from `boardCut(rankGroups(...))` with `group_id` null. Play then runs unchanged through `review.getBoard` (AD-15). The play screen's control bar and the README credit the source as translated and adapted.
+**Approach:** Commit five hand-translated Question sets of five Questions each (25 ProtoQA crowdsourced dev Questions) as one reviewable JSON file with the source ids. The existing create form gets a native `<select>` for the set. Choosing a set calls a new entry point, `review.createFromQuestionSet`. In one transaction it inserts the Game in *ready* (marked with `game.question_set`), the Questions at dense positions and the `board_slot` rows from `boardCut(rankGroups(...))` with `group_id` null. Play then runs unchanged through `review.getBoard` (AD-15). The play screen and the README credit the source as translated and adapted.
 
 ## Boundaries & Constraints
 
@@ -52,7 +52,7 @@ deferred: []
 | Bad title with a set | empty title, set chosen | No Game is created | The FR-2 title field error |
 | Logged out | any input | Redirect to `/logg-inn`, no Game | — |
 | Set Game afterwards | edit Questions, links, close, Review, confirm | Refused | `WRONG_STATE` (AD-4) |
-| Play | Team setup → start → reveal slot 1 | The label and Count shown equal the data's top Group; the control bar shows the credit | — |
+| Play | Team setup → start → reveal slot 1 | The label and Count shown equal the data's top Group; the play view shows the credit | — |
 
 </intent-contract>
 
@@ -99,11 +99,13 @@ deferred: []
   - **And** Team setup and play start on it.
 - AC2 (FR-33): **Given** a set Game, **when** its Board is read through `review.getBoard`, **then** each Question's slots equal the dataset's top clusters (≤8) with unchanged Counts, ordered by `rankGroups`.
 - AC3 (FR-33):
-  - **Given** a set Game in play, **when** the play view shows, **then** the control bar reads "Spørsmål fra ProtoQA (CC BY 4.0), oversatt og tilpasset".
+  - **Given** a set Game in play, **when** the play view shows, **then** the play view reads "Spørsmål fra ProtoQA (CC BY 4.0), oversatt og tilpasset" under "Spørsmål N av M" (amended 2026-11-24, see the change log).
   - **And** the README credits ProtoQA as translated and adapted.
   - **And** every Question and label on screen is Norwegian.
 
 ## Spec Change Log
+
+- **2026-11-24, the credit leaves the control bar (AC3).** The two-line right end fitted the 64 px bar on macOS but not on the Linux CI, where the system font is taller: the right end grew above the bar's top, and the e2e failed. Any TV or laptop with other font metrics could hit the same overflow. The credit now sits in the Team column under "Spørsmål N av M", in the 24 px `tv-control` style and `stage-muted`, and the control bar is the same as for a Host-written Game. The e2e checks the bar as for any Game, and checks that the credit is visible, right of the Question and above the Team cards, at 1920×1080 and 1280×720, with four Team names of wide letters. It passed in the Playwright Docker image (Linux) and on macOS. `EXPERIENCE.md` and `DESIGN.md` carry the amendment.
 
 ## Review Triage Log
 
@@ -169,7 +171,7 @@ Totals: 32 findings — high 0, medium 1, low 25, false 6, maybe-false 0.
 
 Status: done
 
-**Summary.** A Host picks one of five ready-made sets in the create row ("Spørsmål": "Jeg skriver egne", or a set under "Ferdige sett"). `review.createFromQuestionSet` then creates the Game in *ready*, with 5 Questions and their Boards cut by `rankGroups` and `boardCut`. Play runs unchanged through `review.getBoard`. The control bar credits ProtoQA as translated and adapted. The README and `data/protoqa/ATTRIBUTION.md` carry the full credit.
+**Summary.** A Host picks one of five ready-made sets in the create row ("Spørsmål": "Jeg skriver egne", or a set under "Ferdige sett"). `review.createFromQuestionSet` then creates the Game in *ready*, with 5 Questions and their Boards cut by `rankGroups` and `boardCut`. Play runs unchanged through `review.getBoard`. The play view credits ProtoQA as translated and adapted, under "Spørsmål N av M". The README and `data/protoqa/ATTRIBUTION.md` carry the full credit.
 
 **Precondition.** PRD §10 item 3 (ProtoQA provenance and trademark) is settled by the group's decision of 2026-11-23 in `wiki/prosjekt/beslutninger.md`: the course staff is not asked, and only the crowdsourced part (CC BY 4.0) is used, credited as translated and adapted.
 
@@ -189,7 +191,7 @@ Status: done
   - `src/app/spill/actions.ts`: the branch on `questionSet`.
   - `src/app/spill/page.tsx`, `src/components/CreateGameForm.tsx`: the select.
   - `src/app/spill/[id]/page.tsx`: no report button for set Games.
-  - `src/app/spill/[id]/skjerm/page.tsx`, `src/components/PlayView.tsx`, `src/components/Board.tsx`: the credit in the bar.
+  - `src/app/spill/[id]/skjerm/page.tsx`, `src/components/PlayView.tsx`, `src/components/Board.tsx`: the credit, first in the bar and since 2026-11-24 in the Team column.
 - **Tests**
   - `tests/unit/question-sets.test.ts`, `tests/integration/question-sets.test.ts`, `tests/e2e/question-sets.spec.ts`: new tests.
   - `tests/integration/play.test.ts`: the no-credit check.
@@ -208,7 +210,7 @@ Status: done
 
 **AI suggestions rejected or corrected in this run**
 - **The context compiler's reading of AD-4.** It read AD-4 as placing the entry point in `games` (`games.createFromQuestionSet`). That was rejected because of the AD-1 module order, and `review.createFromQuestionSet` composes the owners' writers instead.
-- **The implementer's first credit layout.** It put the credit on one line, and the bar overflowed in the worst case. It was corrected to a two-line right end, with an e2e measurement.
+- **The implementer's first credit layout.** It put the credit on one line, and the bar overflowed in the worst case. It was corrected to a two-line right end, with an e2e measurement. That still overflowed on the Linux CI, so the credit was moved to the Team column (see the change log).
 - **Translation choices.**
   - The cluster "an iphone" became "En mobiltelefon", with no brand.
   - r2q31 ("Besides birds…") became "Nevn et kjæledyr folk har i bur, men ikke en fugl.", replacing a first draft that opened with a colon.

@@ -41,6 +41,12 @@ export function PlayView({
           <p className="text-tv-team text-stage-muted">
             Spørsmål {question.position} av {total}
           </p>
+          {/* FR-33: attribution, not game content, so the 24 px host style (EXPERIENCE.md). */}
+          {credit && (
+            <p className="mt-2 font-sans text-tv-control text-stage-muted">
+              {credit}
+            </p>
+          )}
           {/* The Score sits beside the name (beside "Svarer nå" on the active card), so four
               14-character names of wide letters still fit the 941 px column (A8). */}
           <ol aria-label="Lag" className="mt-6 flex flex-col gap-3">
@@ -85,7 +91,6 @@ export function PlayView({
           total={total}
           board={board}
           lastReveal={lastReveal}
-          credit={credit}
         />
       </div>
     </div>

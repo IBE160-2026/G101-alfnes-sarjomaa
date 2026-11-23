@@ -309,7 +309,7 @@ The wireframe abbreviates the instruction and helper lines (marked "…"); the l
 - **Final Scores** (FR-27): heading "Sluttstilling", Teams sorted by Score, centred vertically, each Score in `{typography.tv-score-final}` 120 px; the winner takes the `team-score-active` look with "Vinner" replacing "Svarer nå" (ties: "Uavgjort" on every tied Team). One 24 px line for the Host: "Spillet slettes automatisk {dato}." and a link "Tilbake til spillet".
 - **Persistence:** every action is saved before the screen changes, so a reload restores Question, Team, Reveals and Scores (FR-27).
 - **Stage 2 room:** the control bar's right end is reserved for the FR-33 source credit, so it can arrive without a layout change.
-  - *Amended 2026-11-24 (Story 8.1):* one line does not fit the fullest bar at 1920 px, so for a Game from a Question set the right end holds two lines, the hints above the credit, and the bar's gap is 24 px instead of 32 px. The bar stays 64 px. Host-written Games keep the one-line bar.
+  - *Amended 2026-11-24 (Story 8.1):* the credit does not go in the bar. Even on two lines the bar's right end grew past 64 px with other font metrics (the Linux CI), so any TV or laptop could clip it. For a Game from a Question set, the credit "Spørsmål fra ProtoQA (CC BY 4.0), oversatt og tilpasset" sits in the Team column, 8 px under "Spørsmål N av M", in `{typography.tv-control}` 24 px `stage-muted` (8.3:1 on `stage`), and may wrap. It is attribution, not something the room plays from, so it takes the 24 px style. The control bar is the same for every Game.
 
 ## Voice and Tone
 

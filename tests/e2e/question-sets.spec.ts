@@ -1,12 +1,19 @@
+import type { Locator } from "@playwright/test";
 import {
   QUESTION_SET_CREDIT as CREDIT,
   QUESTION_SETS,
 } from "@/lib/question-sets";
-import { expect, registerHost, seriousViolations, test } from "./fixtures";
+import {
+  expect,
+  registerHost,
+  seriousViolations,
+  test,
+  WIDE_TEAMS,
+} from "./fixtures";
 
 const [home] = QUESTION_SETS;
 
-test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, plays its Board from the data and credits ProtoQA in the control bar, which fits 1920×1080 in the worst case", async ({
+test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, plays its Board from the data and credits ProtoQA under the Question count, clear of the Question and the Teams at 1920×1080 and 1280×720, with the control bar as for any Game", async ({
   page,
 }) => {
   await registerHost(page);
@@ -36,11 +43,16 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
 
   await page.getByRole("link", { name: "Start spillet" }).click();
   await expect(page.locator("h1")).toHaveText("Hvem spiller?");
+  // The Team column's worst case (A8), so the credit above the cards is tested at its tightest.
+  for (const [i, name] of WIDE_TEAMS.entries()) {
+    if (i > 1) await page.getByRole("button", { name: "Legg til lag" }).click();
+    await page.getByLabel(`Navn på lag ${i + 1}`).fill(name);
+  }
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByRole("button", { name: "Start spillet" }).click();
   await expect(page.locator("h1")).toHaveText(home.questions[0].text);
 
-  // AC2, AC3: slot 1 is the data's top Group, in Norwegian, and the bar credits the source.
+  // AC2, AC3: slot 1 is the data's top Group, in Norwegian, and the stage credits the source.
   const stage = page.locator("[data-stage]");
   const tile = (n: number) => stage.locator("[data-slot]").nth(n - 1);
   const [top] = home.questions[0].groups;
@@ -67,13 +79,17 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
   await expect(
     stage.getByRole("button", { name: "Vis sluttstilling [N]" }),
   ).toBeVisible();
-  // The credit's own line sits under the hints, in the bar.
-  const bar = stage.getByText(CREDIT, { exact: true }).locator("../..");
+  // The bar is the same as on any Game: 64 px, every item inside it.
+  const bar = stage
+    .getByText("Trykk F for fullskjerm.", { exact: true })
+    .locator("..");
+  const credit = stage.getByText(CREDIT, { exact: true });
+  const cards = stage.getByRole("list", { name: "Lag" });
+  const box = async (locator: Locator) => (await locator.boundingBox())!;
   const fits = async () => {
-    const b = (await bar.boundingBox())!;
-    expect(b.height).toBe(64);
+    const b = await box(bar);
     for (const child of await bar.locator("> *").all()) {
-      const c = (await child.boundingBox())!;
+      const c = await box(child);
       expect(c.x).toBeGreaterThanOrEqual(b.x);
       expect(c.x + c.width).toBeLessThanOrEqual(b.x + b.width + 0.5);
       expect(c.y).toBeGreaterThanOrEqual(b.y - 0.5);
@@ -86,7 +102,18 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
           el.scrollHeight <= el.clientHeight,
       ),
     ).toBe(true);
+    // The credit sits in the Team column, right of the Question and above the Teams,
+    // and the last Team card still ends above the bar.
+    await expect(credit).toBeVisible();
+    const cr = await box(credit);
+    const q = await box(page.locator("h1"));
+    const t = await box(cards);
+    expect(cr.x).toBeGreaterThanOrEqual(q.x + q.width);
+    expect(cr.x + cr.width).toBeLessThanOrEqual(t.x + t.width + 0.5);
+    expect(cr.y + cr.height).toBeLessThanOrEqual(t.y);
+    expect(t.y + t.height).toBeLessThanOrEqual(b.y);
   };
+  expect((await box(bar)).height).toBe(64);
   await fits();
   await page.keyboard.press("u");
   await expect(
@@ -94,7 +121,14 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
   ).toBeVisible();
   await fits();
   await page.screenshot({
-    path: test.info().outputPath("question-set-control-bar.png"),
+    path: test.info().outputPath("question-set-stage-1920.png"),
+    animations: "disabled",
+  });
+  // Scaled to a smaller window, the canvas keeps the same layout.
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await fits();
+  await page.screenshot({
+    path: test.info().outputPath("question-set-stage-1280.png"),
     animations: "disabled",
   });
 

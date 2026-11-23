@@ -51,15 +51,12 @@ export function Board({
   total,
   board,
   lastReveal,
-  credit,
 }: {
   gameId: string;
   questionPosition: number;
   total: number;
   board: PlayView["board"];
   lastReveal: PlayView["lastReveal"];
-  // FR-33: the source credit, at the bar's right end (EXPERIENCE.md, play view rules).
-  credit?: string;
 }) {
   const router = useRouter();
   const listRef = useRef<HTMLOListElement>(null);
@@ -234,15 +231,6 @@ export function Board({
   }, [board, questionPosition]);
 
   const height = rowHeight(board.length);
-  const hints = (
-    <>
-      <p className={failure ? "hidden" : "ml-auto text-stage-ink"}>
-        {allRevealed && "Alle svarene er avslørt."}
-      </p>
-      {/* Kept mounted under the banner, so F still works. */}
-      <FullscreenKey className={failure ? "hidden" : ""} />
-    </>
-  );
   return (
     <>
       <ol
@@ -321,9 +309,7 @@ export function Board({
       <p role="status" className="sr-only">
         {said}
       </p>
-      <div
-        className={`col-span-2 row-start-3 flex items-center ${credit ? "gap-6" : "gap-8"} rounded-md bg-stage-raised px-6 font-sans text-tv-control text-stage-muted`}
-      >
+      <div className="col-span-2 row-start-3 flex items-center gap-8 rounded-md bg-stage-raised px-6 font-sans text-tv-control text-stage-muted">
         {failure ? (
           <p role="alert" className="font-bold text-stage-ink">
             {failure}
@@ -375,18 +361,11 @@ export function Board({
             </button>
           </>
         )}
-        {credit ? (
-          // FR-33: the credit takes a second line at the right end, so the fullest bar
-          // (every control and both hints) still fits 1920 px.
-          <div
-            className={failure ? "hidden" : "ml-auto text-right leading-none"}
-          >
-            <div className="flex justify-end gap-6">{hints}</div>
-            <p>{credit}</p>
-          </div>
-        ) : (
-          hints
-        )}
+        <p className={failure ? "hidden" : "ml-auto text-stage-ink"}>
+          {allRevealed && "Alle svarene er avslørt."}
+        </p>
+        {/* Kept mounted under the banner, so F still works. */}
+        <FullscreenKey className={failure ? "hidden" : ""} />
       </div>
       <dialog
         ref={helpRef}

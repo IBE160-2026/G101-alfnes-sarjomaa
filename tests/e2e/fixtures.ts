@@ -136,6 +136,11 @@ export async function seriousViolations(page: Page) {
     .map((v) => v.id);
 }
 
+// Manual check A8: four 14-character Team names of wide letters, the Team column's worst case.
+export const WIDE_TEAMS = ["W", "M", "W", "M"].map(
+  (letter, i) => letter.repeat(13) + String(i + 1),
+);
+
 // The Review flow, shared by the Review and play specs.
 export const QUESTION = "Hvem kommer for sent til hytta?";
 // Nine distinct normalised Answers, Kari written in two cases: nine Groups after the no-key fallback.

@@ -355,7 +355,7 @@ The display face is **self-hosted from npm** (e.g. `@fontsource-variable/bricola
 
 Nothing on a laptop or phone is smaller than 14 px.
 
-**TV ramp** (play view at 1920×1080, read from about 3 m). Everything the room reads is at least 48 px (FR-24): `{typography.tv-question}` 56 px, stepping down to `{typography.tv-question-long}` 48 px for Questions over 80 characters; `{typography.tv-label}` and `{typography.tv-count}` 48 px; `{typography.tv-team}` 48 px; `{typography.tv-score}` 80 px; `{typography.tv-score-final}` 120 px on the final Scores. Counts and Scores use `font-variant-numeric: tabular-nums` so digits do not jump. The only text below 48 px is the host-only control bar, `{typography.tv-control}` at 24 px in `stage-muted`, kept deliberately quiet so the room looks at the list.
+**TV ramp** (play view at 1920×1080, read from about 3 m). Everything the room reads is at least 48 px (FR-24): `{typography.tv-question}` 56 px, stepping down to `{typography.tv-question-long}` 48 px for Questions over 80 characters; `{typography.tv-label}` and `{typography.tv-count}` 48 px; `{typography.tv-team}` 48 px; `{typography.tv-score}` 80 px; `{typography.tv-score-final}` 120 px on the final Scores. Counts and Scores use `font-variant-numeric: tabular-nums` so digits do not jump. The only text below 48 px is the host-only control bar, `{typography.tv-control}` at 24 px in `stage-muted`, kept deliberately quiet so the room looks at the list, and the FR-33 source credit under "Spørsmål N av M" in the same style (amended 2026-11-24, see EXPERIENCE.md).
 
 ## Layout & Spacing
 
