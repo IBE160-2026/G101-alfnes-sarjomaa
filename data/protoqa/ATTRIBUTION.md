@@ -33,8 +33,9 @@ memory only:
 ## Derived file
 
 `data/rulings/protoqa-dev.json` holds the ProtoQA questions and their normalised answers
-together with the Judge's grouping of them (until it is recorded with a live key, a marked
-placeholder that puts every answer in a group of its own). It is derived from this dataset and is shared under
+together with the Judge's grouping of them, recorded live on 2026-11-23. A question where the
+Judge's output was invalid is stored with every answer in a group of its own, as the app would
+show it, and its `model` says `fallback`. It is derived from this dataset and is shared under
 the same licence, CC-BY-4.0, with the same credit.
 
 ## What the figure means

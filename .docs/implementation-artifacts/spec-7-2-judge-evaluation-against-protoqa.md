@@ -182,3 +182,22 @@ deferred: []
 - `--live` and `--file` have run only against a stand-in endpoint, never the real one.
 - Calls per Question is 0.00 in the offline run by design; SM-C2's figure comes from the live run's output.
 - `ATTRIBUTION.md` credits the dataset authors collectively, not by name.
+
+## Live recording (2026-11-23, orchestrator)
+
+The first `npm run judge:eval -- --live` with the group's OpenRouter key stopped on the first `INVALID_OUTPUT` and wrote nothing, because one failed Question ended the whole run. That measured nothing. The run now treats a failed Question the way the app does (FR-17): it is stored as one Group per item with `model: "fallback: <reason>"`, the other Questions are recorded, and the offline replay reproduces the figure and names the fallback in its `Model` line. A test with a fake endpoint that answers the first Question and returns invalid output for the second covers it. The live run also counted calls only for Questions that succeeded; a failed Question's calls now count too.
+
+The second live run (prompt version 1, `deepseek/deepseek-v4.1-flash`, about 1 m 45 s) gave:
+
+| Figure | Value |
+|---|---|
+| Questions | 52 (4,887 answers scored, 2,246 distinct items) |
+| B-cubed precision | 0.9809 |
+| B-cubed recall | 0.5261 |
+| B-cubed F1 | **0.6849**, below the SM-2 bar of 0.70 |
+| Judge calls per Question (live) | 1.40 |
+| Questions that fell back | 15 of 52, all `INVALID_OUTPUT` |
+
+An earlier live run the same day, with the old call counter, gave F1 0.6739 with 14 fallbacks; the model is not fully deterministic at temperature 0, so figures move by about 0.01 between recordings. The committed file is the second run, and `judge-eval.test.ts` pins its figures.
+
+**What the fallbacks show.** Every fallback was a reply with the wrong number of assignments. The Questions that succeeded have 9 to 61 distinct items, and the ones that fell back 40 to 83, so the model starts miscounting at around 40 items. A fallback puts every answer alone (precision 1, recall low), which is why recall, not precision, pulls F1 under 0.70. A real Game can reach that: up to 50 invite links (`INVITE_LINKS_MAX`) with up to 5 answers per Question each (`ANSWERS_PER_QUESTION_MAX`) gives up to 250 answers per Question, and a big party with spread-out answers passes 40 distinct items easily. The demo Game and the pilot runs (5 to 6 sets) stayed far below it, which is why it never showed there. A prompt that numbers the items, or asks for groups of item numbers instead of one number per item, is the obvious next version to try before the 1 Dec freeze; SM-2 allows tuning until then, with every version tried reported.
