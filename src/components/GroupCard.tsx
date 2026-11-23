@@ -86,7 +86,7 @@ export function GroupCard({
         <h4
           id={`gruppe-${id}`}
           onClick={onLabelClick}
-          className={`min-w-0 text-title break-words ${look === "discarded" ? "line-through" : ""} ${onLabelClick ? "cursor-pointer hover:underline" : ""}`}
+          className={`min-w-0 text-title break-words max-sm:basis-40 max-sm:grow ${look === "discarded" ? "line-through" : ""} ${onLabelClick ? "cursor-pointer hover:underline" : ""}`}
         >
           {label}
         </h4>
@@ -113,7 +113,7 @@ export function GroupCard({
         className={`flex min-h-13 flex-col justify-center px-4 py-2 ${box}`}
       >
         {notice}
-        <div className="flex items-center gap-3">{header}</div>
+        <div className="flex items-center gap-3 max-sm:flex-wrap">{header}</div>
       </li>
     );
 
@@ -122,7 +122,8 @@ export function GroupCard({
   return (
     <li aria-busy={busy || undefined} className={`px-4 py-3 ${box}`}>
       {notice}
-      <div className="flex items-baseline gap-3">{header}</div>
+      {/* Below sm the count and menu drop to a second line, so the label keeps at least 10rem. */}
+      <div className="flex items-baseline gap-3 max-sm:flex-wrap">{header}</div>
       {look === "discarded" ? (
         chips.some(raw) && (
           <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-ink-muted">

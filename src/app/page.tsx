@@ -18,9 +18,14 @@ export default async function Home() {
         sammen på én skjerm.
       </p>
       {env.DEMO_MODE && (
-        <Notice tone="info" className="mt-6">
-          <strong>Demomodus:</strong> logg inn som {DEMO_HOST.email} med
-          passordet {DEMO_HOST.password}.
+        <Notice tone="info" live={false} className="mt-6">
+          <strong>Demomodus:</strong> logg inn som{" "}
+          <code className="font-mono whitespace-nowrap">{DEMO_HOST.email}</code>{" "}
+          med passordet{" "}
+          <code className="font-mono whitespace-nowrap">
+            {DEMO_HOST.password}
+          </code>
+          .
         </Notice>
       )}
       <div className="mt-8 flex flex-wrap gap-3">
