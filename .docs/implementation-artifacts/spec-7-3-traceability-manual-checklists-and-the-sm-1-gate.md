@@ -42,7 +42,7 @@ deferred:
 | Operation in a forbidden state | each real entry point × each of the 7 states outside its `PERMITTED` row | refused: `WRONG_STATE` (Host ops), `COLLECTION_CLOSED` (Participant ops), no `grouping_result` row (Grouping) | — |
 | Operation in a permitted state | same, inside its row | not refused by state (any other outcome, e.g. `NOT_FOUND`, `TOO_FEW_ANSWER_SETS`) | — |
 | Sizing seed | `npm run seed:sizing` | fresh `.data/sizing` with one collecting Game: 15 Questions, 30 links, 30 Answer sets of 1–5 Answers; prints the login only | PGlite locked by a running server: the error surfaces, nothing printed about content |
-| Dump | `npm run db:dump` with a `DATABASE_URL` | JSON on stdout: every table in `public`, rows in physical order with `ctid` and `xmin` | bad URL: error without the URL |
+| Dump | `npm run db:dump` with a `DATABASE_URL` (a `postgres://` URL only with `-- --postgres`, amended 2026-11-23) | JSON on stdout: every table in `public`, rows in physical order with `ctid` and `xmin` | bad URL: error without the URL; a missing PGlite directory: `PGLITE_DIR_MISSING` |
 
 </intent-contract>
 
@@ -84,6 +84,7 @@ deferred:
 ## Spec Change Log
 
 - 2026-11-23, AC5 built, not cut. Inside the time box the job needed only the `.rows` shape (one helper, `sqlRows` in `tests/integration/driver.ts`, used in six files), a per-file database setup (`tests/postgres-setup.ts`, chosen by `TEST_POSTGRES_URL`) and four PGlite-only skips: the two `VACUUM_SKIPPED` tests (`SET ROLE` holds for one pooled connection only), the `PgliteSession` lock-SQL spy (on Postgres the race tests run for real) and `db-open-retry.test.ts` (it mocks PGlite's constructor). Against a fresh `postgres:17-alpine` with trust auth, as in CI: 451 passed, 4 skipped. Story 7.4 has no cut to state for it.
+- 2026-11-23, after the Epic 7 review: `db:dump` refuses a `postgres://` URL unless `--postgres` is given, so a hosted URL exported in the shell for another task is never dumped by accident, and a missing PGlite directory now shows the code `PGLITE_DIR_MISSING` instead of a bare failure. The working path (`npm run db:dump` on an existing PGlite directory, JSON only on stdout) has a spawned test.
 
 ## Review Triage Log
 

@@ -27,17 +27,25 @@ export async function dump(db: Db): Promise<Record<string, Row[]>> {
   return out;
 }
 
+// The CLI prints only `code`, never the message.
+const refuse = (code: string) => Object.assign(new Error(code), { code });
+
 // Used by `npm run db:dump`.
-export async function dumpFromEnv(): Promise<Record<string, Row[]>> {
+export async function dumpFromEnv({ postgres = false } = {}): Promise<
+  Record<string, Row[]>
+> {
+  const target = parseDatabaseUrl(env.DATABASE_URL);
+  // A hosted URL exported in the shell for something else is never dumped by accident.
+  if (target.driver === "postgres" && !postgres)
+    throw refuse("POSTGRES_NEEDS_FLAG");
   // Opening a missing PGlite directory would create an empty database, and an empty
   // dump reads as a clean audit.
-  const target = parseDatabaseUrl(env.DATABASE_URL);
   if (
     target.driver === "pglite" &&
     target.dataDir &&
     !existsSync(target.dataDir)
   )
-    throw new Error("The PGlite directory in DATABASE_URL does not exist.");
+    throw refuse("PGLITE_DIR_MISSING");
   const handle = await openDb(env.DATABASE_URL);
   try {
     return await dump(handle.db as Db);

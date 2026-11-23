@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ANSWERS_PER_QUESTION_MAX, QUESTION_TEXT_MAX } from "@/lib/limits";
-import { getDb } from "@/server/db/client";
+import { getDb, openDb } from "@/server/db/client";
 import { dump } from "@/server/db/dump";
 import { game, inviteLink, question, submission } from "@/server/db/schema";
 import { LONG_QUESTION, seedSizing, WIDE_ANSWER } from "@/server/sizing";
@@ -74,10 +74,10 @@ const temp = mkdtempSync(join(tmpdir(), "db-dump-"));
 afterAll(() => rmSync(temp, { recursive: true, force: true }));
 
 // No --env-file flag, as in npm run db:dump, so no .env file is read here.
-function dumpCli(url: string) {
+function dumpCli(url: string, ...args: string[]) {
   return spawnSync(
     "node_modules/.bin/tsx",
-    ["--conditions=react-server", "src/cli/db-dump.ts"],
+    ["--conditions=react-server", "src/cli/db-dump.ts", ...args],
     {
       encoding: "utf8",
       env: { ...process.env, DATABASE_URL: url },
@@ -87,10 +87,32 @@ function dumpCli(url: string) {
 }
 const FAILED = /^db:dump failed( \([A-Z_]+\))?\. Check DATABASE_URL\.$/;
 
-describe("npm run db:dump on failure", () => {
+describe("npm run db:dump", () => {
+  it("SM-3: on an existing PGlite directory it exits 0 and prints only the JSON dump on stdout", async () => {
+    const dir = join(temp, "audit");
+    const handle = await openDb(`pglite://${dir}`);
+    await handle.close();
+    const { status, stdout, stderr } = dumpCli(`pglite://${dir}`);
+    expect(stderr).toBe("");
+    expect(status).toBe(0);
+    expect(JSON.parse(stdout)).toHaveProperty("game", []);
+  });
+
+  it("SM-3: a postgres URL without --postgres is refused before any connection, naming the flag and not the URL", () => {
+    const { status, stdout, stderr } = dumpCli(
+      "postgres://u:hunter2@127.0.0.1:1/x",
+    );
+    expect(stderr.trim()).toBe(
+      "db:dump refuses a postgres:// DATABASE_URL without --postgres (npm run db:dump -- --postgres).",
+    );
+    expect(stdout).toBe("");
+    expect(status).toBe(1);
+  });
+
   it("NFR-8: an unreachable postgres URL exits 1 with the code only, never the URL or its password, and prints no dump", () => {
     const { status, stdout, stderr } = dumpCli(
       "postgres://u:hunter2@127.0.0.1:1/x",
+      "--postgres",
     );
     expect(stderr.trim()).toMatch(FAILED);
     expect(stderr).not.toContain("hunter2");
@@ -101,7 +123,9 @@ describe("npm run db:dump on failure", () => {
   it("SM-3: a PGlite directory that does not exist exits 1 with no dump and is not created", () => {
     const dir = join(temp, "absent");
     const { status, stdout, stderr } = dumpCli(`pglite://${dir}`);
-    expect(stderr.trim()).toMatch(FAILED);
+    expect(stderr.trim()).toBe(
+      "db:dump failed (PGLITE_DIR_MISSING). Check DATABASE_URL.",
+    );
     expect(stdout).toBe("");
     expect(status).toBe(1);
     expect(existsSync(dir)).toBe(false);
