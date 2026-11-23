@@ -139,6 +139,27 @@ Bakgrunn: [endringsforslaget fra 23. november](.docs/planning-artifacts/sprint-c
 
 </details>
 
+## Ferdige spørsmålssett
+
+Velg et sett under «Spørsmål» når du lager spillet. Da er brettet klart med en gang, uten
+innsamling og gjennomgang (FR-33, trinn 2). Spørsmålene og tellingene kommer fra
+[ProtoQA](https://github.com/iesl/protoqa-data) av ProtoQA-forfatterne (IESL, UMass Amherst),
+lisensiert under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Vi har oversatt og
+tilpasset dem: 25 av 52 spørsmål, oversatt for hånd, med norske gruppenavn og de opptil åtte
+største gruppene. Tellingene er uendret. Spillskjermen viser kilden.
+[Kreditering og endringer](data/protoqa/ATTRIBUTION.md).
+
+<details>
+<summary>De fem settene</summary>
+
+- **Hjemme:** Nevn noe folk pleier å gjøre før de går hjemmefra til jobben. Nevn noe folk kan gjøre om garasjen til. Nevn noe i huset som ofte må byttes ut. Nevn noe folk kjøper til et hus, men ikke til en leilighet. Nevn noe folk kjøper som varer lenge.
+- **Mat og drikke:** Du kjøper melk, egg, sukker og fløte. Nevn noe du sannsynligvis skal lage. Nevn en grønnsak som er omtrent like stor som hodet ditt. Nevn noe du trenger for å lage pizza. Nevn noe en idrettsutøver ikke ville hatt i kjøleskapet sitt. Nevn noe butikker deler ut gratis for å lokke til seg kunder.
+- **Jobb og reise:** Nevn en luksus folk må klare seg uten når de er på reise. Nevn noe som kan få noen til å endre returflyet sitt. Nevn en grunn til at en bilist må stoppe i veikanten. Nevn en jobb der man må være våken om natten. Nevn en grunn til å gi servitøren godt med tips.
+- **Barn og oppvekst:** Nevn noe som holder barn trygge. Nevn noe foreldre sier at barna ikke får lov til. Nevn noe man kan gjøre etter videregående i stedet for å studere videre. Nevn noe folk husker lenge, selv når de blir gamle. Nevn et klesplagg du ikke ville lånt bort til noen.
+- **Blandet drops:** Nevn et dyr man kan lære å gjøre triks. Nevn et kjæledyr folk har i bur, men ikke en fugl. Nevn en grunn til at noen går med hansker. Nevn noe folk gjør mens tannlegen undersøker dem. Nevn noe du kan finne på å knuse med vilje.
+
+</details>
+
 ## Medlemmer
 
 - Sondre Alfnes
@@ -175,8 +196,9 @@ Per 23. november. Trinn 1 fryses 1. desember.
 - **Ingenting er kuttet, og ingenting har glidd.** Av glidelista i PRD §6.5 kjører piloten (uten
   Vercel Cron), og kjennelsene er tatt opp live på nytt. Målingen på ekte norske svar (SM-4) er
   ikke kjørt. Det som ikke er ferdig ved frysen, flyttes til trinn 2.
-- **Trinn 2 venter** til trinn 1 er godkjent: ferdige spørsmålssett (FR-33), egen rekkefølge på
-  brettet (FR-22), hjelp til gjetninger (FR-28), strikes og steals (FR-29).
+- **Trinn 2 er startet** før trinn 1 er godkjent, etter gruppens valg. [Ferdige
+  spørsmålssett](#ferdige-spørsmålssett) (FR-33) er på plass. Egen rekkefølge på brettet (FR-22),
+  hjelp til gjetninger (FR-28) og strikes og steals (FR-29) gjenstår.
 - **Dommeren mot ProtoQA (SM-2): B-cubed F1 0.6849**, under målet på 0.70. Spørsmål med mange
   ulike svar faller tilbake til én gruppe per svar, og verten slår sammen i gjennomgangen.
   ProtoQA er engelsk. `npm run judge:eval` gjentar tallet uten nett.
@@ -211,7 +233,7 @@ npm run demo                # skriver ut innloggingen
 
 Åpne <http://localhost:3000/logg-inn> og logg inn med `demo@toppsvar.test` og `demo-passord`.
 Demospillet er oppdiktet og har seks svarsett. Steng innsamlingen, så grupperer dommeren fra
-lagrede avgjørelser. `.data/demo` lages på nytt ved hver start. `npm run dev` starter tomt i
+lagrede avgjørelser. Demoverten kan også lage et spill fra et ferdig spørsmålssett. `.data/demo` lages på nytt ved hver start. `npm run dev` starter tomt i
 `.data/local`.
 
 **Appen kjører uten noen nøkkel.** Variablene står i [`.env.example`](.env.example). Kopier den
@@ -300,7 +322,7 @@ beslutningslogg.
 | `src/lib` | Ren logikk og grenser, delt av resten |
 | `src/cli` | Skriptene bak `demo`, `seed:sizing`, `judge:*` og `db:*` |
 | `tests/` | Testene, [sporingen](tests/TRACE.md) og [de manuelle sjekkene](tests/manual/checklist.md) |
-| `data/` | ProtoQA-data og lagrede avgjørelser |
+| `data/` | ProtoQA-data, de ferdige spørsmålssettene og lagrede avgjørelser |
 | `drizzle/` | Migrasjonene |
 | `docs-assets/` | Skjermbilder og diagrammer |
 | [`.docs/`](.docs/) | BMAD-artefaktene: brief, PRD, UX, arkitektur, epics og én spesifikasjon per historie |

@@ -65,4 +65,6 @@ the ProtoQA authors (IESL, UMass Amherst), shared under the same licence, CC-BY-
 **Counts are unchanged.** Every `count` is the cluster's count in the source file.
 
 The app credits the source on the play screen of every Game made from a set, and in the README.
+The play screen carries the short form "Spørsmål fra ProtoQA (CC BY 4.0), oversatt og tilpasset".
+The full credit, with the ProtoQA authors, is in this file and in the README.
 No model or API was used for the translation.

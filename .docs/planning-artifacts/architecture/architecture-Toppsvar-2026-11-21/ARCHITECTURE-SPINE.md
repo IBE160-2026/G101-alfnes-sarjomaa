@@ -63,15 +63,16 @@ flowchart TD
   - **Entry points.** A function called by an action, a route or the CLI is an entry point. It opens the transaction and takes no `tx`.
   - **Exported writers.** A function exported for other modules takes `tx: Tx` as its first parameter. It runs only on that `tx` and never opens a transaction or touches the `db` singleton.
   - **Enforcement.** ESLint `no-restricted-imports` zones encode the layers and the module order.
+  - *Amended in Story 8.1:* `review.createFromQuestionSet` is the FR-33 entry point. It composes three owners' writers in one transaction: `games.insertReady`, `questions.insertAll` and its own `board_slot` insert. It lives in `review` because `review` is the latest of the three owners in the module order; `games` comes first and may call neither `questions` nor `review`.
 
 | Module (`src/server/…`) | Owns | Writers exported to other modules | FRs |
 | --- | --- | --- | --- |
 | `auth` | `host`, `session` | `requireHost` (read) | FR-1 |
-| `games` | `game`, `game_counter`; retention purge | `lockForMutation`, `transition`, `reserveInviteLinks`, `acquireGroupingLease`, `bumpCounters`, `find` (read, no owner check, for `/svar`) | FR-2, FR-3, FR-18 |
-| `questions` | `question` | `setReviewed`, `count` (read), `ofGame` (read) | FR-4 |
+| `games` | `game`, `game_counter`; retention purge | `lockForMutation`, `transition`, `reserveInviteLinks`, `acquireGroupingLease`, `bumpCounters`, `find` (read, no owner check, for `/svar`), `insertReady` (Story 8.1) | FR-2, FR-3, FR-18, FR-33 |
+| `questions` | `question` | `setReviewed`, `count` (read), `ofGame` (read), `insertAll` (Story 8.1) | FR-4, FR-33 |
 | `grouping` | `answer`, `answer_group`, `grouping_result` | `insertAnswers`, `moveAnswers`, `mergeGroups`, `setCustomLabel`, `setDiscarded`, `clearContributorData`. *Amended in Story 5.3:* no `createGroup` or `deleteIfEmpty`; `moveAnswers` creates the `host` Group and deletes emptied sources | FR-13, FR-15 to FR-17, FR-20 |
 | `collection` | `invite_link`, `submission`; close | — | FR-5 to FR-11 |
-| `review` | `board_slot` | `getBoard` (read) | FR-19 to FR-21 |
+| `review` | `board_slot`; the FR-33 entry point `createFromQuestionSet` | `getBoard` (read) | FR-19 to FR-21, FR-33 |
 | `play` | `team`, `play_state`, `reveal` | — | FR-23 to FR-27 |
 | `judge` | no tables; reads `data/rulings/*.json` | `getJudge` | FR-15, FR-32 |
 
@@ -106,13 +107,14 @@ flowchart TD
 - **Prevents:** two features moving a Game through different paths; operations that run in the wrong state; races between close, revoke, submit and Grouping.
 - **Rule:** `game.state` ∈ `draft | collecting | grouping | in_review | ready | playing | played`.
   - **Locking.** Every state-dependent mutation, Participant submits included, starts with `games.lockForMutation(tx, { hostId?, gameId, states })`. It does `SELECT … FOR UPDATE`, applies AD-5 when `hostId` is given, throws `WRONG_STATE` or `NOT_FOUND`, and touches `game.updated_at` only for Host calls. No other code locks `game`.
-  - **Transitions.** State changes go only through `games.transition(tx, gameId, from, to)`, a compare-and-set. Only the transitions in the diagram exist. Stage 2 adds `games.createFromQuestionSet`, which inserts a Game directly in `ready` (FR-33).
+  - **Transitions.** State changes go only through `games.transition(tx, gameId, from, to)`, a compare-and-set. Only the transitions in the diagram exist. *Amended in Story 8.1:* Stage 2 adds `review.createFromQuestionSet` (not `games.createFromQuestionSet`, see AD-1), which inserts a Game directly in `ready` through `games.insertReady` (FR-33). That is a creation, not an operation on an existing Game, so it gets no row in the permitted-operations table and takes no lock. A Question-set Game then follows the normal chain from `ready`; every operation of the earlier states is refused with `WRONG_STATE`.
   - **Permitted operations.** The table below lives in `src/lib/game-state.ts`, and an integration test walks the whole matrix.
   - **Deletion** locks the row and is allowed in any state.
 
 ```mermaid
 stateDiagram-v2
   [*] --> draft: games.create (FR-2)
+  [*] --> ready: review.createFromQuestionSet (FR-33, Stage 2)
   draft --> collecting: collection.createInviteLinks, first batch, at least 1 Question (FR-5)
   collecting --> grouping: collection.close, at least 3 Answer sets (FR-10)
   grouping --> in_review: grouping.finishIfComplete (FR-15, FR-17)
@@ -319,6 +321,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Marking reviewed** is refused with `NO_GROUPS_ON_BOARD` while a Question has no non-discarded Group.
   - **`review.confirmBoard`** requires every Question to be reviewed. It writes `board_slot(id, question_id, position 1..8, label, count, group_id nullable)` from `boardCut(rankGroups(...))`, calls `grouping.clearContributorData`, and moves the Game to `ready`. *Amended in Story 5.5:* a Question left unreviewed is refused with the new code `QUESTIONS_UNREVIEWED` ("Gjennomgå alle spørsmålene først."), since neither `WRONG_STATE` nor `NOT_FOUND` describes a Board that another tab un-reviewed. A Question whose Board would be empty is refused with `NO_GROUPS_ON_BOARD`, as marking is. The Counts are read before `clearContributorData`, because they are computed from the Contributor keys it clears. `review.setReviewed` marks and unmarks (AD-4) with no counter or `edit_count` change; the UI only marks.
   - **Play** reads only `board_slot`, through `review.getBoard`.
+  - *Amended in Story 8.1:* `review.createFromQuestionSet` writes the Board of a Question-set Game at creation, with no Grouping or Review. Each Question's `board_slot` rows come from `boardCut(rankGroups(...))` over the set's Groups (`customLabel` the Norwegian label, `rank1Count` 0 for all, `groupId` the source cluster id), so equal Counts are ordered by the Norwegian label in `nb` collation, with the cluster id as the final tie key, with `group_id` null. Play and the Score are unchanged. The set data is `data/question-sets/protoqa-nb.json`, read through `src/lib/question-sets.ts`, and the nullable `game.question_set` names the set (null for a Host-written Game); the play view shows the source credit only when it is set.
 
 ### AD-16 — Play state is saved as a reveal log
 
@@ -635,7 +638,8 @@ flowchart LR
 | FR-32 Judge evaluation | `cli/judge-eval.ts`, `data/protoqa` | AD-14, AD-20 |
 | NFR-1 to NFR-3, NFR-8 | `db/client.ts`, `env.ts`, CI | AD-2, AD-3, AD-21, AD-22, AD-24 |
 | NFR-4 to NFR-7 Devices, speed, accessibility, language | `app`, `components` | `DESIGN.md`, `EXPERIENCE.md`; Conventions; AD-22 axe pass |
-| Stage 2: FR-22, FR-28, FR-29, FR-33 | `review`, `judge.match`, `play`, `games.createFromQuestionSet` | AD-4, AD-13, AD-15, AD-16 (doors kept open) |
+| FR-33 Ready-made Question sets (Stage 2, Story 8.1) | `review.createFromQuestionSet`, `lib/question-sets.ts`, `data/question-sets` | AD-1, AD-4, AD-11, AD-15 |
+| Stage 2: FR-22, FR-28, FR-29 | `review`, `judge.match`, `play` | AD-4, AD-13, AD-15, AD-16 (doors kept open) |
 
 ## Deferred
 
@@ -643,6 +647,6 @@ flowchart LR
 - **Visual system, Review interaction, near-threshold display and unsent drafts.** These were decided in `DESIGN.md` and `EXPERIENCE.md`. Architecture constraints: no per-Group confidence signal in Stage 1, single-Answer Groups are ordinary Groups, and drafts stay in `localStorage`, under the one per-link key `toppsvar:<gameId>:<first 16 chars of token>` (no hashing in the browser), and are never sent before submit.
 - **Judge prompt wording and the measured token and latency figures.** Tuned in the Judge story against `judge:eval` until the Stage 1 freeze. The format, versions and the 0.70 bar are fixed in AD-13 and AD-14.
 - **Account recovery and email verification.** Not required by the PRD. Registration reveals whether an email is already taken, and that is accepted.
-- **Stage 2 data.** The Question-set import format and `game.kind` (FR-33), a manual Group order column on `answer_group` (FR-22), typed Guess storage and its deletion (FR-28), and strike and steal state (FR-29). These are decided when Stage 2 starts, inside AD-4, AD-13, AD-15 and AD-16.
+- **Stage 2 data.** *Resolved in Story 8.1:* the Question-set format is one committed JSON file, `data/question-sets/protoqa-nb.json` (`{id, name, questions: [{sourceId, text, groups: [{cluster, label, count}]}]}`), and `game.kind` is the nullable `game.question_set` (FR-33). Still open: a manual Group order column on `answer_group` (FR-22), typed Guess storage and its deletion (FR-28), and strike and steal state (FR-29). These are decided when Stage 2 starts, inside AD-4, AD-13, AD-15 and AD-16.
 - **Several Hosts per Game** (PRD §1.2). The schema uses `game.host_id`, and Stage 1 adds no other single-Host assumption.
 - **Observability beyond `log.ts`.** Not needed for a course pilot.
