@@ -135,7 +135,9 @@ export function load(hostId: string, gameId: string, position?: number) {
   });
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Lowercase only: Postgres matches an uppercase uuid, but the ID comparisons in
+// JavaScript below would not, so it would surface as INTERNAL instead of NOT_FOUND.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type MergeResult = {
   groupId: string;
@@ -299,11 +301,12 @@ export function moveAnswers(
   });
 }
 
-export type RenameResult = { groupId: string; label: string };
+// Rename, discard and restore: the Group and its effective label.
+export type LabelResult = { groupId: string; label: string };
 
 // FR-20: sets a non-discarded Group's label (1 to 40 characters, trimmed), in one
 // transaction with its edit_count, groups_renamed and the cleared reviewed mark (AD-15).
-export function rename(hostId: string, input: unknown): Promise<RenameResult> {
+export function rename(hostId: string, input: unknown): Promise<LabelResult> {
   return withBoundary("review", "rename", async () => {
     const { gameId, groupId, label } = validate(renameGroupSchema, input);
     const db = await getDb();
@@ -322,8 +325,6 @@ export function rename(hostId: string, input: unknown): Promise<RenameResult> {
   });
 }
 
-export type DiscardResult = { groupId: string; label: string };
-
 // FR-20, FR-21: flips a Group's discarded flag in one transaction with its edit_count,
 // the counter and the cleared reviewed mark (AD-15). Discard needs a kept Group and
 // restore a discarded one, else NOT_FOUND, so a stale tab refreshes instead of counting
@@ -332,7 +333,7 @@ function flipDiscarded(
   op: "discard" | "restore",
   hostId: string,
   input: unknown,
-): Promise<DiscardResult> {
+): Promise<LabelResult> {
   return withBoundary("review", op, async () => {
     const { gameId, groupId } = validate(groupRefSchema, input);
     const discarded = op === "discard";

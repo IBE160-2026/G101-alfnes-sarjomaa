@@ -66,6 +66,16 @@ describe("defaultLabel", () => {
       "x".repeat(LABEL_MAX),
     );
   });
+
+  it("FR-16: a hard cut never splits a surrogate pair or a grapheme", () => {
+    // "😀" is two code units at 39 and 40; "e\u0301" is one grapheme at 39 and 40.
+    const x = "x".repeat(LABEL_MAX - 1);
+    expect(defaultLabel([{ text: `${x}😀yz`, count: 1 }])).toBe(x);
+    expect(defaultLabel([{ text: `${x}e\u0301yz`, count: 1 }])).toBe(x);
+    expect(defaultLabel([{ text: `${"x".repeat(38)}😀yz`, count: 1 }])).toBe(
+      `${"x".repeat(38)}😀`,
+    );
+  });
 });
 
 describe("rankGroups", () => {

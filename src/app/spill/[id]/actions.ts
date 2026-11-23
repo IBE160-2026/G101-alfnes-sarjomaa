@@ -114,19 +114,19 @@ export async function moveAnswers(
 
 export async function renameGroup(
   input: unknown,
-): Promise<ActionResult<review.RenameResult>> {
+): Promise<ActionResult<review.LabelResult>> {
   return hostAction(review.rename, input, "gjennomgang");
 }
 
 export async function discardGroup(
   input: unknown,
-): Promise<ActionResult<review.DiscardResult>> {
+): Promise<ActionResult<review.LabelResult>> {
   return hostAction(review.discard, input, "gjennomgang");
 }
 
 export async function restoreGroup(
   input: unknown,
-): Promise<ActionResult<review.DiscardResult>> {
+): Promise<ActionResult<review.LabelResult>> {
   return hostAction(review.restore, input, "gjennomgang");
 }
 

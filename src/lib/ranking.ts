@@ -26,7 +26,20 @@ export function defaultLabel(candidates: RankInput["labelCandidates"]): string {
   if (text.length <= LABEL_MAX) return text;
   // A space right after the 40th character still ends a whole word.
   const space = text.slice(0, LABEL_MAX + 1).lastIndexOf(" ");
-  return space > 0 ? text.slice(0, space) : text.slice(0, LABEL_MAX);
+  return space > 0 ? text.slice(0, space) : hardCut(text);
+}
+
+const graphemes = new Intl.Segmenter("nb", { granularity: "grapheme" });
+
+// At most 40 code units (the rename schema's count), never inside a grapheme, so an
+// emoji or a letter with a combining mark is never split.
+function hardCut(text: string): string {
+  let end = 0;
+  for (const { index, segment } of graphemes.segment(text)) {
+    if (index + segment.length > LABEL_MAX) break;
+    end = index + segment.length;
+  }
+  return text.slice(0, end || LABEL_MAX);
 }
 
 export function rankGroups<T extends RankInput>(

@@ -811,6 +811,8 @@ describe("review.merge", () => {
       [a, b],
       [kari, ola, randomUUID()],
       [kari, "abc"],
+      // Postgres matches an uppercase uuid, the JavaScript comparisons would not (INTERNAL).
+      [kari, ola.toUpperCase()],
     ]) {
       const error = await review
         .merge(hostId, { gameId, groupIds })
@@ -1074,6 +1076,8 @@ describe("review.moveAnswers", () => {
       { answerIds: ola, groupId: randomUUID() },
       { answerIds: [...per, "abc"], groupId: A },
       { answerIds: per, groupId: "abc" },
+      { answerIds: ola, groupId: C.toUpperCase() },
+      { answerIds: per.map((id) => id.toUpperCase()), groupId: A },
       { answerIds: per, groupId: B, gameId: "abc" },
       { answerIds: per, groupId: C, gameId: randomUUID() },
     ];
@@ -1208,6 +1212,7 @@ describe("review.rename", () => {
       { gameId, groupId: discarded },
       { gameId, groupId: randomUUID() },
       { gameId, groupId: "abc" },
+      { gameId, groupId: A.toUpperCase() },
       { gameId: "abc", groupId: A },
     ])
       expect(
@@ -1337,6 +1342,10 @@ describe("review.discard and review.restore", () => {
       for (const input of [
         { gameId, groupId: randomUUID() },
         { gameId, groupId: "abc" },
+        {
+          gameId,
+          groupId: (op === review.discard ? anne : kari).toUpperCase(),
+        },
         { gameId: "abc", groupId: op === review.discard ? anne : kari },
       ])
         expect(await codeOf(op(hostId, input)), JSON.stringify(input)).toBe(
