@@ -1,9 +1,9 @@
 [
   {
     "kind": "partition",
-    "promptVersion": "hand-written",
+    "promptVersion": "1",
     "normalizeVersion": 1,
-    "model": "hand-written",
+    "model": "deepseek/deepseek-v4.1-flash",
     "question": "Hva må være med på hytteturen?",
     "items": [
       "kaffe",
@@ -18,9 +18,9 @@
   },
   {
     "kind": "partition",
-    "promptVersion": "hand-written",
+    "promptVersion": "1",
     "normalizeVersion": 1,
-    "model": "hand-written",
+    "model": "deepseek/deepseek-v4.1-flash",
     "question": "Hva spiser dere til frokost på hytta?",
     "items": [
       "brunost",
@@ -32,13 +32,13 @@
       "kaffe",
       "vafler"
     ],
-    "assignments": [0, 1, 1, 0, 2, 2, 3, 4]
+    "assignments": [0, 1, 2, 3, 4, 4, 5, 6]
   },
   {
     "kind": "partition",
-    "promptVersion": "hand-written",
+    "promptVersion": "1",
     "normalizeVersion": 1,
-    "model": "hand-written",
+    "model": "deepseek/deepseek-v4.1-flash",
     "question": "Hva gjør dere når det regner på hytta?",
     "items": [
       "baker kake",
@@ -50,6 +50,6 @@
       "sover",
       "spiller kort"
     ],
-    "assignments": [0, 1, 2, 3, 4, 2, 5, 3]
+    "assignments": [0, 1, 2, 1, 3, 2, 4, 1]
   }
 ]

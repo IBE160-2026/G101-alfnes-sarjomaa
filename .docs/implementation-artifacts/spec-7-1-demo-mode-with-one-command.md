@@ -19,7 +19,7 @@ deferred: []
 
 **Problem:** The examiner must see what the Judge does without any key, account or network, from `git clone`, `npm install`, `npm run demo` (FR-31, NFR-1, UJ-5). No `demo` script, demo seed, demo rulings or Demo mode surfaces exist yet; `data/rulings/` is empty.
 
-**Approach:** `npm run demo` runs `src/cli/demo.ts` through `tsx`: it recreates `.data/demo`, migrates, seeds an invented demo Host and one demo Game in *collecting* through module entry points, and starts `next dev` with replay and `DEMO_MODE=1`. A hand-written `data/rulings/demo.json` covers every demo Answer, so close takes the normal Grouping path and Review shows Judge Groups. Landing, login and every Host page show the Demo mode surfaces from one `src/lib` constant.
+**Approach:** `npm run demo` runs `src/cli/demo.ts` through `tsx`: it recreates `.data/demo`, migrates, seeds an invented demo Host and one demo Game in *collecting* through module entry points, and starts `next dev` with replay and `DEMO_MODE=1`. A recorded `data/rulings/demo.json` covers every demo Answer, so close takes the normal Grouping path and Review shows Judge Groups. Landing, login and every Host page show the Demo mode surfaces from one `src/lib` constant.
 
 ## Boundaries & Constraints
 
@@ -33,7 +33,7 @@ deferred: []
 - Ponytail at `full` and impeccable (Operate mode, DESIGN.md/EXPERIENCE.md win): Notice anatomy is a bold first phrase, then body text; WCAG 2.1 AA kept.
 
 **Never:**
-- No live `judge:record` run (no key here); the ruling file is hand-written in the exact AD-14 shape and the spec says so.
+- No live `judge:record` run in the build session (no key there); the ruling file was first hand-written in the exact AD-14 shape. The orchestrator re-recorded it live on 2026-11-23 (see the note at the end).
 - No network in the demo, the tests or CI; no new dependency; no change to Review or Grouping logic.
 - No README edit (Story 7.4), no `wiki/`, `.logs/` or `.claude/skills/excalidraw-diagram/` change.
 - No new environment variable; no option on the demo command.
@@ -187,3 +187,7 @@ Status: done
 - `tsconfig.cli.json` depends on a private Next file path; re-check on a Next upgrade.
 - Every e2e run recreates the working copy's `.data/demo`.
 - Manual item D1 in `tests/manual/checklist.md` has no recorded result yet; someone other than the author should read the demo content before merge.
+
+## Live recording of the demo ruling (2026-11-23, orchestrator)
+
+The hand-written `data/rulings/demo.json` was replaced by a live recording: `npm run judge:record -- <input> data/rulings/demo.json` with the group's OpenRouter key, input built from `DEMO_QUESTIONS` and `DEMO_SETS`. Three calls, 2.9 s, about USD 0.00015, `reasoning_tokens: 0`. The model merged *kortspill/kortstokk*, *ullsokker/varme sokker*, *grøt/havregrøt*, *brettspill/kortspill/spiller kort* and *filmkveld/ser film*, and kept *brunost* and *geitost* apart, which leaves a realistic correction for the Host in Review. `demo-replay.test.ts` now expects `modelId: "deepseek/deepseek-v4.1-flash"` and pins the full partition, so a regrouping with the same number of Groups fails (the review's open point).

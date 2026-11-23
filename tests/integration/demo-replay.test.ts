@@ -6,6 +6,7 @@ import { normalize } from "@/lib/normalize";
 import * as collection from "@/server/collection";
 import { getDb } from "@/server/db/client";
 import {
+  answer,
   answerGroup,
   game,
   groupingResult,
@@ -65,8 +66,40 @@ it("FR-31: the demo seed is one collecting Game with six of eight links answered
       fellBack: false,
       fallbackReason: null,
       judgeCalls: 0,
-      modelId: "hand-written",
+      modelId: "deepseek/deepseek-v4.1-flash",
     });
+  // The recorded ruling, pinned: a regrouping with the same number of Groups must fail.
+  const rows = await db
+    .select({ groupId: answer.groupId, text: answer.normalizedText })
+    .from(answer)
+    .where(inArray(answer.questionId, questionIds));
+  const byGroup = new Map<string | null, Set<string>>();
+  for (const r of rows)
+    byGroup.set(r.groupId, (byGroup.get(r.groupId) ?? new Set()).add(r.text));
+  const partition = [...byGroup.values()]
+    .map((g) => [...g].sort().join(" | "))
+    .sort();
+  expect(partition).toEqual(
+    [
+      "kaffe",
+      "kortspill | kortstokk",
+      "sjokolade",
+      "sovepose",
+      "ullsokker | varme sokker",
+      "brunost",
+      "egg",
+      "egg og bacon",
+      "geitost",
+      "grøt | havregrøt",
+      "kaffe",
+      "vafler",
+      "baker kake",
+      "brettspill | kortspill | spiller kort",
+      "filmkveld | ser film",
+      "leser bok",
+      "sover",
+    ].sort(),
+  );
   const origins = await db
     .selectDistinct({ origin: answerGroup.origin })
     .from(answerGroup)
