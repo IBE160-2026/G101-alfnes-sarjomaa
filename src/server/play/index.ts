@@ -8,6 +8,7 @@ import {
   playGameSchema,
   revealSchema,
   startPlaySchema,
+  undoSchema,
 } from "@/lib/play";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Db, type Tx } from "@/server/db/client";
@@ -36,6 +37,9 @@ export type PlayView = {
         scored: boolean;
       }
   )[];
+  // The slot Undo would hide. The client sends it back, so a stale tab cannot undo a
+  // Reveal it does not show (NOTHING_TO_UNDO instead).
+  lastReveal: string | null;
 };
 
 export type RevealResult = {
@@ -126,15 +130,14 @@ export function load(hostId: string, gameId: string): Promise<PlayView> {
     const slots = (await review.getBoard(db, gameId)).filter(
       (s) => s.questionId === current.questionId,
     );
+    const reveals = await db
+      .select({ id: revealRow.boardSlotId, teamId: revealRow.teamId })
+      .from(revealRow)
+      .where(eq(revealRow.gameId, gameId))
+      .orderBy(asc(revealRow.seq));
     // Slot id → scored (an unscored Reveal has no Team).
-    const revealed = new Map(
-      (
-        await db
-          .select({ id: revealRow.boardSlotId, teamId: revealRow.teamId })
-          .from(revealRow)
-          .where(eq(revealRow.gameId, gameId))
-      ).map((r) => [r.id, r.teamId !== null]),
-    );
+    const revealed = new Map(reveals.map((r) => [r.id, r.teamId !== null]));
+    const onQuestion = new Set(slots.map((s) => s.id));
     return {
       question: { position: current.position, text: current.text },
       total,
@@ -151,6 +154,7 @@ export function load(hostId: string, gameId: string): Promise<PlayView> {
             }
           : { id, position, revealed: false as const },
       ),
+      lastReveal: reveals.findLast((r) => onQuestion.has(r.id))?.id ?? null,
     };
   });
 }
@@ -206,9 +210,10 @@ export function reveal(hostId: string, input: unknown): Promise<RevealResult> {
 
 // FR-26, AD-16: deletes the most recent Reveal on the current Question, scored or not.
 // Earlier Questions' Reveals are never touched; the Score falls with it (AD-11).
+// `boardSlotId` is the Reveal the Host's screen shows as the last; any other is stale.
 export function undo(hostId: string, input: unknown): Promise<UndoResult> {
   return withBoundary("play", "undo", async () => {
-    const { gameId } = validate(playGameSchema, input);
+    const { gameId, boardSlotId } = validate(undoSchema, input);
     const db = await getDb();
     return db.transaction(async (tx) => {
       await games.lockForMutation(tx, {
@@ -238,9 +243,10 @@ export function undo(hostId: string, input: unknown): Promise<UndoResult> {
         .where(eq(revealRow.gameId, gameId))
         .orderBy(desc(revealRow.seq))
         .limit(1);
-      if (!last) throw new DomainError("NOTHING_TO_UNDO");
+      if (last?.boardSlotId !== boardSlotId)
+        throw new DomainError("NOTHING_TO_UNDO");
       await tx.delete(revealRow).where(eq(revealRow.id, last.id));
-      const { boardSlotId, label, count } = last;
+      const { label, count } = last;
       return { boardSlotId, label, count, team: last.team };
     });
   });

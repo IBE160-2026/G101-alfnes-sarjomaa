@@ -50,11 +50,13 @@ export function Board({
   questionPosition,
   total,
   board,
+  lastReveal,
 }: {
   gameId: string;
   questionPosition: number;
   total: number;
   board: PlayView["board"];
+  lastReveal: PlayView["lastReveal"];
 }) {
   const router = useRouter();
   const listRef = useRef<HTMLOListElement>(null);
@@ -76,7 +78,7 @@ export function Board({
   // The Question whose <h1> takes focus once it renders (a focused tile unmounted).
   const focusQuestion = useRef<number>(undefined);
 
-  const canUndo = board.some((s) => s.revealed);
+  const canUndo = lastReveal !== null;
   const allRevealed = board.every((s) => s.revealed);
 
   const slotElement = (id: string) =>
@@ -128,6 +130,7 @@ export function Board({
   }
 
   function undo() {
+    if (!lastReveal) return;
     const hadFocus = undoRef.current === document.activeElement;
     const last = board.filter((s) => s.revealed).length === 1;
     // A revealed row with focus unmounts when undone, so its tile takes focus back.
@@ -135,7 +138,7 @@ export function Board({
       ?.closest<HTMLElement>("[data-slot]")
       ?.getAttribute("data-slot");
     run(
-      () => undoReveal({ gameId }),
+      () => undoReveal({ gameId, boardSlotId: lastReveal }),
       ({ boardSlotId, label, count, team }) => {
         setClicked(undefined);
         setSaid(

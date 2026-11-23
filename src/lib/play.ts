@@ -26,8 +26,14 @@ export const revealSchema = z.object({
   scored: z.boolean(),
 });
 
-// Undo and next Team act on the Game's saved play state; the Game is all they take.
+// Next Team acts on the Game's saved play state; the Game is all it takes.
 export const playGameSchema = z.object({ gameId: z.string() });
+
+// The Reveal the Host's screen shows as the last: a stale tab must never undo another.
+export const undoSchema = z.object({
+  gameId: z.string(),
+  boardSlotId: z.string(),
+});
 
 // The Question the Host's screen shows: a stale tab or a double press must never skip
 // a Question or end the Game (WRONG_QUESTION).

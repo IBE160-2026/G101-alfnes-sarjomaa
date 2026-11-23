@@ -519,20 +519,26 @@ test("FR-25, FR-26, FR-27 (AC1, AC4), UX-DR21, NFR-5, NFR-6: Bom shows the 80 px
   await expect(teams).toHaveText(lag1);
   await expect(angre).toHaveCount(0);
 
-  // Another tab undoes this tab's Reveal: Z here refreshes to the saved state, no banner.
+  // Another tab undoes this tab's last Reveal: Z here refreshes to the saved state with
+  // no banner, and never undoes the Reveal before it (Kari stays, with its 3 points).
   await tile(1).click();
-  await expect(angre).toBeVisible();
+  await expect(tile(1)).toHaveText("1Kari3 poeng");
+  await tile(2).click();
+  await expect(tile(2)).not.toHaveRole("button");
   const other = await page.context().newPage();
   await other.goto(page.url());
   await other.getByRole("button", { name: "Angre [Z]", exact: true }).click();
-  await expect(
-    other.getByRole("button", { name: "Angre [Z]", exact: true }),
-  ).toHaveCount(0);
+  await expect(other.locator("[data-slot]").nth(1)).toHaveRole("button");
   await other.close();
+  await page.keyboard.press("z");
+  await expect(tile(2)).toHaveRole("button");
+  await expect(tile(1)).toHaveText("1Kari3 poeng");
+  await expect(bar.getByRole("alert")).toHaveCount(0);
+  await expect(teams.first()).toContainText("3 poeng");
+  // The refreshed tab undoes Kari as usual.
   await page.keyboard.press("z");
   await expect(tile(1)).toHaveRole("button");
   await expect(angre).toHaveCount(0);
-  await expect(bar.getByRole("alert")).toHaveCount(0);
   await expect(teams).toHaveText(lag1);
 
   // Neste lag by click and by T, wrapping back to Lag 1.

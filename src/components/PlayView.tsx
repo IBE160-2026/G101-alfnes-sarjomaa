@@ -21,6 +21,7 @@ export function PlayView({
   total,
   teams,
   board,
+  lastReveal,
 }: Data & { gameId: string }) {
   return (
     <div data-stage="" className={STAGE}>
@@ -70,6 +71,7 @@ export function PlayView({
           questionPosition={question.position}
           total={total}
           board={board}
+          lastReveal={lastReveal}
         />
       </div>
     </div>

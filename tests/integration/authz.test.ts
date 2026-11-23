@@ -613,12 +613,13 @@ describe("Host B against Host A's Game", () => {
       message: "Vi finner ikke dette spillet.",
     };
     for (const gameId of [id, randomUUID(), "abc"]) {
+      const input = { gameId, boardSlotId: slotId };
       for (const op of [play.undo, play.nextTeam])
         expect(
-          ((await rejection(op(hosts.B, { gameId }))) as DomainError).code,
+          ((await rejection(op(hosts.B, input))) as DomainError).code,
           gameId,
         ).toBe("NOT_FOUND");
-      expect(await undoReveal({ gameId }), gameId).toEqual(notFound);
+      expect(await undoReveal(input), gameId).toEqual(notFound);
       expect(await passTurn({ gameId }), gameId).toEqual(notFound);
     }
     expect(await stateOfA()).toEqual(before);

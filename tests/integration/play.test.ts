@@ -248,6 +248,7 @@ describe("play.start", () => {
         position,
         revealed: false,
       })),
+      lastReveal: null,
     });
   });
 
@@ -507,7 +508,10 @@ describe("play.undo", () => {
     await reveal(1, false);
     expect(await scoresOf(id)).toEqual([5, 0]);
     nextCache.revalidatePath.mockClear();
-    expect(await undoReveal({ gameId: id })).toEqual({
+    expect((await play.load(hostId, id)).lastReveal).toBe(slotIds[0][1]);
+    expect(
+      await undoReveal({ gameId: id, boardSlotId: slotIds[0][1] }),
+    ).toEqual({
       ok: true,
       data: { boardSlotId: slotIds[0][1], label: "Ola", count: 3, team: null },
     });
@@ -519,7 +523,9 @@ describe("play.undo", () => {
       { boardSlotId: slotIds[0][0], teamId: teamIds[0], seq: 1 },
     ]);
     expect(await scoresOf(id)).toEqual([5, 0]);
-    expect(await undoReveal({ gameId: id })).toEqual({
+    expect(
+      await undoReveal({ gameId: id, boardSlotId: slotIds[0][0] }),
+    ).toEqual({
       ok: true,
       data: {
         boardSlotId: slotIds[0][0],
@@ -531,11 +537,9 @@ describe("play.undo", () => {
     expect(await revealsOf(id)).toEqual([]);
     expect(await scoresOf(id)).toEqual([0, 0]);
     expect(await rawSums(id)).toEqual([0, 0]);
-    expect((await play.load(hostId, id)).board.map((s) => s.revealed)).toEqual([
-      false,
-      false,
-      false,
-    ]);
+    const view = await play.load(hostId, id);
+    expect(view.board.map((s) => s.revealed)).toEqual([false, false, false]);
+    expect(view.lastReveal).toBeNull();
     // The turn never moves with an undo.
     expect((await rowsOf(id)).playState[0].currentTeamId).toBe(teamIds[0]);
   });
@@ -550,13 +554,18 @@ describe("play.undo", () => {
     await reveal(1, 0, true); // Oslo 4 → Lag 1
     await reveal(1, 1, false); // Bergen, unscored
     expect(await scoresOf(id)).toEqual([9, 0]);
-    expect(await undoReveal({ gameId: id })).toMatchObject({
+    expect((await play.load(hostId, id)).lastReveal).toBe(slotIds[1][1]);
+    expect(
+      await undoReveal({ gameId: id, boardSlotId: slotIds[1][1] }),
+    ).toMatchObject({
       ok: true,
       data: { boardSlotId: slotIds[1][1], team: null },
     });
     expect(await scoresOf(id)).toEqual([9, 0]);
     expect(await rawSums(id)).toEqual([9, 0]);
-    expect(await play.undo(hostId, { gameId: id })).toEqual({
+    expect(
+      await play.undo(hostId, { gameId: id, boardSlotId: slotIds[1][0] }),
+    ).toEqual({
       boardSlotId: slotIds[1][0],
       label: "Oslo",
       count: 4,
@@ -564,11 +573,12 @@ describe("play.undo", () => {
     });
     expect(await scoresOf(id)).toEqual([5, 0]);
     expect(await rawSums(id)).toEqual([5, 0]);
+    // Question 1's last Reveal is not on the current Question, so it is not undone.
+    const input = { gameId: id, boardSlotId: slotIds[0][2] };
     const before = await revealsOf(id);
-    expect(await codeOf(play.undo(hostId, { gameId: id }))).toBe(
-      "NOTHING_TO_UNDO",
-    );
-    expect(await undoReveal({ gameId: id })).toEqual({
+    expect((await play.load(hostId, id)).lastReveal).toBeNull();
+    expect(await codeOf(play.undo(hostId, input))).toBe("NOTHING_TO_UNDO");
+    expect(await undoReveal(input)).toEqual({
       ok: false,
       code: "NOTHING_TO_UNDO",
       message: "Det er ingenting å angre.",
@@ -581,13 +591,73 @@ describe("play.undo", () => {
   });
 
   it("FR-26: undo with no Reveal on the current Question is NOTHING_TO_UNDO and writes nothing", async () => {
-    const { id } = await playing();
+    const { id, slotIds } = await playing();
     const before = await rowsOf(id);
-    expect(await codeOf(play.undo(hostId, { gameId: id }))).toBe(
-      "NOTHING_TO_UNDO",
-    );
+    expect(
+      await codeOf(
+        play.undo(hostId, { gameId: id, boardSlotId: slotIds[0][0] }),
+      ),
+    ).toBe("NOTHING_TO_UNDO");
     expect(await rowsOf(id)).toEqual(before);
     expect(await revealsOf(id)).toEqual([]);
+  });
+
+  it("FR-26, AD-16: a stale tab that still shows Kari as the last Reveal after another tab undid Ola gets NOTHING_TO_UNDO, and Kari and the Score stay", async () => {
+    const { id, slotIds, teamIds } = await playing();
+    for (const i of [0, 1])
+      await play.reveal(hostId, {
+        gameId: id,
+        boardSlotId: slotIds[0][i],
+        scored: true,
+      });
+    // The stale tab loaded both Reveals; the other tab then undoes Ola.
+    const stale = (await play.load(hostId, id)).lastReveal!;
+    expect(stale).toBe(slotIds[0][1]);
+    await play.undo(hostId, { gameId: id, boardSlotId: stale });
+    const input = { gameId: id, boardSlotId: stale };
+    expect(await codeOf(play.undo(hostId, input))).toBe("NOTHING_TO_UNDO");
+    expect(await undoReveal(input)).toMatchObject({ code: "NOTHING_TO_UNDO" });
+    // Naming the older Reveal while a newer one stands is refused the same way.
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][2],
+      scored: true,
+    });
+    expect(
+      await codeOf(
+        play.undo(hostId, { gameId: id, boardSlotId: slotIds[0][0] }),
+      ),
+    ).toBe("NOTHING_TO_UNDO");
+    expect(await revealsOf(id)).toEqual([
+      { boardSlotId: slotIds[0][0], teamId: teamIds[0], seq: 1 },
+      { boardSlotId: slotIds[0][2], teamId: teamIds[0], seq: 2 },
+    ]);
+    expect(await scoresOf(id)).toEqual([7, 0]);
+  });
+
+  it("FR-26, AD-16: a stale tab still on Question 1 cannot undo the Reveal another tab made on Question 2, and both Reveals stay", async () => {
+    const { id, slotIds, teamIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][0],
+      scored: true,
+    });
+    const stale = (await play.load(hostId, id)).lastReveal!;
+    await play.nextQuestion(hostId, { gameId: id, position: 1 });
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[1][0],
+      scored: true,
+    });
+    expect((await play.load(hostId, id)).lastReveal).toBe(slotIds[1][0]);
+    const input = { gameId: id, boardSlotId: stale };
+    expect(await codeOf(play.undo(hostId, input))).toBe("NOTHING_TO_UNDO");
+    expect(await undoReveal(input)).toMatchObject({ code: "NOTHING_TO_UNDO" });
+    expect(await revealsOf(id)).toEqual([
+      { boardSlotId: slotIds[0][0], teamId: teamIds[0], seq: 1 },
+      { boardSlotId: slotIds[1][0], teamId: teamIds[0], seq: 2 },
+    ]);
+    expect(await scoresOf(id)).toEqual([9, 0]);
   });
 });
 
@@ -639,10 +709,11 @@ describe("play.undo and play.nextTeam", () => {
   it.each(["ready", "played"] as const)(
     "FR-26, FR-27: a Game in %s is WRONG_STATE for both, and nothing is written",
     async (state) => {
-      const { id } = await gameIn(state);
+      const { id, slotIds } = await gameIn(state);
+      const input = { gameId: id, boardSlotId: slotIds[0][0] };
       for (const op of [play.undo, play.nextTeam])
-        expect(await codeOf(op(hostId, { gameId: id }))).toBe("WRONG_STATE");
-      expect(await undoReveal({ gameId: id })).toMatchObject({
+        expect(await codeOf(op(hostId, input))).toBe("WRONG_STATE");
+      expect(await undoReveal(input)).toMatchObject({
         code: "WRONG_STATE",
       });
       expect(await passTurn({ gameId: id })).toMatchObject({
@@ -698,14 +769,19 @@ describe("Score property", () => {
         model.push({ q, i, team: scored ? turn : null });
       } else if (op === "undo") {
         const last = model.findLastIndex((r) => r.q === q);
+        const shown = (await play.load(hostId, id)).lastReveal;
         if (last === -1) {
-          expect(await codeOf(play.undo(hostId, { gameId: id })), at).toBe(
+          expect(shown, at).toBeNull();
+          const input = { gameId: id, boardSlotId: slotIds[q][0] };
+          expect(await codeOf(play.undo(hostId, input)), at).toBe(
             "NOTHING_TO_UNDO",
           );
           ops.add("nothing");
         } else {
           const [r] = model.splice(last, 1);
-          expect(await play.undo(hostId, { gameId: id }), at).toMatchObject({
+          expect(shown, at).toBe(slotIds[r.q][r.i]);
+          const input = { gameId: id, boardSlotId: shown! };
+          expect(await play.undo(hostId, input), at).toMatchObject({
             boardSlotId: slotIds[r.q][r.i],
             count: counts[r.q][r.i],
             team: r.team === null ? null : `Lag ${r.team + 1}`,
@@ -1025,7 +1101,7 @@ describe("play.nextQuestion", () => {
     const start = { gameId: id, teams: ["Lag 1", "Lag 2"] };
     for (const call of [
       play.reveal(hostId, slot),
-      play.undo(hostId, { gameId: id }),
+      play.undo(hostId, { gameId: id, boardSlotId: slotIds[0][0] }),
       play.nextTeam(hostId, { gameId: id }),
       play.nextQuestion(hostId, next),
       play.start(hostId, start),
@@ -1034,7 +1110,7 @@ describe("play.nextQuestion", () => {
       expect(await codeOf(call)).toBe("WRONG_STATE");
     for (const result of [
       await revealSlot(slot),
-      await undoReveal({ gameId: id }),
+      await undoReveal({ gameId: id, boardSlotId: slotIds[0][0] }),
       await passTurn({ gameId: id }),
       await nextQuestion(next),
       await startPlay(start),
