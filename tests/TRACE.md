@@ -497,7 +497,7 @@ Secrets.
 - `tests/integration/db.test.ts`: a bad `DATABASE_URL` and a DB failure never echo the URL or the error message.
 - `tests/integration/manual-tools.test.ts`: `npm run db:dump` spawned with an unreachable `postgres://` URL holding a password exits 1 with "db:dump failed (CODE). Check DATABASE_URL." on stderr, no password and no dump; with a PGlite directory that does not exist it exits 1 with the code `PGLITE_DIR_MISSING` and creates nothing; on an existing PGlite directory it exits 0 with only the JSON dump on stdout; a `postgres://` URL without `--postgres` is refused before any connection (Story 7.3, Epic 7 review fixes).
 - `tests/integration/env.test.ts`: the README's environment table lists exactly the `env.ts` keys (Story 7.4, AC3).
-- `tests/integration/make-zip.test.ts`: `scripts/make-zip.sh` builds from `git archive HEAD`, every entry under `G101-alfnes-sarjomaa/`, with no `.env` other than `.env.example`, no `.env.local`, `.idea/`, `.data/`, `.next/` or `node_modules/`, and warns on stderr exactly when the tree is dirty (Story 7.4, AC4).
+- `tests/integration/make-zip.test.ts`: `scripts/make-zip.sh` builds from `git archive HEAD`, every entry under `G101-alfnes-sarjomaa/`, with no `.env` other than `.env.example`, no `.env.local`, `.idea/`, `.data/`, `.next/` or `node_modules/` (Story 7.4, AC4). The default output path and the dirty-tree warning are no longer tested: no acceptance criterion asks for them, and the test was removed after the Epic 7 ponytail review.
 
 ## UX
 

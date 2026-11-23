@@ -147,7 +147,7 @@ deferred:
 - `scripts/make-zip.sh` -- the hand-in zip from `HEAD`, warning on a dirty tree.
 - `.gitignore` -- ignores the default zip.
 - `tests/integration/env.test.ts` -- README table equals the `env.ts` keys.
-- `tests/integration/make-zip.test.ts` -- zip contents on the real repository; default path and warning in a throwaway repository.
+- `tests/integration/make-zip.test.ts` -- zip contents on the real repository. *Amended 2026-11-23 after the Epic 7 ponytail review:* the throwaway-repository test of the default path and the dirty-tree warning was removed, because AC4 asks only for the zip's contents and the first test proves them. The default path now rests on the F1 record of the hand-in zip, and the dirty-tree warning on the script's single `if`, with no automated test.
 - `tests/TRACE.md` -- the README "Open" bullets closed with pointers.
 - `tests/manual/checklist.md` -- F1 and zip records, SM-1 gate lines.
 - `.docs/implementation-artifacts/sprint-status.yaml` -- 7-4 done.

@@ -1,13 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -23,7 +15,6 @@ const win = process.platform === "win32";
 const inRepo =
   !win && ok("git", ["rev-parse", "--is-inside-work-tree"]) === "true";
 const hasUnzip = !win && spawnSync("unzip", ["-v"]).status === 0;
-const WARNING = "uncommitted changes are left out";
 
 describe("scripts/make-zip.sh", () => {
   it.skipIf(!inRepo || !hasUnzip)(
@@ -53,52 +44,6 @@ describe("scripts/make-zip.sh", () => {
         const base = entry.replace(/\/$/, "").split("/").pop() ?? "";
         if (base.startsWith(".env")) expect(base).toBe(".env.example");
       }
-    },
-  );
-
-  it.skipIf(win)(
-    "NFR-8: writes G101-alfnes-sarjomaa.zip in the repository root by default, and warns only on a dirty tree",
-    () => {
-      const repo = join(temp, "repo");
-      mkdirSync(join(repo, "scripts"), { recursive: true });
-      const git = (...args: string[]) =>
-        execFileSync(
-          "git",
-          [
-            "-c",
-            "user.name=Test",
-            "-c",
-            "user.email=test@example.test",
-            ...args,
-          ],
-          { cwd: repo },
-        );
-      git("init", "-q");
-      writeFileSync(join(repo, "README.md"), "# Test\n");
-      copyFileSync("scripts/make-zip.sh", join(repo, "scripts/make-zip.sh"));
-      git("add", ".");
-      git("commit", "-q", "-m", "init");
-
-      const script = join(repo, "scripts/make-zip.sh");
-      const out = join(repo, "G101-alfnes-sarjomaa.zip");
-      const clean = spawnSync(script, [], {
-        cwd: repo,
-        encoding: "utf8",
-        timeout: 60_000,
-      });
-      expect(clean.status).toBe(0);
-      expect(clean.stdout.trim()).toBe(out);
-      expect(existsSync(out)).toBe(true);
-      expect(clean.stderr).not.toContain(WARNING);
-
-      writeFileSync(join(repo, "untracked.txt"), "x\n");
-      const dirty = spawnSync(script, [], {
-        cwd: repo,
-        encoding: "utf8",
-        timeout: 60_000,
-      });
-      expect(dirty.status).toBe(0);
-      expect(dirty.stderr).toContain(WARNING);
     },
   );
 });
