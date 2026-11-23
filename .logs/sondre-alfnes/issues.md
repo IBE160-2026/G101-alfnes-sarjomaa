@@ -4,15 +4,15 @@
 - [x] 2026-11-03 [prd-ferdigsjekk](999-2026-11-03-13-57-43-prd-ferdigsjekk.md) — PRD sier ikke i teksten at discard (trinn 1) og gjetning uten inntasting avviker fra briefen (løst 2026-11-03)
 - [x] 2026-11-03 [prd-ferdigsjekk](999-2026-11-03-13-57-43-prd-ferdigsjekk.md) — README lover ferdig spørsmålssett, som nå er trinn 2 (løst 2026-11-03)
 - [x] 2026-11-21 [canvas-kunngjoringer](998-2026-11-21-22-56-12-canvas-kunngjoringer.md): les hele sensorveiledningen for del 1 under Moduler i Canvas (løst 2026-11-21)
-- [ ] 2026-11-21 [canvas-kunngjoringer](998-2026-11-21-22-56-12-canvas-kunngjoringer.md): gjennomføringsplanen sier «rapporten leveres» i uke 45, men fristen er 5. des. Avklar med faglærer
-- [ ] 2026-11-21 [canvas-kunngjoringer](998-2026-11-21-22-56-12-canvas-kunngjoringer.md): bestem hvem som eier Vercel-prosjektet, hvis vi publiserer
+- [x] 2026-11-21 [canvas-kunngjoringer](998-2026-11-21-22-56-12-canvas-kunngjoringer.md): gjennomføringsplanen sier «rapporten leveres» i uke 45, men fristen er 5. des. Avklar med faglærer (løst 2026-11-23: faglærer har ikke svart; rapporten legges i repoet og leveres med zip-en 5. des.)
+- [x] 2026-11-21 [canvas-kunngjoringer](998-2026-11-21-22-56-12-canvas-kunngjoringer.md): bestem hvem som eier Vercel-prosjektet, hvis vi publiserer (løst 2026-11-23: Sondre, Vercel CLI er installert)
 - [x] 2026-11-21 [canvas-kunngjoringer](998-2026-11-21-22-56-12-canvas-kunngjoringer.md): vi ligger etter kullet. UX, arkitektur, epics og sprintplan må gå raskt før implementeringen (2 uker til 5. des.) (løst 2026-11-22: fase 3 og epic 1 ferdig)
 - [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): epic 1-reviews før PR: bmad-code-review, ponytail-review, impeccable critique/audit/harden (løst 2026-11-22)
 - [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): sidetitler per side (WCAG 2.4.2) mangler (løst 2026-11-22)
 - [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): push fase-3-planlegging og epic-1-fundament og sjekk CI (Node 22/26)
 - [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): installer Vercel CLI, legg inn DATABASE_URL og OPENROUTER_API_KEY i Vercel og lokal .env
 - [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): epic 7: kjør npm run judge:record med OpenRouter-nøkkelen
-- [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): godkjenn teksten på forsiden
+- [x] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): godkjenn teksten på forsiden (løst 2026-11-23: godkjent av Sondre)
 - [ ] 2026-11-22 [fase-3-og-epic-1](997-2026-11-22-02-02-47-fase-3-og-epic-1.md): CRON_SECRET og cron for opprydding ved pilot-deploy (story 7.5)
 - [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): story 5.3–5.5 og review av epic 5; ikke merge epic 5 før 5.5
 - [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): epic 6 og epic 7
@@ -20,4 +20,4 @@
 - [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): dommer-fallback over ~120–180 ulike svar per spørsmål
 - [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): låser og VACUUM-skip bare testet på PGlite (story 7.3)
 - [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): manuelle sjekker A2–A4, A10, T1
-- [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): sjekk caveman-lisens upstream
+- [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): sjekk caveman-lisens upstream (løst 2026-11-23: godkjent av Sondre)
