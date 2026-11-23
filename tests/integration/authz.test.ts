@@ -7,11 +7,13 @@ import {
   closeCollection,
   createInviteLinks,
   deleteGame,
+  discardGroup,
   mergeGroups,
   moveAnswers,
   moveQuestion,
   removeQuestion,
   renameGroup,
+  restoreGroup,
   revokeInviteLink,
   saveQuestion,
 } from "@/app/spill/[id]/actions";
@@ -312,7 +314,7 @@ describe("Host B against Host A's Game", () => {
     expect((await games.counters(reviewOfA)).groupsMerged).toBe(0);
   });
 
-  it("FR-20, AD-5 (AC3): B's review.moveAnswers, review.rename and their actions on A's Answers and Groups, with A's Game, B's own in review Game, a random UUID or a malformed Game ID, give NOT_FOUND, and A stays as it was", async () => {
+  it("FR-20, AD-5 (AC3): B's review.moveAnswers, review.rename, review.discard, review.restore and their actions on A's Answers and Groups, with A's Game, B's own in review Game, a random UUID or a malformed Game ID, give NOT_FOUND, and A stays as it was", async () => {
     const db = await getDb();
     const [{ id: reviewOfA }, { id: reviewOfB }] = await db
       .insert(game)
@@ -326,11 +328,16 @@ describe("Host B against Host A's Game", () => {
       .insert(question)
       .values({ id: questionId, gameId: reviewOfA, position: 1, text: "?" });
     const groupIds = [randomUUID(), randomUUID()];
-    await db
-      .insert(answerGroup)
-      .values(
-        groupIds.map((id) => ({ id, questionId, origin: "fallback" as const })),
-      );
+    // A's discarded Group, the target of B's restore.
+    const gone = randomUUID();
+    await db.insert(answerGroup).values([
+      ...groupIds.map((id) => ({
+        id,
+        questionId,
+        origin: "fallback" as const,
+      })),
+      { id: gone, questionId, origin: "fallback" as const, discarded: true },
+    ]);
     const answerIds = (
       await db
         .insert(answer)
@@ -370,10 +377,14 @@ describe("Host B against Host A's Game", () => {
       const move = { gameId, answerIds: [answerIds[0]], groupId: groupIds[1] };
       const split = { gameId, answerIds: [answerIds[0]] };
       const name = { gameId, groupId: groupIds[0], label: "Ny" };
+      const kept = { gameId, groupId: groupIds[0] };
+      const discarded = { gameId, groupId: gone };
       for (const call of [
         review.moveAnswers(hosts.B, move),
         review.moveAnswers(hosts.B, split),
         review.rename(hosts.B, name),
+        review.discard(hosts.B, kept),
+        review.restore(hosts.B, discarded),
       ])
         expect(((await rejection(call)) as DomainError).code, gameId).toBe(
           "NOT_FOUND",
@@ -381,6 +392,8 @@ describe("Host B against Host A's Game", () => {
       expect(await moveAnswers(move), gameId).toEqual(notFound);
       expect(await moveAnswers(split), gameId).toEqual(notFound);
       expect(await renameGroup(name), gameId).toEqual(notFound);
+      expect(await discardGroup(kept), gameId).toEqual(notFound);
+      expect(await restoreGroup(discarded), gameId).toEqual(notFound);
     }
     expect(await stateOfA()).toEqual(before);
   });

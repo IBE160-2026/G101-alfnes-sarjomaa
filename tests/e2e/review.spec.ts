@@ -188,10 +188,13 @@ test("FR-17 (AC4), FR-19 (AC3), UX-DR10, UX-DR11, UX-DR17 (AC5), NFR-4, NFR-6: a
   ]);
   // FR-19: the compact row shows the raw written form and its Answer count after the label.
   await expect(board.getByRole("listitem").first()).toHaveText(
-    /^1\.\s*kari\s*Kari · 3 svar\s*3 personer$/,
+    /^1\.\s*kari\s*Kari · 3 svar\s*3 personer\s*⋯$/,
+    // innerText leaves out the closed Group menu's items.
+    { useInnerText: true },
   );
   await expect(board.getByRole("listitem").nth(1)).toHaveText(
-    /^2\.\s*anne\s*Anne\s*1 person$/,
+    /^2\.\s*anne\s*Anne\s*1 person\s*⋯$/,
+    { useInnerText: true },
   );
   const divider = page.getByText("Alt under streken vises ikke i spillet", {
     exact: true,
@@ -372,7 +375,9 @@ test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, tw
   );
   // The merged Group is a multi-chip card, chips in alphabetical order.
   await expect(card("frida")).toHaveText(
-    /^2\.\s*frida\s*2 personer\s*Frida\s*Per$/,
+    /^2\.\s*frida\s*2 personer\s*⋯\s*Frida\s*Per$/,
+    // innerText leaves out the closed Group menu's items.
+    { useInnerText: true },
   );
   await expect(card("frida").getByRole("listitem")).toHaveText([
     "Frida",
@@ -388,7 +393,7 @@ test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, tw
   await expect(box("anne")).not.toBeChecked();
   await expect(box("dina")).not.toBeChecked();
 
-  // Keyboard: Space ticks, Tab goes from the last card to the bar, whose controls ring white.
+  // Keyboard: Space ticks, Tab goes through the last card's menu to the bar, whose controls ring white.
   await box("kari").check();
   await box("ola").focus();
   await page.keyboard.press("Space");
@@ -398,6 +403,10 @@ test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, tw
       const s = getComputedStyle(document.activeElement!);
       return `${s.outlineWidth} ${s.outlineStyle} ${s.outlineColor}`;
     });
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Mer for «ola»" }),
+  ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
     bar.getByRole("button", { name: "Slå sammen 2 grupper" }),
@@ -639,4 +648,201 @@ test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clear
   await page.keyboard.press("Escape");
   await expect(field).toHaveCount(0);
   await expect(heading("frida")).toBeFocused();
+});
+
+test("FR-20, FR-21 (AC3), UX-DR10, UX-DR18, NFR-6: the Group menu opens and closes with Esc; Gi nytt navn and a label click open the rename field, Enter saves and Esc cancels; a failed rename or discard shows the card-top Notice; Forkast fra brettet moves the card to Forkastet and promotes the ninth, Angre forkasting puts it back; a rename from a stale tab refreshes; axe is clean with the menu open and with Forkastet shown", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { gamePath, links } = await collectingGame(page);
+  await submitSets(browser, baseURL, links);
+  await closeAndOpenReview(page, gamePath);
+
+  const board = page.getByRole("region", { name: "På brettet (8 grupper)" });
+  const live = page.locator('p[aria-live="polite"]');
+  const field = page.getByLabel("Navn på gruppen");
+  const RETRY = "Endringen ble ikke lagret. Prøv igjen.";
+  const heading = (label: string) =>
+    page.getByRole("heading", { level: 4, name: label, exact: true });
+  const card = (label: string) =>
+    page.getByRole("listitem").filter({ has: heading(label) });
+  const trigger = (label: string) =>
+    page.getByRole("button", { name: `Mer for «${label}»`, exact: true });
+  const pickFrom = async (label: string, item: string) => {
+    await trigger(label).click();
+    await page.getByRole("button", { name: item, exact: true }).click();
+  };
+  const isAction = (url: URL) => url.pathname === `${gamePath}/gjennomgang`;
+  const abortPosts = () =>
+    page.route(isAction, (route) =>
+      route.request().method() === "POST" ? route.abort() : route.fallback(),
+    );
+
+  // The menu: a disclosure with two items; Esc closes it and focus returns to the trigger.
+  const menu = page.locator(
+    `#${await trigger("anne").getAttribute("aria-controls")}`,
+  );
+  await expect(trigger("anne")).toHaveAttribute("aria-expanded", "false");
+  await expect(menu).toBeHidden();
+  await trigger("anne").click();
+  await expect(trigger("anne")).toHaveAttribute("aria-expanded", "true");
+  await expect(menu.getByRole("button")).toHaveText([
+    "Gi nytt navn",
+    "Forkast fra brettet",
+  ]);
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(trigger("anne")).toBeFocused();
+  await expect(trigger("anne")).toHaveAttribute("aria-expanded", "false");
+
+  // Esc in a menu leaves the selection alone; the next Esc clears it.
+  const bar = page.locator("[data-selection-bar]");
+  await page.getByRole("checkbox", { name: "Velg «dina»" }).check();
+  await expect(bar).toBeVisible();
+  await trigger("erik").click();
+  await page.keyboard.press("Escape");
+  await expect(trigger("erik")).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    page.getByRole("checkbox", { name: "Velg «dina»" }),
+  ).toBeChecked();
+  await expect(bar).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+
+  // A click outside closes it, and so does Tab past its last item.
+  await trigger("anne").click();
+  await page
+    .getByRole("heading", { level: 3, name: "På brettet (8 grupper)" })
+    .click();
+  await expect(trigger("anne")).toHaveAttribute("aria-expanded", "false");
+  await trigger("anne").click();
+  await page.keyboard.press("Tab");
+  await expect(
+    menu.getByRole("button", { name: "Gi nytt navn" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(menu).toBeHidden();
+  await expect(trigger("anne")).toHaveAttribute("aria-expanded", "false");
+
+  // Gi nytt navn: the focused field with N/40; Enter saves and announces.
+  await pickFrom("anne", "Gi nytt navn");
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("anne");
+  await expect(page.getByText("4/40", { exact: true })).toBeVisible();
+  await page.keyboard.type("Anne kommer sist");
+  await page.keyboard.press("Enter");
+  await expect(heading("Anne kommer sist")).toBeFocused();
+  await expect(live).toHaveText("Navnet er endret.");
+  await expect(field).toHaveCount(0);
+
+  // A label click opens the field; Esc cancels and focuses the heading.
+  await heading("dina").click();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("dina");
+  await page.keyboard.press("Escape");
+  await expect(field).toHaveCount(0);
+  await expect(heading("dina")).toBeFocused();
+
+  // An aborted rename: the message at the top of that card, the field still open.
+  await heading("bjørn").click();
+  await page.keyboard.type("Bjørn B.");
+  await abortPosts();
+  await page.keyboard.press("Enter");
+  const bjorn = page.getByRole("listitem").filter({ has: field });
+  await expect(bjorn.getByRole("alert")).toHaveText(RETRY);
+  expect((await bjorn.getByRole("alert").boundingBox())!.y).toBeLessThan(
+    (await field.boundingBox())!.y,
+  );
+  await expect(field).toHaveValue("Bjørn B.");
+  await page.unroute(isAction);
+  await page.keyboard.press("Escape");
+  await expect(heading("bjørn")).toBeFocused();
+  await expect(page.getByText(RETRY)).toHaveCount(0);
+
+  // Forkast fra brettet: kari leaves the Board for Forkastet, and per (rank 9) moves up.
+  await pickFrom("kari", "Forkast fra brettet");
+  const forkastet = page.getByRole("region", { name: "Forkastet (1 gruppe)" });
+  await expect(forkastet.getByRole("heading", { level: 4 })).toHaveText([
+    "kari",
+  ]);
+  await expect(heading("kari")).toBeFocused();
+  await expect(live).toHaveText("«kari» er forkastet og vises ikke i spillet.");
+  await expect(heading("kari")).toHaveCSS(
+    "text-decoration-line",
+    "line-through",
+  );
+  await expect(forkastet.getByRole("checkbox")).toHaveCount(0);
+  await expect(trigger("kari")).toHaveCount(0);
+  await expect(
+    forkastet.getByRole("button", { name: "Angre forkasting av «kari»" }),
+  ).toBeVisible();
+  await expect(board.getByRole("heading", { level: 4 })).toHaveText([
+    "Anne kommer sist",
+    "dina",
+    "bjørn",
+    "cato",
+    "erik",
+    "frida",
+    "ola",
+    "per",
+  ]);
+  await expect(page.getByText("Ikke på brettet")).toHaveCount(0);
+  expect(await seriousViolations(page)).toEqual([]);
+
+  // An aborted restore: the message at the top of that card, which stays under Forkastet.
+  await abortPosts();
+  await forkastet.getByRole("button", { name: /^Angre forkasting/ }).click();
+  await expect(card("kari").getByRole("alert")).toHaveText(RETRY);
+  await expect(forkastet.getByRole("heading", { level: 4 })).toHaveText([
+    "kari",
+  ]);
+  await page.unroute(isAction);
+
+  // Angre forkasting: back at rank 1, per below the line again.
+  await forkastet.getByRole("button", { name: /^Angre forkasting/ }).click();
+  await expect(forkastet).toHaveCount(0);
+  await expect(board.getByRole("heading", { level: 4 }).first()).toHaveText(
+    "kari",
+  );
+  await expect(heading("kari")).toBeFocused();
+  await expect(live).toHaveText("«kari» er tilbake.");
+  await expect(
+    page.getByRole("region", { name: "Ikke på brettet (1 gruppe)" }),
+  ).toContainText("per");
+
+  // An aborted discard: the message at the top of that card, which stays on the Board.
+  await abortPosts();
+  await pickFrom("ola", "Forkast fra brettet");
+  await expect(card("ola").getByRole("alert")).toHaveText(RETRY);
+  await expect(
+    board.getByRole("heading", { level: 4, name: "ola" }),
+  ).toBeVisible();
+  await page.unroute(isAction);
+
+  // A stale tab: another tab discards cato; renaming it here refreshes instead.
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await other.getByRole("button", { name: "Mer for «cato»" }).click();
+  await other.getByRole("button", { name: "Forkast fra brettet" }).click();
+  await expect(
+    other.getByRole("region", { name: "Forkastet (1 gruppe)" }),
+  ).toBeVisible();
+  await other.close();
+  await heading("cato").click();
+  await page.keyboard.type("Cato C.");
+  await page.keyboard.press("Enter");
+  await expect(field).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { level: 3, name: "På brettet (8 grupper)" }),
+  ).toBeFocused();
+  await expect(
+    page
+      .getByRole("region", { name: "Forkastet (1 gruppe)" })
+      .getByRole("heading", { level: 4 }),
+  ).toHaveText(["cato"]);
+  await expect(page.getByText(RETRY)).toHaveCount(0);
 });

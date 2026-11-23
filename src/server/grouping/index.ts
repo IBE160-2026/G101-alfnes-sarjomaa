@@ -126,6 +126,18 @@ export async function setCustomLabel(
     .where(eq(answerGroup.id, groupId));
 }
 
+// Review's discard and restore (FR-20). The caller holds the Game lock and resolved the
+// Group. Only the flag changes: no Group or Answer is deleted.
+export async function setDiscarded(
+  tx: Tx,
+  { groupId, discarded }: { groupId: string; discarded: boolean },
+): Promise<void> {
+  await tx
+    .update(answerGroup)
+    .set({ discarded, editCount: sql`${answerGroup.editCount} + 1` })
+    .where(eq(answerGroup.id, groupId));
+}
+
 // A Game deleted or already past grouping: the run stops without a trace (AD-12).
 const isGone = (error: unknown) =>
   error instanceof DomainError &&

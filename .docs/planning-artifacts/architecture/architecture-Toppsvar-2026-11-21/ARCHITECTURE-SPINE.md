@@ -311,7 +311,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Binds:** FR-19 to FR-21, FR-23 to FR-27, FR-33 (Stage 2)
 - **Prevents:** play reading Review data that is still changing; a Question reaching play with no Groups; a separate play path for Question-set Games.
 - **Rule:**
-  - **Review writes.** Review edits Groups only through `grouping`'s writers (AD-1). Every edit increments the affected Groups' `edit_count`, bumps counters and calls `questions.setReviewed(tx, id, false)`. That is the only `question` write allowed outside `draft`.
+  - **Review writes.** Review edits Groups only through `grouping`'s writers (AD-1). Every edit increments the affected Groups' `edit_count`, bumps counters and calls `questions.setReviewed(tx, id, false)`. That is the only `question` write allowed outside `draft`. *Amended in Story 5.4:* discard and restore only flip `answer_group.discarded` through `grouping.setDiscarded`; no Group or Answer is deleted. A discarded Group is frozen: it is never a merge, move or rename source or target (`NOT_FOUND`), and must be restored first. `boardCut` keeps it off the Board and out of the ninth-Group promotion, so `confirmBoard` never puts it in play.
   - **Marking reviewed** is refused with `NO_GROUPS_ON_BOARD` while a Question has no non-discarded Group.
   - **`review.confirmBoard`** requires every Question to be reviewed. It writes `board_slot(id, question_id, position 1..8, label, count, group_id nullable)` from `boardCut(rankGroups(...))`, calls `grouping.clearContributorData`, and moves the Game to `ready`.
   - **Play** reads only `board_slot`, through `review.getBoard`.

@@ -15,9 +15,11 @@ import {
   vi,
 } from "vitest";
 import {
+  discardGroup,
   mergeGroups,
   moveAnswers,
   renameGroup,
+  restoreGroup,
 } from "@/app/spill/[id]/actions";
 import ReviewPage from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
@@ -425,7 +427,7 @@ describe("Review page", () => {
     expect(html).toMatch(/<h4 [^>]*class="[^"]*line-through[^"]*">kari<\/h4>/);
     expect(html).toMatch(/<h3[^>]*>På brettet \(3 grupper\)<\/h3>/);
     // Per's rename sorts before anne ("aa" would be å in nb); its raw Answer follows the label.
-    expect(screen).toMatch(/1\. Alle per Per 1 person 2\. anne/);
+    expect(screen).toMatch(/1\. Alle per Per 1 person ⋯ .*? 2\. anne/);
     expect(screen).toMatch(/3\. ola Ola 1 person/);
     expect(html.indexOf(">kari</h4>")).toBeGreaterThan(
       html.indexOf("Forkastet"),
@@ -1254,5 +1256,189 @@ describe("review.rename", () => {
       .set({ state: "in_review" })
       .where(eq(game.id, gameId));
     expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+});
+
+describe("review.discard and review.restore", () => {
+  // Nine singleton Groups: anne, dina, kari (ranks 1 to 3), then bjørn … ola, and per ninth.
+  const NINE: Spec = [
+    [
+      Q1,
+      [
+        ["Kari", "Ola", "Per"],
+        ["Anne", "Bjørn", "Cato"],
+        ["Dina", "Erik", "Frida"],
+      ],
+    ],
+  ];
+  const labelsOf = (gs: { label: string }[]) => gs.map((g) => g.label);
+  const markReviewed = async (gameId: string) =>
+    (await getDb())
+      .update(question)
+      .set({ reviewed: true })
+      .where(eq(question.gameId, gameId));
+  const answerCount = async (questionId: string) =>
+    (
+      await (
+        await getDb()
+      )
+        .select({ id: answer.id })
+        .from(answer)
+        .where(eq(answer.questionId, questionId))
+    ).length;
+
+  it("FR-20, FR-21, FR-18 (AC2): discarding rank 3 of nine keeps the row and its Answers, promotes the ninth, bumps groups_discarded and edit_count and clears reviewed; restoring puts it back at its rank with groups_restored and edit_count 2", async () => {
+    const { gameId, ids } = await reviewGame(NINE);
+    const kari = await groupIdOf(ids[0], "kari");
+    await markReviewed(gameId);
+    nextCache.revalidatePath.mockClear();
+
+    expect(await discardGroup({ gameId, groupId: kari })).toEqual({
+      ok: true,
+      data: { groupId: kari, label: "kari" },
+    });
+    expect(nextCache.revalidatePath.mock.calls).toEqual([
+      [`/spill/${gameId}`],
+      [`/spill/${gameId}/gjennomgang`],
+    ]);
+    expect(await groupRow(kari)).toMatchObject({
+      discarded: true,
+      editCount: 1,
+    });
+    expect(await answerCount(ids[0])).toBe(9);
+    let { current } = await review.load(hostId, gameId);
+    expect(labelsOf(current.board)).toEqual([
+      "anne",
+      "dina",
+      "bjørn",
+      "cato",
+      "erik",
+      "frida",
+      "ola",
+      "per",
+    ]);
+    expect(current.below).toEqual([]);
+    expect(current.discarded).toMatchObject([
+      { id: kari, label: "kari", chips: [{ text: "Kari", n: 1 }] },
+    ]);
+    let { rows, counters } = await snapshot(gameId, [ids[0]]);
+    expect(rows[0].reviewed).toBe(false);
+    expect(counters).toMatchObject({ groupsDiscarded: 1, groupsRestored: 0 });
+
+    await markReviewed(gameId);
+    expect(await restoreGroup({ gameId, groupId: kari })).toEqual({
+      ok: true,
+      data: { groupId: kari, label: "kari" },
+    });
+    expect(await groupRow(kari)).toMatchObject({
+      discarded: false,
+      editCount: 2,
+    });
+    ({ current } = await review.load(hostId, gameId));
+    expect(labelsOf(current.board)).toEqual([
+      "anne",
+      "dina",
+      "kari",
+      "bjørn",
+      "cato",
+      "erik",
+      "frida",
+      "ola",
+    ]);
+    expect(labelsOf(current.below)).toEqual(["per"]);
+    expect(current.discarded).toEqual([]);
+    ({ rows, counters } = await snapshot(gameId, [ids[0]]));
+    expect(rows[0].reviewed).toBe(false);
+    expect(counters).toMatchObject({ groupsDiscarded: 1, groupsRestored: 1 });
+  });
+
+  it("FR-20 (AC2): the result label is the effective label, a custom one included", async () => {
+    const { gameId, ids } = await reviewGame(NINE);
+    const kari = await groupIdOf(ids[0], "kari");
+    await review.rename(hostId, { gameId, groupId: kari, label: "Kari K." });
+    expect(await review.discard(hostId, { gameId, groupId: kari })).toEqual({
+      groupId: kari,
+      label: "Kari K.",
+    });
+  });
+
+  it("FR-20, AD-5: discarding a discarded Group or restoring a kept one is NOT_FOUND, as are a random or malformed Group and a malformed Game, and nothing changes", async () => {
+    const { gameId, ids } = await reviewGame(NINE);
+    const kari = await groupIdOf(ids[0], "kari");
+    const anne = await groupIdOf(ids[0], "anne");
+    await review.discard(hostId, { gameId, groupId: kari });
+    const before = await snapshot(gameId, ids);
+    expect(
+      await codeOf(review.discard(hostId, { gameId, groupId: kari })),
+    ).toBe("NOT_FOUND");
+    expect(
+      await codeOf(review.restore(hostId, { gameId, groupId: anne })),
+    ).toBe("NOT_FOUND");
+    for (const op of [review.discard, review.restore])
+      for (const input of [
+        { gameId, groupId: randomUUID() },
+        { gameId, groupId: "abc" },
+        { gameId: "abc", groupId: op === review.discard ? anne : kari },
+      ])
+        expect(await codeOf(op(hostId, input)), JSON.stringify(input)).toBe(
+          "NOT_FOUND",
+        );
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20: a missing or numeric groupId is INVALID_INPUT, a Game in ready WRONG_STATE, and nothing changes", async () => {
+    const { gameId, ids } = await reviewGame(NINE);
+    const kari = await groupIdOf(ids[0], "kari");
+    const before = await snapshot(gameId, ids);
+    for (const op of [review.discard, review.restore])
+      for (const input of [{ gameId }, { gameId, groupId: 7 }])
+        expect(await codeOf(op(hostId, input)), JSON.stringify(input)).toBe(
+          "INVALID_INPUT",
+        );
+    const db = await getDb();
+    await db.update(game).set({ state: "ready" }).where(eq(game.id, gameId));
+    expect(
+      await codeOf(review.discard(hostId, { gameId, groupId: kari })),
+    ).toBe("WRONG_STATE");
+    expect(
+      await codeOf(review.restore(hostId, { gameId, groupId: kari })),
+    ).toBe("WRONG_STATE");
+    await db
+      .update(game)
+      .set({ state: "in_review" })
+      .where(eq(game.id, gameId));
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20, UX-DR10 (AC3): every Board and Ikke på brettet card, compact rows included, has a Mer for «label» menu button; a Forkastet card has Angre forkasting and no menu", async () => {
+    const { gameId, ids } = await reviewGame(NINE);
+    let html = await render(gameId);
+    for (const label of [
+      "anne",
+      "dina",
+      "kari",
+      "bjørn",
+      "cato",
+      "erik",
+      "frida",
+      "ola",
+      "per",
+    ])
+      expect(html).toContain(`aria-label="Mer for «${label}»"`);
+    expect(html.match(/aria-expanded="false"/g)).toHaveLength(9);
+    expect(html.match(/min-h-13/g)).toHaveLength(9);
+    expect(html).not.toContain("Angre forkasting");
+
+    await review.discard(hostId, {
+      gameId,
+      groupId: await groupIdOf(ids[0], "kari"),
+    });
+    html = await render(gameId);
+    expect(html).not.toContain("Mer for «kari»");
+    expect(html.match(/aria-label="Mer for/g)).toHaveLength(8);
+    const forkastet = html.slice(html.indexOf(">Forkastet"));
+    expect(text(forkastet)).toContain("Angre forkasting av «kari»");
+    expect(forkastet).not.toContain('type="checkbox"');
+    expect(forkastet).not.toContain("aria-expanded");
   });
 });

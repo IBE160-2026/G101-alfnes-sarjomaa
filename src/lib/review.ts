@@ -1,5 +1,5 @@
 // Review's pure helpers and input schemas: Answer chips, the fallback Notice, merge,
-// move and rename (FR-16, FR-17, FR-19, FR-20).
+// move, rename, discard and restore (FR-16, FR-17, FR-19, FR-20).
 import { z } from "zod";
 import {
   ANSWERS_PER_QUESTION_MAX,
@@ -41,6 +41,12 @@ export const renameGroupSchema = z.object({
     .trim()
     .min(1, "Skriv et navn.")
     .max(LABEL_MAX, `Navnet kan ha maks ${LABEL_MAX} tegn.`),
+});
+
+// Discard and restore name one Group; malformed IDs are NOT_FOUND in the module (AD-5).
+export const groupRefSchema = z.object({
+  gameId: z.string(),
+  groupId: z.string(),
 });
 
 // Answers come in SQL order (normalized_text, then text). Equal normalised texts become

@@ -13,6 +13,7 @@ import { PERMITTED } from "@/lib/game-state";
 import { boardCut, rankGroups } from "@/lib/ranking";
 import {
   collapseChips,
+  groupRefSchema,
   mergeGroupsSchema,
   moveAnswersSchema,
   renameGroupSchema,
@@ -208,8 +209,14 @@ async function placeOf(
   };
 }
 
-// A non-discarded Group of the owned Game, else NOT_FOUND (AD-5).
-async function ownedGroup(tx: Tx, gameId: string, groupId: string) {
+// A Group of the owned Game in the wanted discarded state (by default not discarded),
+// else NOT_FOUND (AD-5). Discarded Groups are frozen for merge, move and rename.
+async function ownedGroup(
+  tx: Tx,
+  gameId: string,
+  groupId: string,
+  discarded = false,
+) {
   if (!UUID.test(groupId)) throw new DomainError("NOT_FOUND");
   const [found] = await tx
     .select({ questionId: answerGroup.questionId })
@@ -219,7 +226,7 @@ async function ownedGroup(tx: Tx, gameId: string, groupId: string) {
       and(
         eq(question.gameId, gameId),
         eq(answerGroup.id, groupId),
-        eq(answerGroup.discarded, false),
+        eq(answerGroup.discarded, discarded),
       ),
     );
   if (!found) throw new DomainError("NOT_FOUND");
@@ -311,3 +318,46 @@ export function rename(hostId: string, input: unknown): Promise<RenameResult> {
     });
   });
 }
+
+export type DiscardResult = { groupId: string; label: string };
+
+// FR-20, FR-21: flips a Group's discarded flag in one transaction with its edit_count,
+// the counter and the cleared reviewed mark (AD-15). Discard needs a kept Group and
+// restore a discarded one, else NOT_FOUND, so a stale tab refreshes instead of counting
+// a no-op. Nothing is deleted; boardCut keeps discarded Groups off the Board.
+function flipDiscarded(
+  op: "discard" | "restore",
+  hostId: string,
+  input: unknown,
+): Promise<DiscardResult> {
+  return withBoundary("review", op, async () => {
+    const { gameId, groupId } = validate(groupRefSchema, input);
+    const discarded = op === "discard";
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.editReview,
+      });
+      const questionId = await ownedGroup(tx, gameId, groupId, !discarded);
+      await grouping.setDiscarded(tx, { groupId, discarded });
+      await games.bumpCounters(
+        tx,
+        gameId,
+        discarded ? { groupsDiscarded: 1 } : { groupsRestored: 1 },
+      );
+      await questions.setReviewed(tx, questionId, false);
+      const { label } = (await rankedGroups(tx, questionId)).find(
+        (g) => g.groupId === groupId,
+      )!;
+      return { groupId, label };
+    });
+  });
+}
+
+export const discard = (hostId: string, input: unknown) =>
+  flipDiscarded("discard", hostId, input);
+
+export const restore = (hostId: string, input: unknown) =>
+  flipDiscarded("restore", hostId, input);

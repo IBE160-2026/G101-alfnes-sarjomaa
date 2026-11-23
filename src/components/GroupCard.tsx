@@ -17,9 +17,10 @@ const SELECTED =
 const CHIP_SELECTED = "bg-primary-soft inset-ring-2 inset-ring-primary";
 
 // Presentational (FR-19). With onToggle it gets the selection checkbox, with onToggleChip
-// a checkbox per chip (FR-20, UX-DR11); `rename` replaces the heading and `notice` sits at
-// the card's top. No menu until Story 5.4. Answers stay in the order given, which is
-// alphabetical (FR-13).
+// a checkbox per chip (FR-20, UX-DR11); `rename` replaces the heading, `notice` sits at
+// the card's top, `actions` (the Group menu or "Angre forkasting") right of the Count, and
+// onLabelClick makes the label start a rename (UX-DR10). Answers stay in the order given,
+// which is alphabetical (FR-13).
 export function GroupCard({
   id,
   rank,
@@ -34,6 +35,8 @@ export function GroupCard({
   onToggleChip,
   rename,
   notice,
+  actions,
+  onLabelClick,
 }: {
   id: string;
   rank?: number;
@@ -48,6 +51,8 @@ export function GroupCard({
   onToggleChip?: (chip: Chip) => void;
   rename?: ReactNode;
   notice?: ReactNode;
+  actions?: ReactNode;
+  onLabelClick?: () => void;
 }) {
   const compact = look !== "discarded" && chips.length === 1;
   const header = (
@@ -69,9 +74,11 @@ export function GroupCard({
         <span className="w-7 shrink-0 text-title tabular-nums">{rank}.</span>
       )}
       {rename ?? (
+        // The Group menu is the keyboard path to rename; the click is a pointer shortcut.
         <h4
           id={`gruppe-${id}`}
-          className={`min-w-0 text-title break-words ${look === "discarded" ? "line-through" : ""}`}
+          onClick={onLabelClick}
+          className={`min-w-0 text-title break-words ${look === "discarded" ? "line-through" : ""} ${onLabelClick ? "cursor-pointer hover:underline" : ""}`}
         >
           {label}
         </h4>
@@ -86,6 +93,8 @@ export function GroupCard({
       <span className="ml-auto shrink-0 pl-4 whitespace-nowrap">
         {people(count)}
       </span>
+      {/* 44 px target; the negative margins keep the row at its own height. */}
+      {actions && <div className="-my-2.5 shrink-0 self-center">{actions}</div>}
     </>
   );
   const box = `rounded-md ${selected ? SELECTED : LOOKS[look]} ${busy ? "opacity-60" : ""}`;

@@ -9,15 +9,17 @@ import {
   useState,
   useTransition,
   type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
 } from "react";
 import {
+  discardGroup,
   mergeGroups,
   moveAnswers,
   renameGroup,
+  restoreGroup,
 } from "@/app/spill/[id]/actions";
 import { Button } from "@/components/Button";
 import { GroupCard } from "@/components/GroupCard";
+import { GroupMenu } from "@/components/GroupMenu";
 import { Notice } from "@/components/Notice";
 import { focusHeading } from "@/components/RouteFocus";
 import { TextField } from "@/components/TextField";
@@ -37,8 +39,10 @@ type Renaming = {
   label: string;
   value: string;
   error?: string;
-  failure?: Failure;
 };
+// A rename, discard or restore failure, shown at the top of that Group's card.
+type CardFailure = { groupId: string; failure: Failure };
+type Op = "merge" | "move" | "new" | "discard" | "restore";
 
 function FailureNotice({
   failure,
@@ -65,20 +69,20 @@ function FailureNotice({
   );
 }
 
-// The Board and Ikke på brettet sections with Group or Answer selection, the
-// SelectionBar and the inline rename field (FR-20, UX-DR11, UX-DR12, UX-DR18).
-// Forkastet comes in as children: it has no checkboxes. The page keys this by
-// Question, so a Question change clears the selection.
+// The Board, Ikke på brettet and Forkastet sections with Group or Answer selection, the
+// SelectionBar, each card's Group menu, the inline rename field and "Angre forkasting"
+// (FR-20, FR-21, UX-DR10, UX-DR11, UX-DR12, UX-DR18). The page keys this by Question,
+// so a Question change clears the selection.
 export function ReviewGroups({
   gameId,
   board,
   below,
-  children,
+  discarded,
 }: {
   gameId: string;
   board: ReviewGroup[];
   below: ReviewGroup[];
-  children?: ReactNode;
+  discarded: ReviewGroup[];
 }) {
   const router = useRouter();
   const barRef = useRef<HTMLDivElement>(null);
@@ -89,7 +93,10 @@ export function ReviewGroups({
   const [failure, setFailure] = useState<Failure>();
   const [done, setDone] = useState<Done>();
   const [renaming, setRenaming] = useState<Renaming>();
-  const [op, setOp] = useState<"merge" | "move" | "new">();
+  const [cardFailure, setCardFailure] = useState<CardFailure>();
+  const [op, setOp] = useState<Op>();
+  // The Group a pending discard or restore acts on; selection operations have none.
+  const [busyId, setBusyId] = useState<string>();
   const [pending, startTransition] = useTransition();
   const [renamePending, startRename] = useTransition();
 
@@ -134,8 +141,10 @@ export function ReviewGroups({
     if (inBar && first) document.getElementById(first)?.focus();
   }
 
+  // React listens on document too (App Router), so stopPropagation cannot stop this
+  // listener; an Esc the menu or the rename field handled is defaultPrevented.
   const onKey = useEffectEvent((event: KeyboardEvent) => {
-    if (event.key === "Escape") clear();
+    if (event.key === "Escape" && !event.defaultPrevented) clear();
   });
   const hasSelection = selected.length > 0 || answers.length > 0;
   useEffect(() => {
@@ -150,19 +159,29 @@ export function ReviewGroups({
     setSelected([]);
     setAnswers([]);
     setRenaming(undefined);
-    focusHeading(document.getElementById("pa-brettet"));
+    setCardFailure(undefined);
+    // With every Group discarded there is no Board section.
+    focusHeading(
+      document.getElementById("pa-brettet") ??
+        document.getElementById("forkastet"),
+    );
     router.refresh();
   }
 
   // Pessimistic: waits for the server; the success state commits with the refreshed list.
+  // A card operation (discard, restore) names its Group: that card is busy and shows the
+  // failure; the others show it in the SelectionBar.
   function run<T>(
-    kind: "merge" | "move" | "new",
+    kind: Op,
     request: () => Promise<ActionResult<T>>,
     onSuccess: (data: T) => void,
+    card?: string,
   ) {
-    if (pending) return;
+    if (pending || renamePending) return;
     setOp(kind);
+    setBusyId(card);
     setFailure(undefined);
+    setCardFailure(undefined);
     // An open rename field is cancelled: its Group may be gone after the edit.
     setRenaming(undefined);
     // Empties the live region, so an identical sentence is announced again.
@@ -175,7 +194,11 @@ export function ReviewGroups({
           setAnswers([]);
           onSuccess(result.data);
         } else if (result?.code === "NOT_FOUND") stale();
-        else setFailure(result?.code === "WRONG_STATE" ? "locked" : "retry");
+        else {
+          const failure = result?.code === "WRONG_STATE" ? "locked" : "retry";
+          if (card) setCardFailure({ groupId: card, failure });
+          else setFailure(failure);
+        }
       });
     });
   }
@@ -209,9 +232,42 @@ export function ReviewGroups({
       },
     );
 
+  const discard = (g: ReviewGroup) =>
+    run(
+      "discard",
+      () => discardGroup({ gameId, groupId: g.id }),
+      (d) =>
+        setDone({
+          text: `«${d.label}» er forkastet og vises ikke i spillet.`,
+          focus: `#gruppe-${d.groupId}`,
+        }),
+      g.id,
+    );
+
+  const restore = (g: ReviewGroup) =>
+    run(
+      "restore",
+      () => restoreGroup({ gameId, groupId: g.id }),
+      (d) =>
+        setDone({
+          text: `«${d.label}» er tilbake.`,
+          focus: `#gruppe-${d.groupId}`,
+        }),
+      g.id,
+    );
+
+  // From the Group menu or a label click; replaces any other open rename, unannounced.
+  function openRename(g: ReviewGroup) {
+    if (pending || renamePending) return;
+    setCardFailure(undefined);
+    setRenaming({ groupId: g.id, label: g.label, value: g.label });
+    setDone({ focus: "[data-rename-field]" });
+  }
+
   function closeRename(text?: string) {
     if (!renaming) return;
     setRenaming(undefined);
+    setCardFailure(undefined);
     setDone({ text, focus: `#gruppe-${renaming.groupId}` });
   }
 
@@ -230,7 +286,8 @@ export function ReviewGroups({
     if (renamePending) return;
     const label = renaming.value.trim();
     if (label === renaming.label) return closeRename();
-    setRenaming({ ...renaming, error: undefined, failure: undefined });
+    setRenaming({ ...renaming, error: undefined });
+    setCardFailure(undefined);
     setDone(undefined);
     startRename(async () => {
       const result = await callAction(() =>
@@ -242,16 +299,22 @@ export function ReviewGroups({
         else if (result?.code === "INVALID_INPUT" && result.fieldErrors?.label)
           setRenaming((r) => r && { ...r, error: result.fieldErrors!.label });
         else
-          setRenaming(
-            (r) =>
-              r && {
-                ...r,
-                failure: result?.code === "WRONG_STATE" ? "locked" : "retry",
-              },
-          );
+          setCardFailure({
+            groupId: renaming.groupId,
+            failure: result?.code === "WRONG_STATE" ? "locked" : "retry",
+          });
       });
     });
   }
+
+  const notice = (g: ReviewGroup) =>
+    cardFailure?.groupId === g.id && (
+      <FailureNotice
+        failure={cardFailure.failure}
+        gameId={gameId}
+        className="mb-3"
+      />
+    );
 
   const card = (g: ReviewGroup, rank: number, look: "board" | "below") => {
     const ownsSelected = g.chips.some((c) => answers.includes(c.ids[0]));
@@ -263,18 +326,23 @@ export function ReviewGroups({
         look={look}
         {...g}
         selected={selected.includes(g.id)}
-        busy={pending && (selected.includes(g.id) || ownsSelected)}
+        busy={
+          pending &&
+          (busyId ? busyId === g.id : selected.includes(g.id) || ownsSelected)
+        }
         onToggle={() => toggleGroup(g.id)}
         chipSelected={(c) => answers.includes(c.ids[0])}
         onToggleChip={(c) => toggleChip(c.ids)}
-        notice={
-          editing?.failure && (
-            <FailureNotice
-              failure={editing.failure}
-              gameId={gameId}
-              className="mb-3"
-            />
-          )
+        notice={notice(g)}
+        onLabelClick={() => openRename(g)}
+        actions={
+          <GroupMenu
+            groupId={g.id}
+            label={g.label}
+            busy={pending || renamePending}
+            onRename={() => openRename(g)}
+            onDiscard={() => discard(g)}
+          />
         }
         rename={
           editing && (
@@ -345,7 +413,36 @@ export function ReviewGroups({
         </>
       )}
 
-      {children}
+      {discarded.length > 0 && (
+        <section aria-labelledby="forkastet" className="mt-8">
+          <h3 id="forkastet" className="text-title">
+            Forkastet ({groups(discarded.length)})
+          </h3>
+          <ul className="mt-3 flex flex-col gap-2">
+            {discarded.map((g) => (
+              <GroupCard
+                key={g.id}
+                look="discarded"
+                {...g}
+                busy={pending && busyId === g.id}
+                notice={notice(g)}
+                actions={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    pending={pending && busyId === g.id}
+                    pendingLabel="Angrer …"
+                    onClick={() => restore(g)}
+                  >
+                    Angre forkasting
+                    <span className="sr-only"> av «{g.label}»</span>
+                  </Button>
+                }
+              />
+            ))}
+          </ul>
+        </section>
+      )}
 
       {hasSelection && (
         <div
@@ -366,7 +463,7 @@ export function ReviewGroups({
                 <Button
                   type="button"
                   variant="inverse"
-                  pending={pending}
+                  pending={pending && op === "merge"}
                   pendingLabel="Slår sammen …"
                   onClick={merge}
                 >

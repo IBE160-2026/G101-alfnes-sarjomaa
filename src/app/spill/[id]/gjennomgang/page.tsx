@@ -3,11 +3,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { Button } from "@/components/Button";
-import { GroupCard } from "@/components/GroupCard";
 import { Notice } from "@/components/Notice";
 import { ReviewGroups } from "@/components/ReviewGroups";
 import { DomainError } from "@/lib/errors";
-import { groups } from "@/lib/format";
 import { fallbackNotice } from "@/lib/review";
 import * as auth from "@/server/auth";
 import { env } from "@/server/env";
@@ -240,20 +238,8 @@ export default async function ReviewPage({
             gameId={id}
             board={current.board}
             below={current.below}
-          >
-            {current.discarded.length > 0 && (
-              <section aria-labelledby="forkastet" className="mt-8">
-                <h3 id="forkastet" className="text-title">
-                  Forkastet ({groups(current.discarded.length)})
-                </h3>
-                <ul className="mt-3 flex flex-col gap-2">
-                  {current.discarded.map((g) => (
-                    <GroupCard key={g.id} look="discarded" {...g} />
-                  ))}
-                </ul>
-              </section>
-            )}
-          </ReviewGroups>
+            discarded={current.discarded}
+          />
         </div>
       </div>
 
