@@ -51,6 +51,8 @@ Run by the orchestrator with a Playwright script against https://toppsvar.vercel
 | Lock the Board, including the redirect to the Game page | 6.3 s | 1.18 s |
 | Save a Question | 1.8 s | 0.18 s |
 
+A second run after Epic 6 was merged (2026-11-23, 3 Questions, 5 Answer sets, 3 Teams) played a whole round in production. Grouping took 3.6 s with no fallback. Every play action (reveal, miss, undo, next Team, next Question, reload of the stage) took 3 to 786 ms; a reveal took about 280 ms. Board lock took 1.22 s, and registration and Game creation took 1.3 to 1.4 s. The Scores matched the scored Counts at every check.
+
 **Consequence.** NFR-5 failed by a factor of 3 to 6 while the functions ran on another continent from the database, because every action makes several round trips. `vercel.json` now pins the functions to `fra1`, next to Neon. Only Board lock is slightly above one second, and that figure includes the navigation it triggers.
 
 ## README contract
