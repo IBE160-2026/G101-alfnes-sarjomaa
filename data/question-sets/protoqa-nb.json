@@ -74,7 +74,7 @@
             },
             {
               "cluster": "r1q10.3",
-              "label": "Bar eller kino",
+              "label": "Bar eller hjemmekino",
               "count": 10
             },
             {
@@ -84,7 +84,7 @@
             },
             {
               "cluster": "r1q10.5",
-              "label": "Lager",
+              "label": "Lagerrom",
               "count": 6
             }
           ]
@@ -125,7 +125,7 @@
             },
             {
               "cluster": "r2q6.6",
-              "label": "TV og datamaskin",
+              "label": "TV og PC",
               "count": 5
             },
             {
@@ -235,7 +235,7 @@
       "questions": [
         {
           "sourceId": "r1q6",
-          "text": "Du kjøper melk, egg, sukker og fløte. Nevn noe du sannsynligvis skal lage.",
+          "text": "Du kjøper melk, egg, sukker og fløte. Nevn noe du trolig skal lage.",
           "groups": [
             {
               "cluster": "r1q6.0",
@@ -413,7 +413,7 @@
             },
             {
               "cluster": "r1q20.7",
-              "label": "En mobiltelefon",
+              "label": "Mobiltelefon",
               "count": 1
             }
           ]
@@ -472,7 +472,7 @@
         },
         {
           "sourceId": "r2q42",
-          "text": "Nevn noe som kan få noen til å endre returflyet sitt.",
+          "text": "Nevn en grunn til å endre returbilletten.",
           "groups": [
             {
               "cluster": "r2q42.0",
@@ -491,7 +491,7 @@
             },
             {
               "cluster": "r2q42.3",
-              "label": "Glemte passet",
+              "label": "Glemte noe viktig",
               "count": 6
             },
             {
@@ -619,12 +619,12 @@
             },
             {
               "cluster": "r2q46.1",
-              "label": "Oppmerksom",
+              "label": "Følger godt med",
               "count": 29
             },
             {
               "cluster": "r2q46.2",
-              "label": "Hyggelig person",
+              "label": "Hyggelig",
               "count": 9
             },
             {
@@ -662,7 +662,7 @@
       "questions": [
         {
           "sourceId": "r1q11",
-          "text": "Nevn noe som holder barn trygge.",
+          "text": "Nevn noe som beskytter barn.",
           "groups": [
             {
               "cluster": "r1q11.0",
@@ -732,7 +732,7 @@
             },
             {
               "cluster": "r2q7.4",
-              "label": "Løpe",
+              "label": "Løpe rundt",
               "count": 9
             },
             {
@@ -763,7 +763,7 @@
             },
             {
               "cluster": "r2q14.1",
-              "label": "Kose seg og drive med sport",
+              "label": "Slappe av og trene",
               "count": 10
             },
             {
@@ -788,7 +788,7 @@
             },
             {
               "cluster": "r2q14.6",
-              "label": "Avtjene verneplikten",
+              "label": "Førstegangstjeneste",
               "count": 2
             },
             {
@@ -800,7 +800,7 @@
         },
         {
           "sourceId": "r2q15",
-          "text": "Nevn noe folk husker lenge, selv når de blir gamle.",
+          "text": "Nevn noe folk husker helt til de blir gamle.",
           "groups": [
             {
               "cluster": "r2q15.0",
@@ -908,48 +908,43 @@
           ]
         },
         {
-          "sourceId": "r2q31",
-          "text": "Nevn et kjæledyr folk har i bur, men ikke en fugl.",
+          "sourceId": "r1q1",
+          "text": "Nevn noe som er vanskelig å gjette om en person du nettopp har møtt.",
           "groups": [
             {
-              "cluster": "r2q31.0",
-              "label": "Hamster",
-              "count": 40
+              "cluster": "r1q1.0",
+              "label": "Alder eller bursdag",
+              "count": 35
             },
             {
-              "cluster": "r2q31.1",
-              "label": "Ape",
-              "count": 14
+              "cluster": "r1q1.1",
+              "label": "Tanker og interesser",
+              "count": 28
             },
             {
-              "cluster": "r2q31.2",
-              "label": "Kanin",
+              "cluster": "r1q1.2",
+              "label": "Navn",
+              "count": 12
+            },
+            {
+              "cluster": "r1q1.3",
+              "label": "Fortid, jobb eller religion",
               "count": 11
             },
             {
-              "cluster": "r2q31.3",
-              "label": "Slange eller øgle",
-              "count": 10
+              "cluster": "r1q1.4",
+              "label": "Foreldre eller partner",
+              "count": 6
             },
             {
-              "cluster": "r2q31.4",
-              "label": "Papegøye",
-              "count": 7
-            },
-            {
-              "cluster": "r2q31.5",
-              "label": "Mus",
+              "cluster": "r1q1.5",
+              "label": "Høyde, vekt eller IQ",
               "count": 5
             },
             {
-              "cluster": "r2q31.6",
-              "label": "Løve eller tiger",
-              "count": 4
-            },
-            {
-              "cluster": "r2q31.7",
-              "label": "Hund",
-              "count": 4
+              "cluster": "r1q1.6",
+              "label": "Undertøy",
+              "count": 1
             }
           ]
         },
@@ -1047,7 +1042,7 @@
         },
         {
           "sourceId": "r2q47",
-          "text": "Nevn noe du kan finne på å knuse med vilje.",
+          "text": "Nevn noe du kan finne på å ødelegge med vilje.",
           "groups": [
             {
               "cluster": "r2q47.0",

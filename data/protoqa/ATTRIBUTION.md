@@ -60,7 +60,9 @@ the ProtoQA authors (IESL, UMass Amherst), shared under the same licence, CC-BY-
   short Norwegian name written by hand for what the cluster's answers have in common. Every Group
   keeps its source cluster id (`cluster`).
 - **Board size.** Only the top clusters by count are kept, at most eight per Question, as on the
-  app's Board (FR-21). None of the 25 Questions has a tie at the eighth place.
+  app's Board (FR-21). None of the 25 Questions has a tie at the eighth place. The app orders
+  the slots itself, by Count and then by the Norwegian label, so the order in the file is not
+  the slot order.
 
 **Counts are unchanged.** Every `count` is the cluster's count in the source file.
 

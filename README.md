@@ -153,10 +153,10 @@ største gruppene. Tellingene er uendret. Spillskjermen viser kilden.
 <summary>De fem settene</summary>
 
 - **Hjemme:** Nevn noe folk pleier å gjøre før de går hjemmefra til jobben. Nevn noe folk kan gjøre om garasjen til. Nevn noe i huset som ofte må byttes ut. Nevn noe folk kjøper til et hus, men ikke til en leilighet. Nevn noe folk kjøper som varer lenge.
-- **Mat og drikke:** Du kjøper melk, egg, sukker og fløte. Nevn noe du sannsynligvis skal lage. Nevn en grønnsak som er omtrent like stor som hodet ditt. Nevn noe du trenger for å lage pizza. Nevn noe en idrettsutøver ikke ville hatt i kjøleskapet sitt. Nevn noe butikker deler ut gratis for å lokke til seg kunder.
-- **Jobb og reise:** Nevn en luksus folk må klare seg uten når de er på reise. Nevn noe som kan få noen til å endre returflyet sitt. Nevn en grunn til at en bilist må stoppe i veikanten. Nevn en jobb der man må være våken om natten. Nevn en grunn til å gi servitøren godt med tips.
-- **Barn og oppvekst:** Nevn noe som holder barn trygge. Nevn noe foreldre sier at barna ikke får lov til. Nevn noe man kan gjøre etter videregående i stedet for å studere videre. Nevn noe folk husker lenge, selv når de blir gamle. Nevn et klesplagg du ikke ville lånt bort til noen.
-- **Blandet drops:** Nevn et dyr man kan lære å gjøre triks. Nevn et kjæledyr folk har i bur, men ikke en fugl. Nevn en grunn til at noen går med hansker. Nevn noe folk gjør mens tannlegen undersøker dem. Nevn noe du kan finne på å knuse med vilje.
+- **Mat og drikke:** Du kjøper melk, egg, sukker og fløte. Nevn noe du trolig skal lage. Nevn en grønnsak som er omtrent like stor som hodet ditt. Nevn noe du trenger for å lage pizza. Nevn noe en idrettsutøver ikke ville hatt i kjøleskapet sitt. Nevn noe butikker deler ut gratis for å lokke til seg kunder.
+- **Jobb og reise:** Nevn en luksus folk må klare seg uten når de er på reise. Nevn en grunn til å endre returbilletten. Nevn en grunn til at en bilist må stoppe i veikanten. Nevn en jobb der man må være våken om natten. Nevn en grunn til å gi servitøren godt med tips.
+- **Barn og oppvekst:** Nevn noe som beskytter barn. Nevn noe foreldre sier at barna ikke får lov til. Nevn noe man kan gjøre etter videregående i stedet for å studere videre. Nevn noe folk husker helt til de blir gamle. Nevn et klesplagg du ikke ville lånt bort til noen.
+- **Blandet drops:** Nevn et dyr man kan lære å gjøre triks. Nevn noe som er vanskelig å gjette om en person du nettopp har møtt. Nevn en grunn til at noen går med hansker. Nevn noe folk gjør mens tannlegen undersøker dem. Nevn noe du kan finne på å ødelegge med vilje.
 
 </details>
 
