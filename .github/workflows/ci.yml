@@ -70,8 +70,10 @@ jobs:
         run: |
           npm run demo > demo.log 2>&1 &
           pid=$!
-          for _ in $(seq 1 120); do
-            if curl -sf -m 5 http://localhost:3000/api/health > /dev/null; then
+          # A deadline, not a try count, so a hanging compile still prints the log well before timeout-minutes.
+          end=$((SECONDS + 120))
+          while [ "$SECONDS" -lt "$end" ]; do
+            if curl -sf -m 2 http://localhost:3000/api/health > /dev/null; then
               kill "$pid"
               wait "$pid" || true
               exit 0

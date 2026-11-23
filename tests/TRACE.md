@@ -405,7 +405,7 @@ Local runnability.
 - `tests/integration/env.test.ts`: an empty environment gives the no-key defaults.
 - `tests/integration/db.test.ts`: `DATABASE_URL` parsing, PGlite directory creation and migration on open, the health route.
 - CI (`.github/workflows/ci.yml`) runs the README scripts on Node 22 and 26 with no key.
-- CI runs `npm run demo` in the background, polls `/api/health` until 200 (failing with the log after 120 s) and stops it; `tests/e2e/server-output.spec.ts` and `demo.spec.ts` run on `npm run demo` on 3101 (Story 7.1, AC1).
+- CI runs `npm run demo` in the background, polls `/api/health` until 200 and stops it; it fails and prints the log once a 120 s deadline passes, so after at most about 123 s (one 2 s request and a 1 s pause past the deadline), well inside the step's 5-minute timeout; `tests/e2e/server-output.spec.ts` and `demo.spec.ts` run on `npm run demo` on 3101 (Story 7.1, AC1).
 - `README.md`, section "Utvikling": Node.js 22.13+, git, no database or key, the three commands and the test commands; the fresh-clone run is F1 in `tests/manual/checklist.md` (Story 7.4, AC1).
 - `tests/manual/checklist.md`, row P3: the README's local path names no host, and its "Status" section states whether the pilot is live or cut (Story 7.5, AC3).
 
