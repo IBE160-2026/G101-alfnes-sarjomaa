@@ -10,7 +10,7 @@ import * as questions from "@/server/questions";
 
 // Invented for the demo (§6.1): no real person and nothing from .idea/.
 // data/rulings/demo.json partitions exactly these Answers.
-export const DEMO_TITLE = "Hyttetur med gjengen";
+const DEMO_TITLE = "Hyttetur med gjengen";
 export const DEMO_QUESTIONS = [
   "Hva må være med på hytteturen?",
   "Hva spiser dere til frokost på hytta?",
@@ -48,23 +48,26 @@ export const DEMO_SETS = [
 // Eight links, six answered, so the Game page reads "6 av 8".
 const DEMO_LINKS = 8;
 
-// Through the module entry points only, as the app would (AD-19). Every link's Token
-// stays in this function: nothing here prints a link, Token or Answer.
-export async function seed(): Promise<{
-  hostId: string;
-  gameId: string;
-  questionIds: string[];
-}> {
-  const { hostId } = await auth.createHost(DEMO_HOST);
-  const { id: gameId } = await games.create(hostId, { title: DEMO_TITLE });
-  const questionIds = DEMO_QUESTIONS.map(() => randomUUID());
-  for (const [i, text] of DEMO_QUESTIONS.entries())
+// Through the module entry points only, as the app would (AD-19). Shared by the demo and
+// sizing seeds. Every link's Token stays in this function: nothing here prints a link,
+// Token or Answer. Each set holds one list of Answers per Question, in order.
+export async function seedGame(spec: {
+  host: { email: string; password: string };
+  title: string;
+  questions: string[];
+  sets: string[][][];
+  links: number;
+}): Promise<{ hostId: string; gameId: string; questionIds: string[] }> {
+  const { hostId } = await auth.createHost(spec.host);
+  const { id: gameId } = await games.create(hostId, { title: spec.title });
+  const questionIds = spec.questions.map(() => randomUUID());
+  for (const [i, text] of spec.questions.entries())
     await questions.save(hostId, { gameId, questionId: questionIds[i], text });
   const { links } = await collection.createInviteLinks(hostId, {
     gameId,
-    count: DEMO_LINKS,
+    count: spec.links,
   });
-  for (const [i, set] of DEMO_SETS.entries())
+  for (const [i, set] of spec.sets.entries())
     await collection.submit(gameId, links[i].split("#")[1], {
       editSecret: newToken(),
       answers: Object.fromEntries(questionIds.map((id, q) => [id, set[q]])),
@@ -72,10 +75,19 @@ export async function seed(): Promise<{
   return { hostId, gameId, questionIds };
 }
 
-// For the CLI: the PGlite directory must be released before next dev opens it.
-export async function seedAndClose(): Promise<void> {
+export const seed = () =>
+  seedGame({
+    host: DEMO_HOST,
+    title: DEMO_TITLE,
+    questions: DEMO_QUESTIONS,
+    sets: DEMO_SETS,
+    links: DEMO_LINKS,
+  });
+
+// For the CLIs: the PGlite directory must be released before next dev or the tester opens it.
+export async function seedAndClose(run: () => Promise<unknown>): Promise<void> {
   try {
-    await seed();
+    await run();
   } finally {
     await closeDb();
   }

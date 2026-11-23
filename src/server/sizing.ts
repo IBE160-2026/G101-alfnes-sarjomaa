@@ -1,11 +1,5 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
-import { newToken } from "@/lib/token";
-import * as auth from "@/server/auth";
-import * as collection from "@/server/collection";
-import { closeDb } from "@/server/db/client";
-import * as games from "@/server/games";
-import * as questions from "@/server/questions";
+import { seedGame } from "@/server/demo";
 
 // The NFR-5 sizing Game for tests/manual/checklist.md (T1–T8, A6–A10). Invented: no real
 // person and nothing from .idea/. On the reserved .test domain, like the demo login.
@@ -13,7 +7,7 @@ export const SIZING_HOST = {
   email: "storrelse@toppsvar.test",
   password: "storrelse-passord",
 } as const;
-export const SIZING_TITLE = "Størrelsestest";
+const SIZING_TITLE = "Størrelsestest";
 const QUESTIONS = 15;
 const SETS = 30;
 // A8: a 200-character Question (QUESTION_TEXT_MAX).
@@ -25,7 +19,7 @@ export const WIDE_ANSWER = `${"M".repeat(39)}Ø`;
 
 // One list per Question in order: 1 to 5 Answers, the same spread as grouping.test.ts's
 // sizing Game.
-export function sizingSet(s: number): string[][] {
+function sizingSet(s: number): string[][] {
   return Array.from({ length: QUESTIONS }, (_, q) => {
     const answers = Array.from(
       { length: 1 + ((s + q) % 5) },
@@ -37,36 +31,14 @@ export function sizingSet(s: number): string[][] {
   });
 }
 
-// Through the module entry points only, as the demo seed. Left in collecting, so the tester
-// closes, reviews and plays through the UI they are timing. Nothing here prints a link.
-export async function seedSizing(): Promise<{ gameId: string }> {
-  const { hostId } = await auth.createHost(SIZING_HOST);
-  const { id: gameId } = await games.create(hostId, { title: SIZING_TITLE });
-  const questionIds = Array.from({ length: QUESTIONS }, () => randomUUID());
-  for (const [q, questionId] of questionIds.entries())
-    await questions.save(hostId, {
-      gameId,
-      questionId,
-      text: q === 0 ? LONG_QUESTION : `Spørsmål ${q + 1}: nevn noe`,
-    });
-  const { links } = await collection.createInviteLinks(hostId, {
-    gameId,
-    count: SETS,
+// Left in collecting, so the tester closes, reviews and plays through the UI they are timing.
+export const seedSizing = () =>
+  seedGame({
+    host: SIZING_HOST,
+    title: SIZING_TITLE,
+    questions: Array.from({ length: QUESTIONS }, (_, q) =>
+      q === 0 ? LONG_QUESTION : `Spørsmål ${q + 1}: nevn noe`,
+    ),
+    sets: Array.from({ length: SETS }, (_, s) => sizingSet(s)),
+    links: SETS,
   });
-  for (let s = 0; s < SETS; s++) {
-    const set = sizingSet(s);
-    await collection.submit(gameId, links[s].split("#")[1], {
-      editSecret: newToken(),
-      answers: Object.fromEntries(questionIds.map((id, q) => [id, set[q]])),
-    });
-  }
-  return { gameId };
-}
-
-export async function seedSizingAndClose(): Promise<void> {
-  try {
-    await seedSizing();
-  } finally {
-    await closeDb();
-  }
-}

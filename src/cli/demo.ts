@@ -14,7 +14,7 @@ process.env.APP_BASE_URL = `http://localhost:${process.env.PORT || 3000}`;
 
 const { env } = await import("@/server/env");
 const { migrateFromEnv } = await import("@/server/db/migrate");
-const { seedAndClose } = await import("@/server/demo");
+const { seed, seedAndClose } = await import("@/server/demo");
 
 // A fixed path: no environment value can widen the delete.
 await rm(path.join(process.cwd(), ".data", "demo"), {
@@ -22,7 +22,7 @@ await rm(path.join(process.cwd(), ".data", "demo"), {
   force: true,
 });
 await migrateFromEnv();
-await seedAndClose();
+await seedAndClose(seed);
 
 console.log(`
 Toppsvar demo: ${env.APP_BASE_URL}/logg-inn

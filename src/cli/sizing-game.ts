@@ -5,7 +5,8 @@ import path from "node:path";
 process.env.DATABASE_URL = "pglite://.data/sizing";
 
 const { migrateFromEnv } = await import("@/server/db/migrate");
-const { SIZING_HOST, seedSizingAndClose } = await import("@/server/sizing");
+const { seedAndClose } = await import("@/server/demo");
+const { SIZING_HOST, seedSizing } = await import("@/server/sizing");
 
 // A fixed path: no environment value can widen the delete.
 await rm(path.join(process.cwd(), ".data", "sizing"), {
@@ -13,7 +14,7 @@ await rm(path.join(process.cwd(), ".data", "sizing"), {
   force: true,
 });
 await migrateFromEnv();
-await seedSizingAndClose();
+await seedAndClose(seedSizing);
 
 console.log(`
 Toppsvar sizing Game in .data/sizing

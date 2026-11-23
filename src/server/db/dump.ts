@@ -6,16 +6,15 @@ import { env } from "@/server/env";
 
 type Row = Record<string, unknown>;
 
+// db.execute returns { rows } on PGlite and the row array itself on postgres.js.
+export const sqlRows = <T>(result: unknown): T[] =>
+  Array.isArray(result) ? (result as T[]) : (result as { rows: T[] }).rows;
+
 // SM-3 (tests/manual/anonymity-audit.md): every table in public, rows in physical order
 // with ctid and xmin, since PGlite has no pg_dump.
 export async function dump(db: Db): Promise<Record<string, Row[]>> {
-  const rows = async (query: ReturnType<typeof sql>) => {
-    const result: unknown = await db.execute(query);
-    // PGlite returns { rows }, postgres.js the row array itself.
-    return Array.isArray(result)
-      ? (result as Row[])
-      : (result as { rows: Row[] }).rows;
-  };
+  const rows = async (query: ReturnType<typeof sql>) =>
+    sqlRows<Row>(await db.execute(query));
   const tables = await rows(
     sql`select tablename::text as name from pg_tables where schemaname = 'public' order by tablename`,
   );
