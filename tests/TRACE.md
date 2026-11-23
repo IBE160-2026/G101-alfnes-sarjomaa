@@ -1,8 +1,8 @@
 # Test trace
 
-Maps every Stage 1 FR, and the NFRs the stories so far touch, to the tests or manual checks that prove it. Test titles start with the ID they prove. `tests/unit/trace.test.ts` fails if a Stage 1 FR heading is missing.
+Maps every Stage 1 FR, and the NFRs the stories so far touch, to the tests or manual checks that prove it. Test titles start with the ID they prove. `tests/unit/trace.test.ts` fails if a Stage 1 FR heading is missing, or if a Stage 1 FR section has no bullet naming a file under `tests/` (a test or a manual item) or CI.
 
-Each story adds its rows here. "Pending" names the stories whose acceptance criteria will add coverage.
+Each story adds its rows here. An "Open" bullet names a consequence whose proof is not in place yet; every one of them is listed in the SM-1 gate section of `tests/manual/checklist.md`, which says whether SM-1 has passed. The SM-3 anonymity audit is `tests/manual/anonymity-audit.md`.
 
 ## FR-1
 
@@ -197,13 +197,16 @@ Unlinkable storage after close.
 - `tests/integration/anonymity.test.ts`: on the same Game, after `grouping.run`, every Question marked and a real `review.confirmBoard`, the Game is _ready_ and all 45 Answers have `contributor_key` and `rank` NULL; `board_slot` has exactly the columns `id`, `question_id`, `position`, `label`, `count` and `group_id` (no key, rank, timestamp or text column), and each Question has eight slots with the frozen Count 1 (Story 5.5, AC4).
 - `tests/integration/review.test.ts`: a real `confirmBoard` sets every `contributor_key` and `rank` of the Game to NULL; refused confirms (`QUESTIONS_UNREVIEWED`, `NO_GROUPS_ON_BOARD`, `WRONG_STATE`) leave every key and rank in place (Story 5.5, AC4).
 
+- `tests/manual/anonymity-audit.md`: SM-3, a reviewer not involved in the last change looks at the Host's screens, the Invite-link list and a `npm run db:dump` taken after the Board is confirmed, and records whether any Answer can be tied to a link or joined across Questions (Story 7.3, AC4). Open until it is run.
+- `tests/integration/manual-tools.test.ts`: the dump the audit reads holds every `public` table with each row's `ctid` and `xmin` in physical order (Story 7.3).
+
 ## FR-14
 
 Honest anonymity notice.
 
 - `tests/e2e/answer-form.spec.ts`: above the first Question the info Notice reads exactly "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet, og svarene kan bli sendt til en ekstern KI-tjeneste for gruppering.", with the instruction line as a separate paragraph and no horizontal scroll at 360 px (Story 2.4, AC1; amended FR-14, Story 5.6). The e2e run uses replay only; the notice is one constant in `AnswerForm.tsx` with no condition in code, so it reads the same with every Judge provider.
 - `tests/manual/checklist.md`: A3, the notice is read by VoiceOver or TalkBack (Story 2.4, AC6).
-- Pending: Story 7.4.
+- Open: the README's anonymity section, which repeats the notice and lists its limits (Story 7.4).
 
 ## FR-15
 
@@ -232,7 +235,7 @@ Judge Grouping at close.
 - The bound of at most two requests per Question (one retry) is the openrouter retry tests in `tests/unit/judge.test.ts` (never more than 2 calls), and one `partition` per Question is the first `grouping.test.ts` line above (amended FR-15, PRD feedback 4.2).
 - `tests/unit/lint-zones.test.ts`: importing `@/server/judge/record` from `src/server/grouping` fails lint, and from `src/server/judge` or `src/cli` passes; the `@/server/judge` barrel no longer re-exports `record`, `assertRecordTarget` or `recordInputSchema`, so importing them from it is a type error (checked by `npm run typecheck`). Together, Grouping cannot write a Stored ruling (amended FR-15 and Glossary, PRD feedback 4.4, Story 5.6).
 - Every Answer in exactly one Group: `answer.group_id` is a single foreign key to `answer_group`, so an Answer has at most one Group, and `tests/integration/grouping.test.ts` asserts that no Answer is left without a `group_id` (`ungrouped()` empty) after the AC1 run, after two runs at once (AC2) and after a real close (amended FR-15, PRD feedback 4.3).
-- Pending: Story 7.1.
+- `tests/integration/demo-replay.test.ts`: closing the demo Game groups every Question from the Stored rulings in `data/rulings/demo.json` with `source = replay`, no fallback and no network call, so Judge Grouping runs at close with no key (Story 7.1).
 
 ## FR-16
 
@@ -377,7 +380,7 @@ Demo mode.
 - `tests/integration/demo-replay.test.ts`: the demo seed (`src/server/demo.ts`, through `auth.createHost`, `games.create`, `questions.save`, `collection.createInviteLinks` and `collection.submit`) gives a Host with the demo email and one _collecting_ Game with eight links and six Answer sets; `collection.close` and `grouping.run` with `JUDGE_PROVIDER=replay` give every Question `source = replay`, `uncovered_items = 0`, `fell_back = false`, no fallback reason, zero Judge calls and model `hand-written`, every Group of origin `judge`, the Game _in_review_, and `fetch` is never called; each Question's ruling in `data/rulings/demo.json` has exactly the sorted distinct normalised seeded Answers as items, and its Group count equals the ruling's distinct assignments; checked to fail when one item is removed from `data/rulings/demo.json` (Story 7.1, AC2).
 - `tests/e2e/demo.spec.ts`, on the demo server (`npm run demo` on 3101): `/` and `/logg-inn` show the demo login, "Fyll inn demobrukeren" fills email and password and logs in; "Mine spill", the demo Game page ("6 av 8 svar mottatt") and Review show the band sentence; closing the demo Game reaches _Til gjennomgang_, and Review groups "Kortstokk" with "Kortspill", shows no "Manuell" and no fallback Notice; no serious axe violation on `/logg-inn` and Review; after marking all three Questions, locking the Board and starting play, the band is hidden under the play stage. On the normal server (3100), `/` and `/logg-inn` show no demo login and "Mine spill" no band (Story 7.1, AC1, AC3).
 - `tests/manual/checklist.md` D1: the demo content is invented and nothing in it derives from `.idea/` (Story 7.1, AC4).
-- Pending: Story 7.4 (README).
+- Open: the README's three commands and printed demo login (Story 7.4).
 
 ## FR-32
 
@@ -402,14 +405,15 @@ Local runnability.
 - `tests/integration/db.test.ts`: `DATABASE_URL` parsing, PGlite directory creation and migration on open, the health route.
 - CI (`.github/workflows/ci.yml`) runs the README scripts on Node 22 and 26 with no key.
 - CI runs `npm run demo` in the background, polls `/api/health` until 200 (failing with the log after 120 s) and stops it; `tests/e2e/server-output.spec.ts` and `demo.spec.ts` run on `npm run demo` on 3101 (Story 7.1, AC1).
-- Pending: Story 7.4 (README).
+- Open: the README's prerequisites and commands, and the fresh-clone run recorded in `tests/manual/checklist.md` (Story 7.4).
 
 ## NFR-2
 
 Deployability.
 
 - `tests/integration/db.test.ts`: `postgres://` and `postgresql://` select postgres.js with `prepare: false`, and opening one does not throw with the network guard on, so the same build targets hosted Postgres by configuration alone.
-- Pending: Story 7.5 (optional pilot).
+- CI's `postgres` job runs every integration test on a Postgres 17 service container, each file in its own migrated database (`tests/postgres-setup.ts`), with the PGlite-only checks skipped (`tests/integration/driver.ts`); `tests/integration/db.test.ts` fails that job if it ever runs on PGlite, so the module code is proven on the driver a hosted deployment uses (Story 7.3, AC5).
+- The pilot deployment is optional and first to cut (Story 7.5); the README states whether it is live or cut (Story 7.4).
 
 ## NFR-3
 
@@ -420,7 +424,7 @@ Tests without network.
 - `tests/e2e/smoke.spec.ts`: the browser aborts requests to any host but localhost.
 - `tests/integration/db.test.ts`: each integration file gets a fresh `pglite://:memory:` database.
 - `tests/e2e/no-key.spec.ts`: the whole Stage 1 round runs with no model key and every non-localhost request blocked, in the Host's context and in each of the three Participant contexts (`localOnly`) (Story 6.5, AC1).
-- Pending: every story with unit or integration proof.
+- Suite-wide: `tests/setup.ts` installs the socket guard for every unit and integration file, and every e2e spec runs with the localhost-only routing above, so every story's tests run offline; CI runs them with no key.
 
 ## NFR-4
 
@@ -435,6 +439,7 @@ Devices.
 
 Responsiveness: every Host action in Review and play shows its result within one second.
 
+- `tests/integration/manual-tools.test.ts`: `npm run seed:sizing` builds the sizing Game the T items run on: one _collecting_ Game with 15 Questions, 30 links and 30 Answer sets of 1–5 Answers, Question 1 at 200 characters and a 40-character Answer ranked first in 15 sets (Story 7.3).
 - `tests/manual/checklist.md`: T1, merge timing on the sizing Game (Story 5.2, AC4). Timed by hand, not in CI, so no flaky timing test.
 - `tests/manual/checklist.md`: T2, move and "Ny gruppe" timing on the sizing Game (Story 5.3). Timed by hand, not in CI.
 - `tests/manual/checklist.md`: T3, rename, discard and "Angre forkasting" timing on the sizing Game (Story 5.4). Timed by hand, not in CI.
@@ -468,7 +473,7 @@ Accessibility (WCAG 2.1 AA).
 - `tests/manual/checklist.md`: A6, Review end to end by keyboard only (Story 5.5).
 - `tests/e2e/play.spec.ts`: axe finds no serious or critical violations on Team setup and on the play view; on the stage the Host chrome is gone from view and tab order and the focused Question has the inverse focus ring (Story 6.1, AC2).
 - `tests/e2e/no-key.spec.ts`: in one no-key round axe finds no serious or critical violations on the filled answer form before submit, on Review with the `NO_KEY` Notice, on the play view with scored and unscored tiles, and on "Sluttstilling" (Story 6.5, AC2).
-- Pending: every story that builds a screen.
+- `tests/manual/checklist.md`: A5, axe or Lighthouse over every page in each Game state, no serious or critical finding (Story 7.3).
 
 ## NFR-7
 
@@ -480,7 +485,7 @@ Norwegian bokmål interface.
 - `tests/e2e/games.spec.ts` and `tests/integration/authz.test.ts`: "Navn på spillet", "Lag spill", the empty states, "Utkast", "Sist endret {dato}" in nb-NO, "Brødsmulesti", "Vi finner ikke dette spillet." and "Fikk ikke hentet spillene dine. Last inn siden på nytt." are the literal bokmål strings (Story 1.4).
 - `tests/unit/errors.test.ts`: `NOT_FOUND` and `WRONG_STATE` have their bokmål messages (Story 1.4).
 - `tests/e2e/delete.spec.ts`: the delete flow uses the literal bokmål strings "Slett spillet", "Slette «{title}»?", "Spørsmål, lenker, svar, brett og poeng slettes for godt.", "Avbryt", "Slett for godt", "«{title}» er slettet.", "Fikk ikke kontakt. Sjekk nettet og prøv igjen." and, for a stale delete, "Vi finner ikke dette spillet." (Story 1.5).
-- Pending: every story that builds a screen.
+- Every Stage 1 screen has an e2e spec that matches its copy as literal bokmål strings (the FR sections above name them).
 
 ## NFR-8
 
@@ -488,7 +493,8 @@ Secrets.
 
 - `tests/integration/env.test.ts`: `.env.example` keys equal `env.ts` keys; invalid values throw naming keys only.
 - `tests/integration/db.test.ts`: a bad `DATABASE_URL` and a DB failure never echo the URL or the error message.
-- Pending: Story 7.4.
+- `tests/integration/manual-tools.test.ts`: `npm run db:dump` spawned with an unreachable `postgres://` URL holding a password exits 1 with "db:dump failed (CODE). Check DATABASE_URL." on stderr, no password and no dump; with a PGlite directory that does not exist it exits 1 and creates nothing (Story 7.3).
+- Open: the README's environment table equal to `.env.example`, and `scripts/make-zip.sh` building from `git archive HEAD` (Story 7.4).
 
 ## UX
 
@@ -502,6 +508,7 @@ Design and experience rules from `DESIGN.md` and `EXPERIENCE.md` that no FR cove
 - `tests/e2e/auth.spec.ts`: both forms use `autocomplete` `email` and `new-password`/`current-password` with visible labels (UX-DR28); a pending login shows "Logger inn …" with `aria-busy="true"` and sends exactly one request despite a second click and Enter (UX-DR2); a failed request shows "Fikk ikke kontakt. Sjekk nettet og prøv igjen." and keeps the email; after a failed login the email stays, the password is cleared and focus moves to the error notice (Story 1.3, AC6).
 - `tests/unit/game-state.test.ts`: the seven states in chain order, `INITIAL_STATE` _draft_, `TRANSITIONS` exactly the six forward edges, `canTransition` over all 49 pairs, every state permits `deleteGame` and _played_ permits nothing else (Story 1.4, AC4, AD-4).
 - `tests/integration/game-state.test.ts`: `transition` succeeds on a chain edge, and a skipped or backward edge is `WRONG_STATE` with the state unchanged (the 49 pairs are covered by the unit test on `canTransition`, which `transition` checks first); a stale `from` is `WRONG_STATE`; `transition` never touches `updated_at`; `lockForMutation` is `NOT_FOUND` for a missing or malformed ID and `WRONG_STATE` outside `states` without touching `updated_at`; with `hostId` it sets `updated_at` to now, without it or with `touch: false` (the delete path) it leaves it (fake `Date`); the row's `xmax` turns non-zero after the lock, proving `FOR UPDATE` on PGlite; walking `PERMITTED`, every operation locks exactly in its permitted states (Story 1.4, AC4, AD-4, AD-23).
+- `tests/integration/game-state.test.ts`: every `Operation` has at least one real entry point, and each of the 23 entry points (`questions.save`, `move`, `remove`; `collection.createInviteLinks`, `revokeInviteLink`, `openInviteLink`, `submit`, `close`; `grouping.run`, `resumeIfStale`; `review.merge`, `moveAnswers`, `rename`, `discard`, `restore`, `setReviewed`, `confirmBoard`; `play.start`, `reveal`, `undo`, `nextTeam`, `nextQuestion`, the last also for `finishPlay`; `games.deleteOwned`) is called on a fresh Game in each of the seven states and refused exactly outside its `PERMITTED` row: `WRONG_STATE` for Host actions, `COLLECTION_CLOSED` for the two link actions, and no `grouping_result` row for Grouping (Story 7.3, AC2).
 - `tests/integration/authz.test.ts`: with the `game` table dropped, `/spill` still renders the create form and the danger notice "Fikk ikke hentet spillene dine. Last inn siden på nytt.", and the boundary logs one `games`/`listOwned` line with only `module`, `op`, `code` and `sqlstate` (Story 1.4, UX-DR23, AD-17).
 - `tests/e2e/games.spec.ts`: with the Game page's RSC request held 1.5 s, the `loading.tsx` skeleton (no `<h1>`) appears after 300 ms, without a fade, and the streamed `<h1>` takes focus once it arrives, resolving Story 1.2's deferred `RouteFocus` gap (Story 1.4, UX-DR15, UX-DR23).
 - `tests/e2e/games.spec.ts`: an aborted create request shows "Fikk ikke kontakt. Sjekk nettet og prøv igjen.", focuses that notice, keeps the typed title and stays on `/spill` (Story 1.4, UX-DR23).
