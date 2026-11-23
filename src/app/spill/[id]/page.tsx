@@ -227,7 +227,8 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
     panel = [
       <section key="ready" aria-labelledby="brettet" className="mt-10">
         <h2 id="brettet" className="text-heading">
-          Brettet er låst
+          {/* A set Game's Board came ready-made; the Host never locked it (FR-33). */}
+          {game.questionSet ? "Brettet er klart" : "Brettet er låst"}
         </h2>
         <p className="mt-4">
           {n === 1 ? "1 spørsmål er klart." : `${n} spørsmål er klare.`}
@@ -267,7 +268,8 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           Vis sluttstilling
         </Link>
         <Notice tone="info" className="mt-6 max-w-prose">
-          Spillet og alle svarene slettes automatisk {formatDate(deleteAfter)}.
+          {game.questionSet ? "Spillet" : "Spillet og alle svarene"} slettes
+          automatisk {formatDate(deleteAfter)}.
         </Notice>
       </section>,
     ];

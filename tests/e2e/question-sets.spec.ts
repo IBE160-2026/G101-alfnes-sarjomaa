@@ -29,6 +29,10 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
   await expect(page.getByText("Klar", { exact: true })).toBeVisible();
   await expect(page.getByText("5 spørsmål er klare.")).toBeVisible();
   await expect(page.getByText("Last ned bruksrapport")).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Brettet er klart" }),
+  ).toBeVisible();
+  const gamePath = new URL(page.url()).pathname;
 
   await page.getByRole("link", { name: "Start spillet" }).click();
   await expect(page.locator("h1")).toHaveText("Hvem spiller?");
@@ -93,4 +97,12 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
     path: test.info().outputPath("question-set-control-bar.png"),
     animations: "disabled",
   });
+
+  // The played page names no Answers, since a set Game never had any.
+  await page.keyboard.press("n");
+  await expect(page.locator("h1")).toHaveText("Sluttstilling");
+  await page.goto(gamePath);
+  await expect(
+    page.getByRole("region", { name: "Sluttstilling" }).getByRole("status"),
+  ).toHaveText(/^Spillet slettes automatisk /);
 });
