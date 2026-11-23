@@ -36,6 +36,7 @@ const cases: [file: string, source: string, banned: boolean][] = [
   ["src/server/games/x.ts", "@/app/page", true],
   ["src/cli/x.ts", "@/server/db/client", true],
   ["src/cli/x.ts", "@/server/db/migrate", false],
+  ["src/cli/x.ts", "@/server/db/dump", false],
   ["src/server/games/x.ts", "../auth", true],
 ];
 

@@ -19,6 +19,8 @@
     "test:e2e": "playwright test",
     "db:generate": "node --conditions=react-server node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "tsx --conditions=react-server --env-file-if-exists=.env.local src/cli/db-migrate.ts",
+    "db:dump": "tsx --conditions=react-server src/cli/db-dump.ts",
+    "seed:sizing": "tsx --tsconfig tsconfig.cli.json --conditions=react-server src/cli/sizing-game.ts",
     "judge:eval": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local src/cli/judge-eval.ts",
     "judge:record": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local src/cli/judge-record.ts",
     "judge:smoke": "tsx --conditions=react-server --env-file-if-exists=.env --env-file-if-exists=.env.local src/cli/judge-smoke.ts"
