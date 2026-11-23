@@ -114,7 +114,8 @@ Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Svarene kan bli se
 ekstern KI-tjeneste for gruppering. Begge deler står øverst i svarskjemaet.
 
 Spill slettes 30 dager etter at de er spilt, ellers 90 dager etter siste endring. Slettingen
-kjører bare mens appen kjører. Pilotdatabasen slettes når emnet er over.
+kjører når en vert åpner spillsidene (høyst én gang i timen), eller fra Cron når `CRON_SECRET`
+er satt. Pilotdatabasen slettes når emnet er over.
 
 <details>
 <summary>Grensene: hvem kan se hva</summary>
@@ -210,7 +211,7 @@ npm run demo                # skriver ut innloggingen
 
 Åpne <http://localhost:3000/logg-inn> og logg inn med `demo@toppsvar.test` og `demo-passord`.
 Demospillet er oppdiktet og har seks svarsett. Steng innsamlingen, så grupperer dommeren fra
-lagrede kjennelser. `.data/demo` lages på nytt ved hver start. `npm run dev` starter tomt i
+lagrede avgjørelser. `.data/demo` lages på nytt ved hver start. `npm run dev` starter tomt i
 `.data/local`.
 
 **Appen kjører uten noen nøkkel.** Variablene står i [`.env.example`](.env.example). Kopier den
@@ -235,7 +236,7 @@ til `.env.local` for å endre noe.
 
 </details>
 
-**Uten nøkkel** bruker dommeren lagrede kjennelser i `data/rulings/`. I egne spill blir hvert
+**Uten nøkkel** bruker dommeren lagrede avgjørelser i `data/rulings/`. I egne spill blir hvert
 ulike svar en egen gruppe (`NO_KEY`), og verten slår sammen for hånd.
 
 **Med nøkkel** (`OPENROUTER_API_KEY` i `.env` eller `.env.local`) grupperer dommeren live
@@ -248,7 +249,7 @@ overstyrer ikke), så sjekk `echo $OPENROUTER_API_KEY` først.
 
 ```bash
 npm run judge:smoke         # ett live kall: modell, ventetid, tokens og grupper; hopper over uten nøkkel
-npm run judge:record -- inn.json .data/rulings/ut.json   # tar opp kjennelser (AD-14); bare under .data/ eller data/rulings/demo.json og protoqa-dev.json
+npm run judge:record -- inn.json .data/rulings/ut.json   # tar opp avgjørelser (AD-14); bare under .data/ eller data/rulings/demo.json og protoqa-dev.json
 ```
 
 </details>
@@ -259,7 +260,7 @@ Testene trenger verken nøkkel eller nettverk:
 npm test                          # Vitest: enhets- og integrasjonstester
 npx playwright install chromium   # én gang
 npm run test:e2e                  # Playwright, på port 3100 og 3101
-npm run judge:eval                # dommeren mot ProtoQA, fra lagrede kjennelser
+npm run judge:eval                # dommeren mot ProtoQA, fra lagrede avgjørelser
 ```
 
 Stopp `npm run dev` og `npm run demo` før e2e: Next tillater bare én `next dev` per repo.
@@ -319,9 +320,9 @@ beslutningslogg.
 | `src/app`, `src/components` | Sidene, rutene og komponentene |
 | `src/server` | Moduler med databasetilgang, og dommeren |
 | `src/lib` | Ren logikk og grenser, delt av resten |
-| `src/cli` | Skriptene bak `demo`, `judge:*` og `db:*` |
+| `src/cli` | Skriptene bak `demo`, `seed:sizing`, `judge:*` og `db:*` |
 | `tests/` | Testene, [sporingen](tests/TRACE.md) og [de manuelle sjekkene](tests/manual/checklist.md) |
-| `data/` | ProtoQA-data og lagrede kjennelser |
+| `data/` | ProtoQA-data og lagrede avgjørelser |
 | `drizzle/` | Migrasjonene |
 | `docs-assets/` | Skjermbilder og diagrammer |
 | [`.docs/`](.docs/) | BMAD-artefaktene: brief, PRD, UX, arkitektur, epics og én spesifikasjon per historie |

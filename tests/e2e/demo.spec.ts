@@ -51,7 +51,7 @@ test.describe("on the demo server (npm run demo)", () => {
     await slow(page).toHaveURL(`${gamePath}/gjennomgang`);
     await slow(page.getByText(BAND)).toBeVisible();
 
-    // The hand-written ruling joins near-synonyms, which one Group per Answer never would.
+    // The recorded ruling joins near-synonyms, which one Group per Answer never would.
     const kortstokk = page
       .locator("li", { has: page.locator("h4", { hasText: "Kortstokk" }) })
       .first();
