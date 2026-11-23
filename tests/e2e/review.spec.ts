@@ -104,7 +104,7 @@ test("FR-17 (AC4), FR-19 (AC3), UX-DR10, UX-DR11, UX-DR17 (AC5), NFR-4, NFR-6: a
   ]);
   // FR-16, FR-19: the default label is the written form, so the compact row adds only the Answer count.
   await expect(board.getByRole("listitem").first()).toHaveText(
-    /^1\.\s*Kari\s*· 3 svar\s*3 personer\s*⋯$/,
+    /^1\.\s*Kari\s*3 svar\s*3 personer\s*⋯$/,
     // innerText leaves out the closed Group menu's items.
     { useInnerText: true },
   );
@@ -715,6 +715,10 @@ test("FR-20, FR-21 (AC3), UX-DR10, UX-DR18, NFR-6: the Group menu opens and clos
     "line-through",
   );
   await expect(forkastet.getByRole("checkbox")).toHaveCount(0);
+  // Its only raw Answer equals the label, so the card shows "Kari" once, then "3 svar"
+  // (the other match is Angre's sr-only name).
+  expect((await forkastet.innerText()).match(/Kari/g)).toHaveLength(2);
+  await expect(forkastet.getByText("3 svar", { exact: true })).toBeVisible();
   await expect(trigger("Kari")).toHaveCount(0);
   await expect(
     forkastet.getByRole("button", { name: "Angre forkasting av «Kari»" }),
