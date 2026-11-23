@@ -13,6 +13,7 @@ import * as collection from "@/server/collection";
 import { game, host, inviteLink, question } from "@/server/db/schema";
 import * as games from "@/server/games";
 import * as questions from "@/server/questions";
+import { sqlRows } from "./driver";
 
 const T0 = new Date("2026-11-01T12:00:00Z");
 const LATER = new Date("2026-11-22T09:00:00Z");
@@ -151,7 +152,7 @@ describe("games.lockForMutation", () => {
       const result = await tx.execute(
         sql`select xmax::text as xmax from game where id = ${gameId}`,
       );
-      return (result as unknown as { rows: { xmax: string }[] }).rows[0].xmax;
+      return sqlRows<{ xmax: string }>(result)[0].xmax;
     };
     await inTx(async (tx) => {
       expect(await xmax(tx)).toBe("0");

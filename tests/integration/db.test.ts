@@ -12,6 +12,7 @@ import {
   type DbHandle,
 } from "@/server/db/client";
 import { checkDatabase } from "@/server/health";
+import { onPostgres } from "./driver";
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 
@@ -191,4 +192,15 @@ describe("GET /api/health", () => {
     const failure = Object.assign(new Error(secret), { code: "EPIPE" });
     expect(await getWithFailedDb(failure)).toEqual(base);
   });
+});
+
+// Without TEST_POSTGRES_URL the CI postgres job would pass silently on PGlite.
+describe("the CI postgres job", () => {
+  it.runIf(process.env.GITHUB_JOB === "postgres")(
+    "NFR-2: runs the integration tests on Postgres, not PGlite",
+    () => {
+      expect(onPostgres).toBe(true);
+      expect(process.env.DATABASE_URL).toMatch(/^postgres/);
+    },
+  );
 });

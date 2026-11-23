@@ -391,13 +391,13 @@ describe("Host B against Host A's Game", () => {
       const kept = { gameId, groupId: groupIds[0] };
       const discarded = { gameId, groupId: gone };
       for (const call of [
-        review.moveAnswers(hosts.B, move),
-        review.moveAnswers(hosts.B, split),
-        review.rename(hosts.B, name),
-        review.discard(hosts.B, kept),
-        review.restore(hosts.B, discarded),
+        () => review.moveAnswers(hosts.B, move),
+        () => review.moveAnswers(hosts.B, split),
+        () => review.rename(hosts.B, name),
+        () => review.discard(hosts.B, kept),
+        () => review.restore(hosts.B, discarded),
       ])
-        expect(((await rejection(call)) as DomainError).code, gameId).toBe(
+        expect(((await rejection(call())) as DomainError).code, gameId).toBe(
           "NOT_FOUND",
         );
       expect(await moveAnswers(move), gameId).toEqual(notFound);

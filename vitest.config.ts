@@ -15,7 +15,10 @@ export default defineConfig({
   },
   test: {
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
-    setupFiles: ["tests/setup.ts"],
+    // TEST_POSTGRES_URL switches to the CI Postgres job's per-file databases.
+    setupFiles: process.env.TEST_POSTGRES_URL
+      ? ["tests/postgres-setup.ts", "tests/setup.ts"]
+      : ["tests/setup.ts"],
     // Each integration file migrates its own PGlite. With every file in parallel, on a loaded
     // laptop or a small CI runner, that can exceed the 5 s / 10 s defaults.
     testTimeout: 30_000,

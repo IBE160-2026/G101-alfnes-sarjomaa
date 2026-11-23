@@ -25,6 +25,7 @@ import { envSchema } from "@/server/env";
 import * as games from "@/server/games";
 import * as questions from "@/server/questions";
 import { run } from "./next-mocks";
+import { sqlRows } from "./driver";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -220,9 +221,7 @@ describe("fixed lists (FR-12)", () => {
       sql`select column_name::text as name from information_schema.columns
         where table_schema = 'public' and table_name = ${table} order by column_name`,
     );
-    return (result as unknown as { rows: { name: string }[] }).rows.map(
-      (r) => r.name,
-    );
+    return sqlRows<{ name: string }>(result).map((r) => r.name);
   };
 
   it("FR-12: env.ts reads exactly these 9 keys", () => {

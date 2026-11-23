@@ -13,6 +13,7 @@ import { newToken, sha256 } from "@/lib/token";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import { game, question } from "@/server/db/schema";
+import { sqlRows } from "./driver";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -33,7 +34,7 @@ const appSchema = (column: string) =>
 
 async function rows<T>(query: SQL): Promise<T[]> {
   const result = await (await getDb()).execute(query);
-  return (result as unknown as { rows: T[] }).rows;
+  return sqlRows<T>(result);
 }
 
 type Column = {

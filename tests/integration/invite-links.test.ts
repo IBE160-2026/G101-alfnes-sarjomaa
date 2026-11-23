@@ -10,6 +10,7 @@ import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import { game, inviteLink, question } from "@/server/db/schema";
 import { cookieJar, RedirectError } from "./next-mocks";
+import { sqlRows } from "./driver";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -109,11 +110,10 @@ describe("createInviteLinks", () => {
     ).execute(
       sql`select column_name::text as name from information_schema.columns where table_name = 'invite_link' order by name`,
     );
-    expect(
-      (result as unknown as { rows: { name: string }[] }).rows.map(
-        (r) => r.name,
-      ),
-    ).toEqual(["game_id", "token_hash"]);
+    expect(sqlRows<{ name: string }>(result).map((r) => r.name)).toEqual([
+      "game_id",
+      "token_hash",
+    ]);
   });
 
   it("FR-5: in collecting more links are added without a transition", async () => {
@@ -233,18 +233,18 @@ describe("after creation", () => {
     const gameId = await newGame();
     const tokens = (await ok(gameId, 5)).map(tokenOf);
     const db = await getDb();
-    const tables = (
-      (await db.execute(
+    const tables = sqlRows<{ name: string }>(
+      await db.execute(
         sql`select table_name::text as name from information_schema.tables where table_schema = 'public'`,
-      )) as unknown as { rows: { name: string }[] }
-    ).rows.map((r) => r.name);
+      ),
+    ).map((r) => r.name);
     expect(tables).toContain("invite_link");
     for (const table of tables) {
-      const rows = (
-        (await db.execute(
+      const rows = sqlRows<{ json: string }>(
+        await db.execute(
           sql`select row_to_json(t)::text as json from ${sql.identifier(table)} t`,
-        )) as unknown as { rows: { json: string }[] }
-      ).rows;
+        ),
+      );
       for (const { json } of rows)
         for (const t of tokens) expect(json, table).not.toContain(t);
     }
