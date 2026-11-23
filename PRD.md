@@ -284,7 +284,7 @@ Groups within a Question rank by Count, highest first.
 
 **Consequences (testable):**
 - Ties in Count are broken by the number of rank-1 Answers in the Group, then alphabetically by label.
-- A Group's default label is its most frequent normalised Answer text, ties broken by the shortest text.
+- A Group's default label is its most frequent normalised Answer text, ties broken by the shortest text, shown in that text's most common written form (so "Ullsokker", not "ullsokker"). (Amended 2026-11-23, Epic 5 design review: normalisation decides which Answer wins, not how it is written.)
 
 #### FR-17: Manual Grouping fallback — Stage 1
 If no model key is configured, or the Judge fails, returns invalid output after its retry (FR-15) or exceeds 30 seconds on a Question, that Question starts with one Group per distinct normalised Answer text. Normalised means compared case-insensitively, with surrounding whitespace trimmed, inner whitespace collapsed and trailing punctuation removed. (The 30-second limit keeps one slow Question from holding up the rest. Invalid output was added on 2026-11-23, instructor's PRD feedback 4.3.)
