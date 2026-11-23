@@ -69,8 +69,6 @@ vi.mock("@/server/games", async (importOriginal) => {
   return { ...real, bumpCounters: vi.fn(real.bumpCounters) };
 });
 
-vi.setConfig({ testTimeout: 30_000 });
-
 const COOKIE = "toppsvar_session";
 const Q1 = "Hvem kommer for sent?";
 const Q2 = "Hva sier verten?";

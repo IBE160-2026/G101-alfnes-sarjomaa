@@ -25,7 +25,7 @@ describe("judge CLIs before any network call", () => {
     const { status, stdout } = cli("judge-smoke.ts", "");
     expect(stdout.trim()).toBe("skipped: no OPENROUTER_API_KEY");
     expect(status).toBe(0);
-  }, 30_000);
+  });
 
   it("AD-14 (AC5): without a key judge:record refuses with exit 1 and names the variable, before reading its input", () => {
     const { status, stdout, stderr } = cli(
@@ -37,7 +37,7 @@ describe("judge CLIs before any network call", () => {
     expect(stderr).toMatch(/OPENROUTER_API_KEY/);
     expect(stdout).toBe("");
     expect(status).toBe(1);
-  }, 30_000);
+  });
 
   it("AD-14 (AC5): with a key judge:record refuses an output path outside .data/ with exit 1", () => {
     const { status, stdout, stderr } = cli(
@@ -49,7 +49,7 @@ describe("judge CLIs before any network call", () => {
     expect(stderr).toMatch(/Refusing to write/);
     expect(stdout).toBe("");
     expect(status).toBe(1);
-  }, 30_000);
+  });
 
   it("AD-14 (AC5): with a key judge:record rejects a malformed input file with exit 1 and writes no output", () => {
     const input = join(temp, "in.json");
@@ -65,5 +65,5 @@ describe("judge CLIs before any network call", () => {
     expect(stdout).toBe("");
     expect(status).toBe(1);
     expect(existsSync(output)).toBe(false);
-  }, 30_000);
+  });
 });

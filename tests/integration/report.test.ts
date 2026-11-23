@@ -56,8 +56,6 @@ vi.mock("@/server/judge", async (importOriginal) => {
   return { ...real, getJudge: () => current.judge ?? real.getJudge() };
 });
 
-vi.setConfig({ testTimeout: 30_000 });
-
 const COOKIE = "toppsvar_session";
 const TITLE = "Hyttetur";
 const Q1 = "Nevn et dyr";

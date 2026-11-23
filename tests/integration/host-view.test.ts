@@ -34,6 +34,7 @@ vi.mock("next/navigation", () =>
 );
 vi.mock("next/cache", () => import("./next-mocks").then((m) => m.nextCache));
 
+// Above the global 30 s: one test renders every Host read and action at five Answer-set stages.
 vi.setConfig({ testTimeout: 60_000 });
 
 const TEXTS = [

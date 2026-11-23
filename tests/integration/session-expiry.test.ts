@@ -32,8 +32,6 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
-vi.setConfig({ testTimeout: 30_000 });
-
 it("FR-1: a hard load of /spill with a session past its 14 days sends both layout and page to /logg-inn?utlopt=1, which shows the notice", async () => {
   await run(register, {
     email: "utlopt@example.test",

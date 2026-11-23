@@ -27,8 +27,6 @@ vi.mock("next/navigation", () =>
 );
 vi.mock("next/cache", () => import("./next-mocks").then((m) => m.nextCache));
 
-vi.setConfig({ testTimeout: 30_000 });
-
 const COOKIE = "toppsvar_session";
 const T0 = new Date("2026-11-01T12:00:00Z");
 const tokens: Record<"A" | "B", string> = { A: "", B: "" };
