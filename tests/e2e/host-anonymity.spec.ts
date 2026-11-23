@@ -120,8 +120,10 @@ test("FR-12, FR-11: during Collection no Host page or response body holds a Toke
   // Every Host page, then the Game page's own 30 s refresh. The Game page prefetches its
   // visible /spill links in the background (the route tree, then the metadata) on load
   // and again after the refresh; waiting for each keeps a prefetch out of the no-push
-  // window below. The clock is paused just before the refresh and stays paused between phases, so the next
-  // 30 s tick is a known ~30 s of fake time away and fires only when a test advances it.
+  // window below. Pausing 30 s ahead fast-forwards past the 30 s interval, which fires the
+  // refresh once and puts the next tick exactly 30 s after the pause, as in progress.spec.ts.
+  // The clock stays paused between phases, so that tick fires only when a test advances it.
+  // Pausing at "now + 1" raced: a running clock can pass "now + 1" before pauseAt lands.
   async function visitAll() {
     recording = [];
     await page.clock.resume();
@@ -136,7 +138,6 @@ test("FR-12, FR-11: during Collection no Host page or response body holds a Toke
     const loaded = [prefetched("/_tree"), prefetched()];
     await page.goto(gamePath);
     await Promise.all(loaded);
-    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1);
     const refreshed = page.waitForResponse(
       (r) =>
         r.request().headers()["rsc"] === "1" &&
@@ -144,7 +145,8 @@ test("FR-12, FR-11: during Collection no Host page or response body holds a Toke
         new URL(r.url()).pathname === gamePath,
     );
     const metadata = prefetched();
-    await page.clock.runFor(30_000);
+    // Page time, not Node's: earlier phases moved the fake clock ahead of real time.
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 30_000);
     await refreshed;
     await metadata;
     // A response may start another request (a prefetch) while the first ones are awaited.

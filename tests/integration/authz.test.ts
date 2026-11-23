@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { asc, eq, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
+import { GET as reportRoute } from "@/app/api/spill/[gameId]/rapport/route";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeCollection,
@@ -28,7 +29,7 @@ import {
   submission,
 } from "@/server/db/schema";
 import * as games from "@/server/games";
-import { cookieJar, NotFoundError, run } from "./next-mocks";
+import { afterTasks, cookieJar, NotFoundError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -63,6 +64,11 @@ async function gameRow(id: string) {
 async function gameCount() {
   return (await (await getDb()).select().from(game)).length;
 }
+
+const getReport = (gameId: string) =>
+  reportRoute(new Request(`http://localhost/api/spill/${gameId}/rapport`), {
+    params: Promise.resolve({ gameId }),
+  });
 
 const rejection = (p: Promise<unknown>) =>
   p.then(
@@ -190,6 +196,26 @@ describe("Host B against Host A's Game", () => {
         message: "Vi finner ikke dette spillet.",
       });
     expect((await gameRow(gameOfA)).updatedAt).toEqual(T0);
+  });
+
+  it("FR-18, AD-5 (AC2): B's GET of the usage report on A's in review Game, a random UUID and a malformed ID gives one identical 404 NOT_FOUND", async () => {
+    const [{ id: reviewOfA }] = await (
+      await getDb()
+    )
+      .insert(game)
+      .values({ hostId: hosts.A, title: "As gjennomgang", state: "in_review" })
+      .returning({ id: game.id });
+    as("A");
+    expect((await getReport(reviewOfA)).status).toBe(200);
+    as("B");
+    for (const gameId of [reviewOfA, randomUUID(), "abc"]) {
+      const response = await getReport(gameId);
+      expect(response.status, gameId).toBe(404);
+      expect(await response.json(), gameId).toEqual({
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    }
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {
@@ -402,12 +428,14 @@ describe("Invite links across Hosts", () => {
     });
     const before = await snapshot();
     as("B");
+    afterTasks.length = 0;
     for (const gameId of [closableOfA, randomUUID(), "abc"])
       expect(await closeCollection({ gameId }), gameId).toEqual({
         ok: false,
         code: "NOT_FOUND",
         message: "Vi finner ikke dette spillet.",
       });
+    expect(afterTasks, "a refused close queues no Grouping run").toEqual([]);
     expect(await snapshot()).toEqual(before);
     expect(before.game.state).toBe("collecting");
     expect(before.links).toHaveLength(3);

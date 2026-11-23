@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   integer,
   jsonb,
@@ -55,6 +56,23 @@ export const game = pgTable("game", {
   groupingLeaseUntil: timestamp("grouping_lease_until", utc),
 });
 
+// Content-free usage counters, one row per Game, created by the first bump (AD-18).
+// Written only by games.bumpCounters.
+export const gameCounter = pgTable("game_counter", {
+  gameId: uuid("game_id")
+    .primaryKey()
+    .references(() => game.id, { onDelete: "cascade" }),
+  judgeGroupsProposed: integer("judge_groups_proposed").notNull().default(0),
+  groupsMerged: integer("groups_merged").notNull().default(0),
+  answersMoved: integer("answers_moved").notNull().default(0),
+  groupsCreated: integer("groups_created").notNull().default(0),
+  groupsRenamed: integer("groups_renamed").notNull().default(0),
+  groupsDiscarded: integer("groups_discarded").notNull().default(0),
+  groupsRestored: integer("groups_restored").notNull().default(0),
+  judgeCalls: integer("judge_calls").notNull().default(0),
+  questionsFellBack: integer("questions_fell_back").notNull().default(0),
+});
+
 export const question = pgTable(
   "question",
   {
@@ -86,9 +104,51 @@ export const submission = pgTable("submission", {
   editSecretHash: text("edit_secret_hash").notNull(),
 });
 
-// Written only by grouping.insertAnswers, in shuffled order (AD-9, AD-10). No serial,
-// identity, time-ordered id, timestamp or ordinal, so nothing shows arrival (FR-13).
-// group_id arrives with answer_group in Story 4.2.
+export const groupOrigin = pgEnum("group_origin", ["judge", "fallback"]);
+export const groupingSource = pgEnum("grouping_source", [
+  "judge",
+  "replay",
+  "fallback",
+]);
+// The six FallbackReason codes of src/server/judge/core.ts (AD-12).
+export const fallbackReason = pgEnum("fallback_reason", [
+  "NO_KEY",
+  "NO_STORED_RULING",
+  "TIMEOUT",
+  "ERROR",
+  "REFUSAL",
+  "INVALID_OUTPUT",
+]);
+
+// Written only by the grouping module. Client UUIDv4 ids and no timestamp, serial or
+// identity, so nothing shows when a Group was made (AD-10).
+export const answerGroup = pgTable("answer_group", {
+  id: uuid("id").primaryKey(),
+  questionId: uuid("question_id")
+    .notNull()
+    .references(() => question.id, { onDelete: "cascade" }),
+  origin: groupOrigin("origin").notNull(),
+  // Review edits of this Group (Epic 5); the usage report reads it (AD-18).
+  editCount: integer("edit_count").notNull().default(0),
+});
+
+// One per Question once the Judge or the fallback has grouped it (AD-12, AD-14).
+export const groupingResult = pgTable("grouping_result", {
+  questionId: uuid("question_id")
+    .primaryKey()
+    .references(() => question.id, { onDelete: "cascade" }),
+  source: groupingSource("source").notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  normalizeVersion: integer("normalize_version").notNull(),
+  modelId: text("model_id").notNull(),
+  judgeCalls: integer("judge_calls").notNull(),
+  uncoveredItems: integer("uncovered_items").notNull(),
+  fellBack: boolean("fell_back").notNull(),
+  fallbackReason: fallbackReason("fallback_reason"),
+});
+
+// Written only by the grouping module; rows go in shuffled at close (AD-9, AD-10). No
+// serial, identity, time-ordered id, timestamp or ordinal, so nothing shows arrival (FR-13).
 export const answer = pgTable(
   "answer",
   {
@@ -101,6 +161,10 @@ export const answer = pgTable(
     rank: integer("rank"),
     text: text("text").notNull(),
     normalizedText: text("normalized_text").notNull(),
+    // Set by Grouping (AD-12); null until then.
+    groupId: uuid("group_id").references(() => answerGroup.id, {
+      onDelete: "cascade",
+    }),
   },
   (t) => [
     check(

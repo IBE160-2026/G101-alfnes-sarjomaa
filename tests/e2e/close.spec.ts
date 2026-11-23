@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import type { Browser, Page } from "@playwright/test";
 import { storageKey } from "@/lib/invite-link";
 import {
@@ -100,7 +101,7 @@ async function openCloseDialog(
   return dialog;
 }
 
-test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reason below three sets, opens the confirm dialog from three, closes to Grupperer, and a form opened before close gets the late-submit sentence and loses its key", async ({
+test("FR-10, FR-15 (AC6), FR-18 (AC4), UX-DR8, UX-DR16: at 360 px Steng innsamlingen is aria-disabled with the reason below three sets, opens the confirm dialog from three, closes to Grupperer with 0 av 1 spørsmål ferdig, polls to the in review summary with Last ned bruksrapport downloading the report, and a form opened before close gets the late-submit sentence and loses its key", async ({
   page,
   browser,
   baseURL,
@@ -136,6 +137,8 @@ test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reas
 
   await page.reload();
   await expect(region.getByText("3 av 4 svar mottatt")).toBeVisible();
+  // The usage report starts at in review (UX-DR16).
+  await expect(page.getByText("Last ned bruksrapport")).toHaveCount(0);
   await expect(trigger).not.toHaveAttribute("aria-disabled");
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Stenge innsamlingen?" });
@@ -153,6 +156,7 @@ test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reas
   await dialog.getByRole("button", { name: "Steng innsamlingen" }).click();
   await expect(page.getByText("Grupperer", { exact: true })).toBeVisible();
   await expect(page.getByText(GROUPING, { exact: true })).toBeVisible();
+  await expect(page.getByText("0 av 1 spørsmål ferdig")).toBeVisible();
   // The new state's heading, so a screen reader hears what changed.
   await expect(
     page.getByRole("heading", { name: "Gruppering", level: 2 }),
@@ -163,12 +167,87 @@ test("FR-10, UX-DR8: at 360 px Steng innsamlingen is aria-disabled with the reas
   await expect(page).toHaveTitle("Hyttetur – Toppsvar");
   expect(await seriousViolations(page)).toEqual([]);
 
+  // Replay with no rulings and no key: the one Question falls back at once, and the next
+  // 3 s poll shows the in review summary, with focus on its heading (FR-15, FR-17).
+  await expect(page.getByText("Til gjennomgang", { exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
+  const summary = page.getByRole("region", { name: "Grupperingen er ferdig" });
+  await expect(summary.getByRole("term")).toHaveText([
+    "Spørsmål i alt",
+    "Grupper foreslått",
+    "Spørsmål å gruppere for hånd",
+  ]);
+  await expect(summary.getByRole("definition")).toHaveText(["1", "0", "1"]);
+  await expect(
+    page.getByRole("heading", { name: "Grupperingen er ferdig", level: 2 }),
+  ).toBeFocused();
+  await expect(page.getByText("Ingen KI-nøkkel")).toHaveCount(0);
+  expect(await noHorizontalScroll(page)).toBe(true);
+  // As after close: the poll's re-render sets the head again, so wait for it before axe.
+  await expect(page).toHaveTitle("Hyttetur – Toppsvar");
+  expect(await seriousViolations(page)).toEqual([]);
+
+  // FR-18 (AC4): the report downloads as a file with counters and origins, no Answer.
+  const report = page.getByRole("link", { name: "Last ned bruksrapport" });
+  await expect(report).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    report.click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("toppsvar-bruksrapport.json");
+  const text = await readFile(await download.path(), "utf8");
+  expect(text).not.toContain("Kari");
+  expect(JSON.parse(text)).toEqual({
+    counters: {
+      judgeGroupsProposed: 0,
+      groupsMerged: 0,
+      answersMoved: 0,
+      groupsCreated: 0,
+      groupsRenamed: 0,
+      groupsDiscarded: 0,
+      groupsRestored: 0,
+      judgeCalls: 0,
+      questionsFellBack: 1,
+    },
+    questions: [
+      {
+        position: 1,
+        source: "fallback",
+        fellBack: true,
+        groups: [{ origin: "fallback", editCount: 0 }],
+      },
+    ],
+  });
+
+  // A failed download keeps the Game page and names the problem in a danger Notice.
+  const gameUrl = page.url();
+  await page.route("**/rapport", (route) =>
+    route.fulfill({
+      status: 404,
+      json: { code: "NOT_FOUND", message: "Vi finner ikke dette spillet." },
+    }),
+  );
+  await report.click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Vi finner ikke dette spillet." }),
+  ).toBeVisible();
+  expect(page.url()).toBe(gameUrl);
+  await page.unrouteAll();
+
   await late.page.getByRole("button", { name: "Send inn svar" }).click();
   await expect(
     late.page.getByText(CLOSED_SUBMIT, { exact: true }),
   ).toBeVisible();
   expect(await stored()).toBeNull();
   await late.context.close();
+
+  // An expired session still lands on the login page, not on a saved redirect.
+  await page.context().clearCookies();
+  await report.click();
+  await expect(page).toHaveURL(/\/logg-inn/);
 });
 
 test("FR-10, UX-DR23: while close runs neither Esc nor Avbryt dismisses the dialog, an aborted request then shows the focused network message in it, and the Game keeps collecting", async ({
@@ -208,7 +287,7 @@ test("FR-10, UX-DR23: while close runs neither Esc nor Avbryt dismisses the dial
   await expect(page.getByText("Samler inn", { exact: true })).toBeVisible();
 });
 
-test("FR-10, AD-4: confirming in a tab whose Game another tab already closed refreshes it to Grupperer", async ({
+test("FR-10, AD-4: confirming in a tab whose Game another tab already closed refreshes it to the Game's current state", async ({
   page,
   browser,
   baseURL,
@@ -228,7 +307,9 @@ test("FR-10, AD-4: confirming in a tab whose Game another tab already closed ref
   await other.close();
 
   await dialog.getByRole("button", { name: "Steng innsamlingen" }).click();
-  await expect(page.getByText("Grupperer", { exact: true })).toBeVisible();
-  await expect(page.getByText(GROUPING, { exact: true })).toBeVisible();
+  // The other tab's close already ran Grouping, which falls back at once with no key.
+  await expect(page.getByText("Til gjennomgang", { exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });

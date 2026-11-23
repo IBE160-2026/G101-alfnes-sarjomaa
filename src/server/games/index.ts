@@ -1,5 +1,16 @@
 import "server-only";
-import { and, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { DomainError, validate } from "@/lib/errors";
 import { createGameSchema } from "@/lib/game";
@@ -14,7 +25,7 @@ import {
 import * as auth from "@/server/auth";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Tx } from "@/server/db/client";
-import { game } from "@/server/db/schema";
+import { game, gameCounter } from "@/server/db/schema";
 import { vacuumCollectionTables } from "@/server/db/vacuum";
 
 export type GameSummary = {
@@ -138,6 +149,36 @@ export async function lockForMutation(
   return { ...row, updatedAt };
 }
 
+// DB time, since the Grouping runner compares it with now() (AD-9).
+const leaseUntil = () =>
+  sql`now() + ${GROUPING_LEASE_MS} * interval '1 millisecond'`;
+
+// Compare-and-set on an expired lease of a grouping Game: true only for the one winner (AD-12).
+export async function acquireGroupingLease(gameId: string): Promise<boolean> {
+  assertGameId(gameId);
+  const db = await getDb();
+  const rows = await db
+    .update(game)
+    .set({ groupingLeaseUntil: leaseUntil() })
+    .where(
+      and(
+        eq(game.id, gameId),
+        eq(game.state, "grouping"),
+        lt(game.groupingLeaseUntil, sql`now()`),
+      ),
+    )
+    .returning({ id: game.id });
+  return rows.length > 0;
+}
+
+// After each Question, under the caller's lock (AD-12).
+export async function extendGroupingLease(tx: Tx, gameId: string) {
+  await tx
+    .update(game)
+    .set({ groupingLeaseUntil: leaseUntil() })
+    .where(eq(game.id, gameId));
+}
+
 // Compare-and-set along the forward chain; a stale `from` is WRONG_STATE too.
 // Entering grouping also starts the Grouping lease (AD-9).
 export async function transition(
@@ -150,11 +191,7 @@ export async function transition(
   assertGameId(gameId);
   let extra: PgUpdateSetSource<typeof game> = {};
   if (to === "played") extra = { playedAt: new Date() };
-  // DB time, since the Grouping runner compares it with now() (AD-9).
-  if (to === "grouping")
-    extra = {
-      groupingLeaseUntil: sql`now() + ${GROUPING_LEASE_MS} * interval '1 millisecond'`,
-    };
+  if (to === "grouping") extra = { groupingLeaseUntil: leaseUntil() };
   const [row] = await tx
     .update(game)
     .set({ state: to, ...extra })
@@ -182,6 +219,51 @@ export async function reserveInviteLinks(
     .returning({ issued: game.inviteLinksIssued });
   if (!row) throw new DomainError("LINK_CAP_REACHED");
   return row.issued;
+}
+
+export type Counters = Omit<typeof gameCounter.$inferSelect, "gameId">;
+
+// The only writer of game_counter (AD-18): one upsert, so the first bump creates the row.
+export async function bumpCounters(
+  tx: Tx,
+  gameId: string,
+  delta: Partial<Counters>,
+): Promise<void> {
+  const set = Object.fromEntries(
+    Object.entries(delta).map(([k, n]) => [
+      k,
+      sql`${gameCounter[k as keyof Counters]} + ${n}`,
+    ]),
+  );
+  await tx
+    .insert(gameCounter)
+    .values({ gameId, ...delta })
+    .onConflictDoUpdate({ target: gameCounter.gameId, set });
+}
+
+// No owner check: the caller has already resolved the owned Game. Zeros before any bump.
+export function counters(gameId: string): Promise<Counters> {
+  return withBoundary("games", "counters", async () => {
+    const db = await getDb();
+    const { gameId: key, ...columns } = getTableColumns(gameCounter);
+    const [row] = await db
+      .select(columns)
+      .from(gameCounter)
+      .where(eq(key, gameId));
+    return (
+      row ?? {
+        judgeGroupsProposed: 0,
+        groupsMerged: 0,
+        answersMoved: 0,
+        groupsCreated: 0,
+        groupsRenamed: 0,
+        groupsDiscarded: 0,
+        groupsRestored: 0,
+        judgeCalls: 0,
+        questionsFellBack: 0,
+      }
+    );
+  });
 }
 
 // Any state (AD-4). Children cascade from game, so one DELETE removes every row of it.

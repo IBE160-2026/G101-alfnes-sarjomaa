@@ -28,13 +28,21 @@ import { getDb } from "@/server/db/client";
 import {
   answer,
   game,
+  groupingResult,
   inviteLink,
   question,
   submission,
 } from "@/server/db/schema";
 import { env } from "@/server/env";
 import * as grouping from "@/server/grouping";
-import { cookieJar, NotFoundError, RedirectError, run } from "./next-mocks";
+import {
+  afterTasks,
+  cookieJar,
+  NotFoundError,
+  RedirectError,
+  run,
+  runAfterTasks,
+} from "./next-mocks";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -1194,7 +1202,9 @@ describe("close", () => {
       const { gameId, ids, tokens } = await collectingGame("For få", 3);
       for (let k = 0; k < n; k++) await send(gameId, tokens[k], setOf(ids, k));
       const before = await snapshot(gameId, tokens, ids);
+      afterTasks.length = 0;
       expect(await closeCollection({ gameId })).toEqual(TOO_FEW);
+      expect(afterTasks, "a refused close queues no Grouping run").toEqual([]);
       expect(await snapshot(gameId, tokens, ids)).toEqual(before);
       expect(before.game.state).toBe("collecting");
       expect(before.sets).toHaveLength(n);
@@ -1440,12 +1450,14 @@ describe("close", () => {
     expect(rows.filter((r) => r.text.startsWith("S3 "))).toHaveLength(6);
   });
 
-  it("FR-15, AD-9: the grouping panel adds the slow-state sentence only once the Grouping lease has run out", async () => {
+  it("FR-15, AD-9, AD-12 (AC6): the grouping panel shows progress; past the lease it adds the slow-state sentence and queues one resume, which finishes Grouping", async () => {
     const { gameId, ids, tokens } = await collectingGame("Treg gruppering", 3);
     for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
     expect(await closeCollection({ gameId })).toEqual({ ok: true });
+    // Leave close's own run queued but unrun, as if it had died.
+    afterTasks.length = 0;
     const SLOW =
-      "Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt.";
+      "Grupperingen tar lengre tid enn vanlig. Siden oppdateres av seg selv. Stopper grupperingen, fortsetter den der den slapp.";
     const page = async () =>
       renderToStaticMarkup(
         await GamePage({
@@ -1453,17 +1465,110 @@ describe("close", () => {
           searchParams: Promise.resolve({}),
         }),
       );
+    const text = (html: string) => html.replace(/<[^>]*>/g, "");
     const fresh = await page();
     expect(fresh).toContain("Det tar vanligvis under to minutter.");
-    expect(fresh).not.toContain(SLOW);
+    expect(fresh.replace(/<[^>]*>/g, "")).toContain("0 av 3 spørsmål ferdig");
+    expect(text(fresh)).not.toContain(SLOW);
+    expect(fresh).not.toContain('role="status"');
+    expect(afterTasks).toHaveLength(0);
     await (
       await getDb()
     )
       .update(game)
       .set({ groupingLeaseUntil: sql`now() - interval '1 second'` })
       .where(eq(game.id, gameId));
-    expect(await page()).toContain(SLOW);
+    const slow = await page();
+    expect(text(slow)).toContain(SLOW);
+    // A warning Notice: announced once as a status, never told to reload a page that polls.
+    expect(slow).toMatch(
+      /<div role="status" class="[^"]*bg-warning-soft[^"]*">/,
+    );
+    expect(text(slow)).not.toContain("Last inn siden");
+    expect(afterTasks).toHaveLength(1);
+    await runAfterTasks();
+    const [row] = await (
+      await getDb()
+    )
+      .select({ state: game.state })
+      .from(game)
+      .where(eq(game.id, gameId));
+    expect(row.state).toBe("in_review");
   });
+
+  // The six distinct texts per Question are six Judge Groups with the mock, and six
+  // fallback Groups per Question with replay, which finds no data/rulings here.
+  it.each([
+    { provider: "mock", key: undefined, reason: null, proposed: 18, fell: 0 },
+    {
+      provider: "replay",
+      key: undefined,
+      reason: "NO_KEY",
+      proposed: 0,
+      fell: 3,
+    },
+    {
+      provider: "replay",
+      key: "test-key",
+      reason: "NO_STORED_RULING",
+      proposed: 0,
+      fell: 3,
+    },
+  ] as const)(
+    "FR-15, FR-17 (AC6): grouped by $provider with fallback reason $reason, the in review page shows the summary numbers and never claims a missing key, with or without Demo mode",
+    async ({ provider, key, reason, proposed, fell }) => {
+      const { gameId, ids, tokens } = await collectingGame(
+        "Ferdig gruppert",
+        3,
+      );
+      for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+      expect(await closeCollection({ gameId })).toEqual({ ok: true });
+      const judgeEnv = {
+        provider: env.JUDGE_PROVIDER,
+        key: env.OPENROUTER_API_KEY,
+      };
+      try {
+        env.JUDGE_PROVIDER = provider;
+        env.OPENROUTER_API_KEY = key;
+        await runAfterTasks();
+      } finally {
+        env.JUDGE_PROVIDER = judgeEnv.provider;
+        env.OPENROUTER_API_KEY = judgeEnv.key;
+      }
+      const reasons = await (
+        await getDb()
+      )
+        .select({ reason: groupingResult.fallbackReason })
+        .from(groupingResult)
+        .where(inArray(groupingResult.questionId, ids));
+      expect(reasons).toEqual(ids.map(() => ({ reason })));
+      const page = async () =>
+        renderToStaticMarkup(
+          await GamePage({
+            params: Promise.resolve({ id: gameId }),
+            searchParams: Promise.resolve({}),
+          }),
+        );
+      const saved = env.DEMO_MODE;
+      try {
+        for (const demo of [false, true]) {
+          env.DEMO_MODE = demo;
+          const html = await page();
+          expect(html.replace(/<[^>]*>/g, "")).toContain(
+            "Grupperingen er ferdig" +
+              "Spørsmål i alt3" +
+              `Grupper foreslått${proposed}` +
+              `Spørsmål å gruppere for hånd${fell}`,
+          );
+          expect(html).toContain("Til gjennomgang");
+          expect(html).not.toContain("Ingen KI-nøkkel");
+          expect(html).not.toContain("Grupperer");
+        }
+      } finally {
+        env.DEMO_MODE = saved;
+      }
+    },
+  );
 
   it("FR-10, FR-17: the dialog's no-key sentence shows only with neither a model key nor Demo mode", async () => {
     const { gameId, ids, tokens } = await collectingGame("Nøkkel", 3);

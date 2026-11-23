@@ -63,6 +63,7 @@ export default defineConfig([
   prettier,
   { rules: { "no-console": "error" } },
   { files: ["src/server/log.ts"], rules: { "no-console": "off" } },
+  { files: ["src/cli/**"], rules: { "no-console": "off" } },
   zone(["**/*.{js,mjs,cjs,ts,tsx}"]),
   zone(["src/*.{ts,tsx}", "src/app/**", "src/components/**"], NO_DB),
   // A later zone replaces the earlier patterns, so the routes' ban is repeated.
@@ -104,6 +105,23 @@ export default defineConfig([
     NO_UI,
     ban(anyOf(MODULES), "The Judge never imports a module."),
   ),
+  // AD-13: there is no SDK, so the ban is on the endpoint itself.
+  {
+    files: ["src/**"],
+    ignores: ["src/server/judge/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...[
+          "Literal[value=/openrouter\\.ai/i]",
+          "TemplateElement[value.raw=/openrouter\\.ai/i]",
+        ].map((selector) => ({
+          selector,
+          message: "Only src/server/judge calls the model endpoint.",
+        })),
+      ],
+    },
+  },
   zone(["src/cli/**"], PROVIDERS, {
     regex: "^@/server/db(/(?!migrate$)|$)",
     message:

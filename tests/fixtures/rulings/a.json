@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "partition",
+    "promptVersion": "1",
+    "normalizeVersion": 1,
+    "model": "fixture/model",
+    "question": "Nevn en frukt",
+    "items": ["appelsin", "banan", "bananer", "eple", "epler"],
+    "assignments": [7, 3, 3, 5, 5]
+  },
+  {
+    "kind": "partition",
+    "promptVersion": "1",
+    "normalizeVersion": 1,
+    "model": "fixture/model",
+    "question": "Nevn noe du tar med på stranda",
+    "items": ["håndkle", "parasoll", "solkrem", "solkrem faktor 30"],
+    "assignments": [0, 1, 2, 2]
+  }
+]

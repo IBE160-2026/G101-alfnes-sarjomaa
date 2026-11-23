@@ -29,6 +29,10 @@ export const FEWER_THAN_3 = "fewer-than-3";
 export const COLLECTING_REFRESH_MS = 30_000; // AD-17
 // The Grouping lease that close sets (AD-9, AD-12).
 export const GROUPING_LEASE_MS = 180_000;
+// AD-12: one partition call per Question, at most this long, this many at once.
+export const JUDGE_TIMEOUT_MS = 30_000;
+export const JUDGE_CONCURRENCY = 5;
+export const GROUPING_POLL_MS = 3_000;
 
 export const ANSWER_TEXT_MAX = 80;
 export const ANSWER_COUNTER_FROM = 60;

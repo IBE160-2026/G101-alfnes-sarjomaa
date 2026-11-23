@@ -234,7 +234,19 @@ stateDiagram-v2
     - Both paths end in `finishIfComplete`, which locks, counts results and moves the Game to `in_review`.
     - If the Game has been deleted, the run stops quietly.
   - **Progress.** `grouping.progress(gameId)` returns Questions done out of the total, for the UX Grouping panel.
-  - **Cost.** For the sizing Game: 15 calls, about USD 0.006, at most 90 s. For the largest Game: 20 calls, about USD 0.01, at most 120 s. The arithmetic is in `delivery-notes.md`. No pair is judged twice.
+  - **Cost.** For the sizing Game: 15 calls, about USD 0.004, at most 90 s. For the largest Game: 20 calls, about USD 0.008, at most 120 s. The arithmetic is in `delivery-notes.md`. No pair is judged twice.
+- *Amended in Story 4.2:*
+  - **Timer.** The runner owns the 30 s bound: it aborts its own `AbortController` after `JUDGE_TIMEOUT_MS` and races the call against that abort, so a provider that ignores the signal still falls back with `TIMEOUT`. Any other throw is `ERROR`.
+  - **Result columns.** `source` is `judge` for a `live` result, `replay` for a `stored` one and `fallback` on fallback. `prompt_version` and `model_id` come from `judge.info`. On fallback `judge_calls` and `uncovered_items` are 0, since `JudgeError` carries no call count (a `shortcut:` in `grouping` until the live provider of Story 4.4 can fail after spending calls).
+  - **Lease.** `games.acquireGroupingLease(gameId)` (one compare-and-set `UPDATE`) and `games.extendGroupingLease(tx, gameId)` live in `games`, which owns `game`, and share the database-time expression `transition` uses at close. A lock that finds the Game gone (`NOT_FOUND`) or past `grouping` (`WRONG_STATE`) ends the whole run without a throw or a log line.
+  - **Page.** The Game page in `grouping` reads `grouping.progress`, polls every `GROUPING_POLL_MS` (3 s), and calls `resumeIfStale` inside `after()` only when the lease has expired, so a page load never waits for Grouping. The close action and the page both `.catch(() => {})` the task, since the boundary has already logged it.
+  - **Reads.** `grouping.summary(gameId)` gives the *in review* summary (Questions, Groups with `origin = judge`, fallen-back Questions), and `grouping.countsOf(questionId)` gives each Group's `count(distinct contributor_key)`.
+  - **Foreign key.** `answer.group_id` references `answer_group` with `ON DELETE CASCADE`, like every other key under `game`.
+  - **Deferred.** `edit_count` is not added here: Review (Epic 5) increments it, and Story 4.3 adds the column with the report that reads it. `bumpCounters` also arrives with 4.3. *Resolved in Story 4.3* (see AD-18).
+- *Amended in Story 4.4:*
+  - **Result columns.** `prompt_version` and `model_id` come from the result (`PartitionResult.model`, `.promptVersion`): mock and live report their `info`, replay the ruling that covers the first covered item. On fallback they come from `judge.info`.
+  - **Calls on fallback.** `JudgeError` carries `calls`, so a fallen-back Question records the requests its provider sent (`judge_calls`) and bumps the `judgeCalls` counter by the same figure; any other throw counts 0. The Story 4.2 `shortcut:` is gone.
+  - **Timer.** The runner's timeout rejects one `setImmediate` after its abort, so a provider that honours the signal settles first with `TIMEOUT` and its call count; a provider that ignores the signal still falls back with `TIMEOUT` and 0 calls.
 
 ### AD-13 — One Judge boundary, three providers
 
@@ -259,7 +271,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **replay** finds rulings in `data/rulings/*.json` by `normalize(question)`. It applies the stored clusters to the items those rulings cover, and numbers each uncovered item as its own cluster after them. If nothing is covered, that is a miss. A miss throws `NO_KEY` when no key is configured, otherwise `NO_STORED_RULING`.
 - **openrouter** uses a stored ruling only when its item set matches exactly (`source: 'stored'`). Otherwise it POSTs with the built-in `fetch` (no SDK) to `https://openrouter.ai/api/v1/chat/completions` with these settings:
   - model `JUDGE_MODEL` (default `deepseek/deepseek-v4.1-flash`, a pinned ID, never a `~…-latest` alias, so Stored rulings name the model that made them)
-  - `response_format: { type: "json_schema", json_schema: { strict: true, schema } }` for `{ assignments: number[] }`, `temperature: 0` and a bounded `max_tokens`
+  - `response_format: { type: "json_schema", json_schema: { strict: true, schema } }` for `{ assignments: number[] }`, `temperature: 0`, a bounded `max_tokens` and reasoning off (`reasoning: { effort: "none" }`), since reasoning tokens count against `max_tokens`
   - `provider: { require_parameters: true, data_collection: "deny" }`, so the request is routed only to providers that honour the schema and do not store or train on the Answers
   - one retry on invalid output, 429 or 5xx, inside the signal
   - an aborted signal throws `TIMEOUT`, and `finish_reason: "content_filter"` throws `REFUSAL`
@@ -267,8 +279,22 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   Only the Question text and the items are sent.
 - **mock** is deterministic. It uses a map the test supplies, or one cluster per item. It is used only by Vitest.
 - **Prompt.** The prompt and `PROMPT_VERSION` live only in `src/server/judge/prompt.ts`, with no real-person text. Any change to the prompt bumps the version.
-- **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. If it falls short, change `JUDGE_MODEL` (any OpenRouter model with `structured_outputs`) and re-record.
+- **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. If it falls short, change `JUDGE_MODEL` (any OpenRouter model with `structured_outputs` whose `reasoning.mandatory` is not `true`, since such a model rejects `effort: "none"` with a 400, which is `ERROR` on every Question) and re-record.
 - **Imports.** Nothing outside `src/server/judge` imports a provider or calls the model endpoint.
+- *Amended in Story 4.1:*
+  - `JudgeError`, `FallbackReason`, the `Judge` type and `canonicalise` live in `src/server/judge/core.ts`, which `index.ts` re-exports, so providers share them without an import cycle through `index.ts`.
+  - **Numbering.** `canonicalise` runs on raw output: stored assignments, mock maps and the model's reply. replay then numbers covered clusters `0..c-1` in first-occurrence order over the covered items, and uncovered items `c..k-1` in item order, so Grouping finds the uncovered singletons as the last `uncovered` cluster numbers. With several rulings for one Question, each item takes its cluster from the first matching ruling (files in name order) that covers it, and cluster identity is (ruling, stored cluster), so two rulings never merge clusters. Only rulings whose `normalizeVersion` equals `NORMALIZE_VERSION` match.
+  - **replay** loads every `*.json` once per instance. A missing `data/rulings` means no rulings, so every call is a miss. A malformed file (bad JSON, not an array, a record that breaks the AD-14 shape, non-normalised items, or an extra key) throws a plain `Error` naming the file, not a `JudgeError`, so Grouping counts it as `ERROR`.
+  - **info.** Static per provider: replay is `{ provider: 'replay', model: 'replay' }` and mock `{ provider: 'mock', model: 'mock' }`, both with `PROMPT_VERSION`. Each stored ruling keeps its own model and prompt version in its file.
+  - **mock** takes its map keyed by the exact Question text (`createMockJudge(map)`) and reports `calls: 1`, `source: 'live'`.
+  - **Imports.** "Or the SDK" becomes a ban on the endpoint: an ESLint rule rejects any string or template literal containing `openrouter.ai`, in any letter case, in `src/` outside `src/server/judge`. It catches literals only, not a host built from pieces at runtime.
+  - Until Story 4.4, `JUDGE_PROVIDER=openrouter` (the key-derived default) selects replay.
+- *Amended in Story 4.2:* **mock** failure injection. A map value may also be a `FallbackReason`, thrown as `JudgeError(reason)`, or an `Error`, thrown as is. `"TIMEOUT"` first waits for the signal to abort, as the live provider will, so every fallback reason is testable offline.
+- *Amended in Story 4.4:*
+  - **Interface.** `JudgeError(reason, calls = 0, status?)`, where `status` is the last non-2xx HTTP status (read only by `judge:smoke`), and `partition` also returns `model` and `promptVersion`, since replay mixes rulings from different models and prompt versions that a static `info` cannot name.
+  - **openrouter** is `src/server/judge/providers/openrouter.ts`. The request body is `{ model, messages, response_format: { type: "json_schema", json_schema: { name: "partition", strict: true, schema } }, temperature: 0, max_tokens: MAX_TOKENS, reasoning: { effort: "none" }, provider: { require_parameters: true, data_collection: "deny" } }` with only the `Authorization` and `Content-Type` headers. Retry once on invalid output, 429 or ≥ 500; other non-2xx and network errors are `ERROR`. `calls` counts every request sent, on success and on failure. No exact stored ruling and no key is `NO_KEY`. `info` is `{ provider: "openrouter", model: JUDGE_MODEL, promptVersion: PROMPT_VERSION }`, and `JUDGE_PROVIDER=openrouter` (including the key-derived default) now selects it.
+  - **Prompt.** `prompt.ts` holds the system prompt, `messages(input)`, `ASSIGNMENTS_SCHEMA` and `MAX_TOKENS` (2,048: the largest Question's 250 items at up to 4 tokens each, twice over). `reasoning` and `max_tokens` are request settings, so changing them does not bump `PROMPT_VERSION`. The user message is `JSON.stringify({ question, answers: items })`. This first prompt is version `"1"`.
+  - **CLI access.** `index.ts` exports `getLiveJudge(onUsage?)` (openrouter without stored rulings) and the recorder helpers from `record.ts`, so `src/cli` never imports a provider.
 
 ### AD-14 — Stored ruling format
 
@@ -278,6 +304,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Shape.** A ruling is `{ kind: "partition", promptVersion, normalizeVersion, model, question, items, assignments }`, where `items` are sorted distinct normalised texts.
   - **Fixtures.** Fixture files are JSON arrays: `data/rulings/demo.json` and `data/rulings/protoqa-dev.json`. They are written only by `npm run judge:record`, which needs a live key.
   - **In the DB.** A Game's stored ruling is its materialised Groups plus `grouping_result(question_id, source: judge | replay | fallback, prompt_version, normalize_version, model_id, judge_calls, uncovered_items, fell_back, fallback_reason)`.
+- *Amended in Story 4.4:* `npm run judge:record <input.json> <output.json>` reads a JSON array of `{ question, answers }`, makes one partition per entry (up to two requests with the retry) over its sorted distinct non-empty normalised answers, and writes the rulings with the result's `model` and `promptVersion`. It refuses before any call without `OPENROUTER_API_KEY` or for an output path outside `.data/` other than the two fixtures, and a `JudgeError` writes nothing. `npm run judge:smoke` makes one live call on a fixed synthetic Question and prints model, latency, calls, usage and the groups; without a key it prints `skipped: no OPENROUTER_API_KEY` and exits 0. Neither is part of the test scripts or CI.
 
 ### AD-15 — Review closes with a Board snapshot, and play reads only the snapshot
 
@@ -326,6 +353,13 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Writers.** Only `games.bumpCounters(tx, gameId, delta)` changes these counters, called by `grouping` and `review`.
   - **Export.** `rapport` returns these counters, each Question's `source` and `fell_back`, and the `origin` and `edit_count` of every Group.
   - **SM-5** is the share of `origin = judge` Groups that reach the Board with `edit_count = 0`, plus the median `edit_count` of the changed ones.
+- *Amended in Story 4.3:*
+  - **Lazy row.** `game_counter` is keyed by `game_id` (`ON DELETE CASCADE`) and has only the nine integer counters, each `not null default 0`. `bumpCounters` is one upsert that inserts the row with the delta or adds the delta to it, so `games.create` makes no row and `games.counters(gameId)` returns zeros for a Game that never bumped.
+  - **Grouping's bump.** In the Question's transaction, after the already-done skip: `judgeGroupsProposed` is that Question's `origin = judge` Groups, `judgeCalls` the stored `judge_calls`, which since Story 4.4 counts every request sent, also on fallback (`JudgeError.calls`), `questionsFellBack` 1 or 0. A failed bump rolls back the Question's Groups, `group_id`s and result. Host-made Groups (Story 5.3) must not use `origin = judge`, or they would count as proposed.
+  - **`edit_count`.** `answer_group.edit_count integer not null default 0`; Review increments it.
+  - **States.** `REPORT_STATES` (`in_review`, `ready`, `playing`, `played`) in `src/lib/game-state.ts`, outside `PERMITTED`, which is the mutation table.
+  - **Route.** `GET /api/spill/[gameId]/rapport` composes `auth.requireHost`, `games.getOwned`, the state check, `games.counters` and `grouping.usage` like the Game page does, since `grouping` imports `games`. Body: `{ counters: { judgeGroupsProposed, groupsMerged, answersMoved, groupsCreated, groupsRenamed, groupsDiscarded, groupsRestored, judgeCalls, questionsFellBack }, questions: [{ position, source, fellBack, groups: [{ origin, editCount }] }] }`, Questions by `position`, Groups by id, as an attachment `toppsvar-bruksrapport.json` with `Cache-Control: no-store`. Failures are `{ code, message }`: `NOT_FOUND` 404 (missing, foreign and malformed alike), `WRONG_STATE` 409, anything else 500 `INTERNAL`; logged out redirects to `/logg-inn`. The Game page links to it as a `button-secondary`-styled `<a>` without `download`.
+  - **SM-5's "reach the Board" is not in the report yet.** No `board_slot` exists in 4.3, so the report cannot tell a Group on the Board from a discarded or cut one. The story that writes `board_slot` (5.5, `confirmBoard`) adds an on-Board flag per Group to the report, from `board_slot.group_id`, so a discarded or cut `origin = judge` Group with `edit_count = 0` is not read as accepted.
 
 ### AD-19 — Demo mode: invented fixtures, replay, one cross-platform command
 
@@ -348,7 +382,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Default and live.** By default it replays `data/rulings/protoqa-dev.json` and warns when the ruling's versions differ from the current ones. `--live` regenerates the rulings and needs a key.
   - **Scoring.** Raw answers are normalised. Each item's weight is the sum of its respondents, and its gold cluster is the cluster holding most of that weight.
   - **Output.** B-cubed precision, recall and F1 (`src/lib/bcubed.ts`), Judge calls per Question, the prompt version and the model ID.
-  - **Local data.** `--file <path>` scores a local labelled set (SM-4) and prints aggregates only. `judge:record --out` writes only under `.data/`, except for the `data/protoqa` and demo sources.
+  - **Local data.** `--file <path>` scores a local labelled set (SM-4) and prints aggregates only. `judge:record -- <input.json> <output.json>` (AD-14, amended in Story 4.4) writes only under `.data/`, except for the two fixtures `data/rulings/demo.json` and `data/rulings/protoqa-dev.json`.
   - **Licensing.** `data/protoqa/ATTRIBUTION.md` gives the credit and license, states the changes made, and covers `protoqa-dev.json`. Scraped and train files are never committed.
 
 ### AD-21 — Configuration through environment variables only
@@ -359,7 +393,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Reading.** The app reads only the variables below, through `src/server/env.ts` (zod-validated).
   - **Template.** `.env.example` lists every variable with a safe default or an empty value. A test checks that its keys equal those in `env.ts`.
   - **Git.** `.env*` files (except `.env.example`), `.data/`, `.next/` and `node_modules/` are gitignored.
-  - **CLI.** `src/cli` runs as `tsx --conditions=react-server --env-file-if-exists=.env.local`.
+  - **CLI.** `src/cli` runs as `tsx --conditions=react-server --env-file-if-exists=.env.local`. *Amended in Story 4.4:* the `judge:*` scripts also read `.env` first (`--env-file-if-exists=.env --env-file-if-exists=.env.local`), and `no-console` is off in `src/cli`.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -453,7 +487,7 @@ The pilot is Vercel Hobby (300 s per function with fluid compute), production fr
 | Logging | Only through `src/server/log.ts` (ESLint `no-console` elsewhere). It accepts `{ module, op, code, sqlstate }`, never request objects, arguments or `error.message`. |
 | Transactions | A multi-row change is one transaction, opened by the entry point. The Judge is never called inside one. |
 | Assets | Fonts come from npm packages or `next/font/local`, never `next/font/google` or a CDN, so builds and tests work offline. Nothing names or imitates the TV show (PRD §6.3). |
-| Scripts | `dev`, `demo`, `build`, `start`, `lint`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `judge:eval`, `judge:record`. README, CI and Playwright use these names only. |
+| Scripts | `dev`, `demo`, `build`, `start`, `lint`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `judge:eval`, `judge:record`, `judge:smoke`. README, CI and Playwright use these names only. |
 | Style | ESLint flat config (`eslint-config-next`, `typescript-eslint`, `eslint-config-prettier`) and Prettier defaults, over `src`, `tests` and the root config files. Ignored: `_bmad .claude wiki .docs prompting scripts drizzle .idea .next .data .logs`. No commented-out code. |
 | Delivery | The README states the anonymity limits that AD-7 to AD-10, AD-13 and AD-24 name. One PR per epic. A departure from this spine amends it in the same PR. Details are in `delivery-notes.md`. |
 
@@ -534,7 +568,7 @@ flowchart LR
       env.ts  log.ts
       db/                   # schema.ts, client.ts, migrate.ts
       auth/ games/ questions/ grouping/ collection/ review/ play/
-      judge/                # index.ts, prompt.ts, providers/{openrouter,replay,mock}.ts
+      judge/                # index.ts, core.ts, prompt.ts, providers/{openrouter,replay,mock}.ts
     lib/                    # normalize, ranking, game-state, answer-set, errors, bcubed, shuffle, token, limits
     cli/                    # demo.ts, judge-eval.ts, judge-record.ts
   drizzle/                  # generated SQL migrations (committed)

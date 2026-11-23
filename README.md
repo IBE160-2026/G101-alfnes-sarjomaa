@@ -60,6 +60,21 @@ npm run dev                 # http://localhost:3000, helsesjekk på /api/health
 
 Variablene står i [`.env.example`](.env.example). Kopier den til `.env.local` for å endre noe.
 
+Uten nøkkel bruker dommeren lagrede kjennelser fra `data/rulings/` (`JUDGE_PROVIDER=replay`, standard
+når nøkkelen mangler). Spørsmål uten lagret kjennelse faller tilbake med grunnkoden
+`NO_KEY`: hvert ulike svar blir sin egen gruppe, og verten slår dem sammen for hånd i gjennomgangen. Så lenge `data/rulings/` er tom, gjelder det
+alle spørsmål: «Grupper foreslått 0» etter stenging er da forventet, ikke en feil.
+
+Med nøkkel grupperer dommeren pålitelig opptil minst 120 ulike svar per spørsmål (målt 2026-11-22). Et spørsmål med 180 eller flere ulike svar faller tilbake til manuell gruppering. Tallene står i `delivery-notes.md`.
+
+Med `OPENROUTER_API_KEY` i `.env` eller `.env.local` grupperer dommeren svarene live. To skript bruker nøkkelen, og
+ingen av dem kjører i testene eller CI:
+
+```bash
+npm run judge:smoke         # ett live kall: modell, ventetid, tokenbruk og gruppene; uten nøkkel hopper det over
+npm run judge:record -- inn.json .data/rulings/ut.json   # tar opp nye kjennelser (AD-14), bare under .data/ eller data/rulings/demo.json og protoqa-dev.json
+```
+
 CI kjører de samme skriptene på Node 22 og 26, uten nøkkel:
 
 ```bash

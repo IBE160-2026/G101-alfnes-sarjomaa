@@ -1,6 +1,23 @@
 import net from "node:net";
-import { afterAll } from "vitest";
+import { afterAll, beforeEach, vi } from "vitest";
 import { closeDb } from "@/server/db/client";
+import { afterTasks } from "./integration/next-mocks";
+
+// The real after() throws outside a request scope; here it queues the task, and a test
+// runs the queue with runAfterTasks(). connection() throws there too, so it resolves.
+vi.mock("next/server", async (importOriginal) => {
+  const { afterTasks } = await import("./integration/next-mocks");
+  return {
+    ...(await importOriginal<typeof import("next/server")>()),
+    after: (task: () => unknown) => {
+      afterTasks.push(task);
+    },
+    connection: async () => undefined,
+  };
+});
+beforeEach(() => {
+  afterTasks.length = 0;
+});
 
 // NFR-3: tests never touch the network. Any socket to a host other than
 // localhost fails before DNS is even asked.

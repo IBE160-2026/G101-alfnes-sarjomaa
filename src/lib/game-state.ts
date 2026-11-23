@@ -59,3 +59,11 @@ export const PERMITTED: Record<Operation, readonly GameState[]> = {
   finishPlay: ["playing"],
   deleteGame: GAME_STATES,
 };
+
+// Where the usage report can be read (AD-18). A read, not a mutation, so outside PERMITTED.
+export const REPORT_STATES: readonly GameState[] = [
+  "in_review",
+  "ready",
+  "playing",
+  "played",
+];

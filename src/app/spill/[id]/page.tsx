@@ -1,25 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { cache, type ReactNode } from "react";
 import { CloseCollection } from "@/components/CloseCollection";
 import { CollectingRefresh } from "@/components/CollectingRefresh";
 import { DeleteGame } from "@/components/DeleteGame";
+import { DownloadReport } from "@/components/DownloadReport";
+import { GroupingRefresh } from "@/components/GroupingRefresh";
 import { InviteLinkPanel } from "@/components/InviteLinkPanel";
+import { Notice } from "@/components/Notice";
 import { ProgressCount } from "@/components/ProgressCount";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
+import { REPORT_STATES } from "@/lib/game-state";
 import { FEWER_THAN_3 } from "@/lib/limits";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
 import { env } from "@/server/env";
 import * as games from "@/server/games";
+import * as grouping from "@/server/grouping";
 import * as questions from "@/server/questions";
 
 // The close action posts here and inherits this (AD-24): close then VACUUMs, and
-// Grouping (Story 4.2) runs after it.
+// Grouping runs after it.
 export const maxDuration = 300;
 
 const isNotFound = (error: unknown) =>
@@ -128,8 +134,13 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           </section>,
         ];
   } else if (game.state === "grouping") {
+    const { done, total } = await grouping.progress(game.id);
+    // Past the lease the run is slow or interrupted: resume it after the response, so the
+    // page never waits for it (AD-12). The boundary has already logged any failure.
+    const gameId = game.id;
+    if (game.leaseExpired)
+      after(() => grouping.resumeIfStale(gameId).catch(() => {}));
     // The only place the Judge is explained (UX).
-    // shortcut: nothing runs Grouping yet, so the Game stays here; Grouping, progress and 3 s polling arrive in Story 4.2.
     panel = [
       <section key="grouping" aria-labelledby="gruppering" className="mt-10">
         <h2 id="gruppering" className="text-heading">
@@ -140,12 +151,49 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           Dommeren, en KI-modell, grupperer svarene&nbsp;… Det tar vanligvis
           under to minutter.
         </p>
-        {/* Past the lease Grouping is slow or interrupted (AD-9), so the Host gets the way on. */}
+        {/* Static, like ProgressCount: no live region, the poll only refreshes it. */}
+        <p className="mt-4 text-body">
+          <span className="font-display text-display tabular-nums">{done}</span>
+          {` av ${total} spørsmål ferdig`}
+        </p>
+        {/* Past the lease Grouping is slow or interrupted (AD-9). The poll already resumes it,
+            so the Host is told nothing needs doing. */}
         {game.leaseExpired && (
-          <p className="mt-2 max-w-prose">
-            Grupperingen tar lengre tid enn vanlig. Last inn siden på nytt.
-          </p>
+          <Notice tone="warning" className="mt-4 max-w-prose">
+            <strong>Grupperingen tar lengre tid enn vanlig.</strong> Siden
+            oppdateres av seg selv. Stopper grupperingen, fortsetter den der den
+            slapp.
+          </Notice>
         )}
+        <GroupingRefresh />
+      </section>,
+    ];
+  } else if (game.state === "in_review") {
+    const result = await grouping.summary(game.id);
+    // Numbers only, no key sentence: it must read right for every fallback reason and in
+    // Demo mode. The reason-specific Notice belongs to Review (Epic 5).
+    // shortcut: no way forward from in review until Epic 5, add the primary "Gå til gjennomgangen" link here in Story 5.1.
+    const rows: [string, number][] = [
+      ["Spørsmål i alt", result.questions],
+      ["Grupper foreslått", result.groupsProposed],
+      ["Spørsmål å gruppere for hånd", result.fellBack],
+    ];
+    panel = [
+      <section key="review" aria-labelledby="gjennomgang" className="mt-10">
+        <h2 id="gjennomgang" className="text-heading">
+          Grupperingen er ferdig
+        </h2>
+        <dl className="mt-4 max-w-md border-t border-line">
+          {rows.map(([label, value]) => (
+            <div
+              key={label}
+              className="flex items-baseline justify-between gap-4 border-b border-line py-3"
+            >
+              <dt>{label}</dt>
+              <dd className="text-title tabular-nums">{value}</dd>
+            </div>
+          ))}
+        </dl>
       </section>,
     ];
   }
@@ -177,6 +225,12 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <StatusBadge state={game.state} />
       </div>
       {panel}
+      {/* Secondary, never primary: each state keeps its one primary action (UX-DR16). */}
+      {REPORT_STATES.includes(game.state) && (
+        <div className="mt-10">
+          <DownloadReport href={`/api/spill/${game.id}/rapport`} />
+        </div>
+      )}
       {/* Every state (FR-3), outside the switch. */}
       <footer className="mt-16 border-t border-line pt-6">
         <DeleteGame gameId={game.id} title={game.title} />
