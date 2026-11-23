@@ -22,7 +22,8 @@ export function PlayView({
   teams,
   board,
   lastReveal,
-}: Data & { gameId: string }) {
+  credit,
+}: Data & { gameId: string; credit?: string }) {
   return (
     <div data-stage="" className={STAGE}>
       {/* pb-[3px]: the budget's remainder, 1080 − 48 − 221 − 24 − 696 − 24 − 64 = 3, so the list row is 696 px. */}
@@ -84,6 +85,7 @@ export function PlayView({
           total={total}
           board={board}
           lastReveal={lastReveal}
+          credit={credit}
         />
       </div>
     </div>

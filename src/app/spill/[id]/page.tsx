@@ -300,8 +300,9 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <StatusBadge state={game.state} />
       </div>
       {panel}
-      {/* Secondary, never primary: each state keeps its one primary action (UX-DR16). */}
-      {REPORT_STATES.includes(game.state) && (
+      {/* Secondary, never primary: each state keeps its one primary action (UX-DR16).
+          A Question-set Game had no Grouping, so it has nothing to report (FR-33). */}
+      {REPORT_STATES.includes(game.state) && !game.questionSet && (
         <div className="mt-10">
           <DownloadReport href={`/api/spill/${game.id}/rapport`} />
         </div>
