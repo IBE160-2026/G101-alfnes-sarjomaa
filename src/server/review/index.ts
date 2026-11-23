@@ -304,7 +304,7 @@ export function rename(hostId: string, input: unknown): Promise<RenameResult> {
         states: PERMITTED.editReview,
       });
       const questionId = await ownedGroup(tx, gameId, groupId);
-      await grouping.renameGroup(tx, { groupId, label });
+      await grouping.setCustomLabel(tx, { groupId, label });
       await games.bumpCounters(tx, gameId, { groupsRenamed: 1 });
       await questions.setReviewed(tx, questionId, false);
       return { groupId, label };

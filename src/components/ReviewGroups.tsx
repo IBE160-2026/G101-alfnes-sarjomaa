@@ -163,6 +163,8 @@ export function ReviewGroups({
     if (pending) return;
     setOp(kind);
     setFailure(undefined);
+    // An open rename field is cancelled: its Group may be gone after the edit.
+    setRenaming(undefined);
     // Empties the live region, so an identical sentence is announced again.
     setDone(undefined);
     startTransition(async () => {
@@ -219,7 +221,9 @@ export function ReviewGroups({
       // Never reaches the selection's Esc listener on document.
       event.preventDefault();
       event.stopPropagation();
-      return closeRename();
+      // While saving, the field stays so a failure can still show in it.
+      if (!renamePending) closeRename();
+      return;
     }
     if (event.key !== "Enter") return;
     event.preventDefault();
@@ -298,8 +302,11 @@ export function ReviewGroups({
   };
 
   const n = selected.length;
-  // Board then below: the ranked order, which sorts by Count.
-  const options = [...board, ...below];
+  // Board then below: the ranked order, which sorts by Count. A Group that already
+  // holds every ticked Answer is left out, so a move always moves something.
+  const options = [...board, ...below].filter(
+    (g) => !answers.every((id) => g.chips.some((c) => c.ids.includes(id))),
+  );
   // The chosen Group, or the first while it is unset or gone after a refresh.
   const targetId = options.some((g) => g.id === target)
     ? target!
@@ -368,28 +375,32 @@ export function ReviewGroups({
               )}
               {n === 0 && (
                 <>
-                  <label htmlFor="flytt-til">Flytt til gruppe</label>
-                  <select
-                    id="flytt-til"
-                    value={targetId}
-                    onChange={(e) => setTarget(e.target.value)}
-                    className="min-h-11 max-w-64 rounded-md bg-surface px-3 text-ink"
-                  >
-                    {options.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.label} ({g.count})
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    type="button"
-                    variant="inverse"
-                    pending={pending && op === "move"}
-                    pendingLabel="Flytter …"
-                    onClick={() => move(targetId)}
-                  >
-                    Flytt
-                  </Button>
+                  {targetId && (
+                    <>
+                      <label htmlFor="flytt-til">Flytt til gruppe</label>
+                      <select
+                        id="flytt-til"
+                        value={targetId}
+                        onChange={(e) => setTarget(e.target.value)}
+                        className="min-h-11 max-w-64 rounded-md bg-surface px-3 text-ink"
+                      >
+                        {options.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.label} ({g.count})
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        variant="inverse"
+                        pending={pending && op === "move"}
+                        pendingLabel="Flytter …"
+                        onClick={() => move(targetId)}
+                      >
+                        Flytt
+                      </Button>
+                    </>
+                  )}
                   <Button
                     type="button"
                     variant="inverse"

@@ -497,7 +497,8 @@ test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clear
   await box("ola").uncheck();
   await chip("Bjørn").check();
 
-  // The select: every kept Group in ranked order, as label (N).
+  // The select: every kept Group in ranked order, as label (N), except anne,
+  // which already holds every ticked Answer.
   const select = bar.getByLabel("Flytt til gruppe");
   const ranked = await page
     .locator(
@@ -505,7 +506,9 @@ test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clear
     )
     .allTextContents();
   const options = await select.locator("option").allTextContents();
-  expect(options.map((o) => o.replace(/ \(\d+\)$/, ""))).toEqual(ranked);
+  expect(options.map((o) => o.replace(/ \(\d+\)$/, ""))).toEqual(
+    ranked.filter((label) => label !== "anne"),
+  );
   expect(options.slice(0, 2)).toEqual(["kari (3)", "dina (2)"]);
   await expect(bar.getByRole("button", { name: "Ny gruppe" })).toBeVisible();
 
@@ -553,10 +556,26 @@ test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clear
   await expect(chip("Bjørn")).toBeChecked();
   await page.unroute(isAction);
 
-  // Flytt: Bjørn to kari; focus on its heading and the announcement.
+  // Flytt: Bjørn to kari. Pessimistic: the card owning the chip is busy until the server answers.
+  const card = (label: string) =>
+    page.getByRole("listitem").filter({ has: heading(label) });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  await page.route(isAction, async (route) => {
+    if (route.request().method() === "POST") await gate;
+    await route.fallback();
+  });
   await select.selectOption({ label: "kari (3)" });
-  await bar.getByRole("button", { name: "Flytt", exact: true }).click();
+  const flytt = bar.getByRole("button", { name: "Flytt", exact: true });
+  await flytt.click();
+  await expect(card("anne")).toHaveAttribute("aria-busy", "true");
+  await expect(card("kari")).not.toHaveAttribute("aria-busy");
+  await expect(card("dina")).not.toHaveAttribute("aria-busy");
+  await expect(flytt).toContainText("Flytter …");
+  release();
+  // Focus on the target's heading and the announcement.
   await expect(bar).toHaveCount(0);
+  await page.unroute(isAction);
   await expect(heading("kari")).toBeFocused();
   await expect(live).toHaveText("1 svar flyttet til «kari».");
   await expect(
@@ -566,7 +585,19 @@ test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clear
       .getByRole("checkbox", { name: "Bjørn" }),
   ).toBeVisible();
 
-  // Ny gruppe: the rename field has focus, prefilled; Enter keeps the label.
+  // A chip of several Answers counts them all; unticking it closes the bar.
+  await chip("Kari · 3 svar").check();
+  await expect(bar).toContainText("3 svar valgt");
+  await chip("Kari · 3 svar").uncheck();
+  await expect(bar).toHaveCount(0);
+
+  // Ny gruppe: the rename field has focus, prefilled. Empty is refused in the
+  // field; Enter on the unchanged label closes it without a request.
+  let posts = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && isAction(new URL(request.url())))
+      posts++;
+  });
   await chip("Cato").check();
   await bar.getByRole("button", { name: "Ny gruppe" }).click();
   const field = page.getByLabel("Navn på gruppen");
@@ -577,9 +608,16 @@ test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clear
     "Ny gruppe «cato» laget. Skriv et nytt navn eller trykk Enter.",
   );
   expect(await seriousViolations(page)).toEqual([]);
+  await field.fill("");
+  await page.keyboard.press("Enter");
+  await expect(field).toHaveAccessibleDescription("Feil: Skriv et navn.");
+  await expect(field).toBeFocused();
+  await field.fill("cato");
+  const sent = posts;
   await page.keyboard.press("Enter");
   await expect(field).toHaveCount(0);
   await expect(heading("cato")).toBeFocused();
+  expect(posts).toBe(sent);
 
   // A second split, renamed by typing over the selected default label.
   await chip("Bjørn").check();
@@ -592,4 +630,13 @@ test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clear
   await expect(heading("Sover over seg")).toBeFocused();
   await expect(live).toHaveText("Navnet er endret.");
   await expect(field).toHaveCount(0);
+
+  // Esc cancels the field and focuses the Group's heading.
+  await merge("erik", "frida");
+  await chip("Frida").check();
+  await bar.getByRole("button", { name: "Ny gruppe" }).click();
+  await expect(field).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(field).toHaveCount(0);
+  await expect(heading("frida")).toBeFocused();
 });

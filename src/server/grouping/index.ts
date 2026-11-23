@@ -116,7 +116,7 @@ export async function moveAnswers(
 }
 
 // Review's rename (FR-20). The caller holds the Game lock and resolved the Group.
-export async function renameGroup(
+export async function setCustomLabel(
   tx: Tx,
   { groupId, label }: { groupId: string; label: string },
 ): Promise<void> {

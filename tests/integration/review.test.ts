@@ -1039,6 +1039,20 @@ describe("review.moveAnswers", () => {
     ]);
   });
 
+  it("FR-20, FR-18 (AC1): a partial move counts only the Answers that changed Group and bumps the target's edit_count once", async () => {
+    const { gameId, A, B, per } = await moveGame();
+    const kari = await answerIdsOf((await groupRow(A)).questionId, "kari");
+    const result = await review.moveAnswers(hostId, {
+      gameId,
+      answerIds: [...kari, ...per],
+      groupId: A,
+    });
+    expect(result).toMatchObject({ groupId: A, moved: 2, created: false });
+    expect((await games.counters(gameId)).answersMoved).toBe(2);
+    expect((await groupRow(A)).editCount).toBe(1);
+    expect((await groupRow(B)).editCount).toBe(1);
+  });
+
   it("FR-20 (AC1): Answers already in the target write nothing, keep the reviewed mark and give moved 0", async () => {
     const { gameId, ids, A } = await moveGame();
     const before = await snapshot(gameId, ids);
