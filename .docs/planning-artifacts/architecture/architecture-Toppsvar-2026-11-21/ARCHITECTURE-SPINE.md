@@ -234,7 +234,7 @@ stateDiagram-v2
     - Both paths end in `finishIfComplete`, which locks, counts results and moves the Game to `in_review`.
     - If the Game has been deleted, the run stops quietly.
   - **Progress.** `grouping.progress(gameId)` returns Questions done out of the total, for the UX Grouping panel.
-  - **Cost.** For the sizing Game: 15 calls, about USD 0.004, at most 90 s. For the largest Game: 20 calls, about USD 0.008, at most 120 s. The arithmetic is in `delivery-notes.md`. No pair is judged twice.
+  - **Cost.** Without retries, for the sizing Game: 15 calls, about USD 0.004, at most 90 s. For the largest Game: 20 calls, about USD 0.008, at most 120 s. The arithmetic is in `delivery-notes.md`. Identical normalised Answers are one item, so none is judged twice. At most two requests per Question (one retry), so at most 40 per Game (PRD FR-15).
 - *Amended in Story 4.2:*
   - **Timer.** The runner owns the 30 s bound: it aborts its own `AbortController` after `JUDGE_TIMEOUT_MS` and races the call against that abort, so a provider that ignores the signal still falls back with `TIMEOUT`. Any other throw is `ERROR`.
   - **Result columns.** `source` is `judge` for a `live` result, `replay` for a `stored` one and `fallback` on fallback. `prompt_version` and `model_id` come from `judge.info`. On fallback `judge_calls` and `uncovered_items` are 0, since `JudgeError` carries no call count (a `shortcut:` in `grouping` until the live provider of Story 4.4 can fail after spending calls).
@@ -279,7 +279,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   Only the Question text and the items are sent.
 - **mock** is deterministic. It uses a map the test supplies, or one cluster per item. It is used only by Vitest.
 - **Prompt.** The prompt and `PROMPT_VERSION` live only in `src/server/judge/prompt.ts`, with no real-person text. Any change to the prompt bumps the version.
-- **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. If it falls short, change `JUDGE_MODEL` (any OpenRouter model with `structured_outputs` whose `reasoning.mandatory` is not `true`, since such a model rejects `effort: "none"` with a 400, which is `ERROR` on every Question) and re-record.
+- **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. Until the Stage 1 freeze (1 December), a shortfall may be addressed by changing the prompt (bumping `PROMPT_VERSION`), the effort or `JUDGE_MODEL` (any OpenRouter model with `structured_outputs` whose `reasoning.mandatory` is not `true`, since such a model rejects `effort: "none"` with a 400, which is `ERROR` on every Question) and re-recording; each version tried is listed in the README. After the freeze the figure is final and reported unchanged (PRD SM-2 decision rule).
 - **Imports.** Nothing outside `src/server/judge` imports a provider or calls the model endpoint.
 - *Amended in Story 4.1:*
   - `JudgeError`, `FallbackReason`, the `Judge` type and `canonicalise` live in `src/server/judge/core.ts`, which `index.ts` re-exports, so providers share them without an import cycle through `index.ts`.
@@ -356,7 +356,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - *Amended in Story 4.3:*
   - **Lazy row.** `game_counter` is keyed by `game_id` (`ON DELETE CASCADE`) and has only the nine integer counters, each `not null default 0`. `bumpCounters` is one upsert that inserts the row with the delta or adds the delta to it, so `games.create` makes no row and `games.counters(gameId)` returns zeros for a Game that never bumped.
   - **Grouping's bump.** In the Question's transaction, after the already-done skip: `judgeGroupsProposed` is that Question's `origin = judge` Groups, `judgeCalls` the stored `judge_calls`, which since Story 4.4 counts every request sent, also on fallback (`JudgeError.calls`), `questionsFellBack` 1 or 0. A failed bump rolls back the Question's Groups, `group_id`s and result. Host-made Groups (Story 5.3) must not use `origin = judge`, or they would count as proposed. *Resolved in Story 5.3:* they use `origin = host`.
-  - **`edit_count`.** `answer_group.edit_count integer not null default 0`; Review increments it. *Amended in Story 5.3:* `answers_moved` counts Answers, a "Ny gruppe" split included (which also bumps `groups_created` by 1); a move adds `edit_count + 1` to the target and to every surviving source, so the new `host` Group ends at 1.
+  - **`edit_count`.** `answer_group.edit_count integer not null default 0`; Review increments it. *Amended in Story 5.3:* `answers_moved` counts Answers, a "Ny gruppe" move to a new Group included (which also bumps `groups_created` by 1); a move adds `edit_count + 1` to the target and to every surviving source, so the new `host` Group ends at 1.
   - **States.** `REPORT_STATES` (`in_review`, `ready`, `playing`, `played`) in `src/lib/game-state.ts`, outside `PERMITTED`, which is the mutation table.
   - **Route.** `GET /api/spill/[gameId]/rapport` composes `auth.requireHost`, `games.getOwned`, the state check, `games.counters` and `grouping.usage` like the Game page does, since `grouping` imports `games`. Body: `{ counters: { judgeGroupsProposed, groupsMerged, answersMoved, groupsCreated, groupsRenamed, groupsDiscarded, groupsRestored, judgeCalls, questionsFellBack }, questions: [{ position, source, fellBack, groups: [{ origin, editCount }] }] }`, Questions by `position`, Groups by id, as an attachment `toppsvar-bruksrapport.json` with `Cache-Control: no-store`. Failures are `{ code, message }`: `NOT_FOUND` 404 (missing, foreign and malformed alike), `WRONG_STATE` 409, anything else 500 `INTERNAL`; logged out redirects to `/logg-inn`. The Game page links to it as a `button-secondary`-styled `<a>` without `download`.
   - **SM-5's "reach the Board" is not in the report yet.** No `board_slot` exists in 4.3, so the report cannot tell a Group on the Board from a discarded or cut one. The story that writes `board_slot` (5.5, `confirmBoard`) adds an on-Board flag per Group to the report, from `board_slot.group_id`, so a discarded or cut `origin = judge` Group with `edit_count = 0` is not read as accepted.
@@ -422,7 +422,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
     - `authz.test.ts`: a foreign child ID for every Host action
     - `game-state.test.ts`
     - `demo-replay.test.ts`: `source = replay`, `uncovered_items = 0`, no fallback
-    - `judge-eval.test.ts`: replayed F1 at least 0.70
+    - `judge-eval.test.ts`: the replayed run is offline and prints precision, recall, F1, calls per Question, prompt version and model; the figures equal the pinned values for the committed rulings (re-pinned whenever they are re-recorded before the freeze); it reports whether 0.70 is met and never fails on a figure below it
     - `env.test.ts`
   - **`tests/e2e/`** runs Playwright against `next build && next start`, with a fresh temporary PGlite directory and `JUDGE_PROVIDER=replay`. A second server, `next dev` on its own port (3101) and PGlite directory, serves only `server-output.spec.ts`, since only development mode prints Server Function arguments and forwards browser console output. Both servers' stdout and stderr are redirected to files, and the global teardown fails the run if either file is missing or empty, or holds a Token, edit secret or Answer that a browser sent or received, or its sha256 (recorded in the shared `localOnly` helper). Each spec registers its own Host, and only `demo.spec.ts` uses the demo Game. Required specs:
     - `no-key.spec.ts` (FR-30)
@@ -490,7 +490,7 @@ The pilot is Vercel Hobby (300 s per function with fluid compute), production fr
 | Assets | Fonts come from npm packages or `next/font/local`, never `next/font/google` or a CDN, so builds and tests work offline. Nothing names or imitates the TV show (PRD §6.3). |
 | Scripts | `dev`, `demo`, `build`, `start`, `lint`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `judge:eval`, `judge:record`, `judge:smoke`. README, CI and Playwright use these names only. |
 | Style | ESLint flat config (`eslint-config-next`, `typescript-eslint`, `eslint-config-prettier`) and Prettier defaults, over `src`, `tests` and the root config files. Ignored: `_bmad .claude wiki .docs prompting scripts drizzle .idea .next .data .logs`. No commented-out code. |
-| Delivery | The README states the anonymity limits that AD-7 to AD-10, AD-13 and AD-24 name. One PR per epic. A departure from this spine amends it in the same PR. Details are in `delivery-notes.md`. |
+| Delivery | The README states the anonymity limits that AD-7 to AD-10, AD-13 and AD-24 name, and the outcome of the PRD §6.5 slip list. One PR per epic. A departure from this spine amends it in the same PR. Details are in `delivery-notes.md`. |
 
 ## Stack
 
@@ -615,7 +615,7 @@ flowchart LR
 
 - **Cross-device editing of an Answer set** (FR-7 narrowed by AD-8). Confirmed by the group 2026-11-21: the PRD's FR-7 is amended to the submitting device, so AD-8 binds without reservation.
 - **Visual system, Review interaction, near-threshold display and unsent drafts.** These were decided in `DESIGN.md` and `EXPERIENCE.md`. Architecture constraints: no per-Group confidence signal in Stage 1, single-Answer Groups are ordinary Groups, and drafts stay in `localStorage`, under the one per-link key `toppsvar:<gameId>:<first 16 chars of token>` (no hashing in the browser), and are never sent before submit.
-- **Judge prompt wording and the measured token and latency figures.** Tuned in the Judge story against `judge:eval`. The format, versions and the 0.70 bar are fixed in AD-13 and AD-14.
+- **Judge prompt wording and the measured token and latency figures.** Tuned in the Judge story against `judge:eval` until the Stage 1 freeze. The format, versions and the 0.70 bar are fixed in AD-13 and AD-14.
 - **Account recovery and email verification.** Not required by the PRD. Registration reveals whether an email is already taken, and that is accepted.
 - **Stage 2 data.** The Question-set import format and `game.kind` (FR-33), a manual Group order column on `answer_group` (FR-22), typed Guess storage and its deletion (FR-28), and strike and steal state (FR-29). These are decided when Stage 2 starts, inside AD-4, AD-13, AD-15 and AD-16.
 - **Several Hosts per Game** (PRD §1.2). The schema uses `game.host_id`, and Stage 1 adds no other single-Host assumption.

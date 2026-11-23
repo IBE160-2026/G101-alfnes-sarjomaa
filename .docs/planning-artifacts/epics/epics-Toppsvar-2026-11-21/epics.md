@@ -41,11 +41,11 @@ Condensed from PRD §4. The PRD's testable consequences are the binding detail; 
 - FR-11: No identity in the answering flow. No table holds a Participant's name, email, IP, device fingerprint or account ID; logs written while handling an Invite link hold neither Token nor Answer text.
 - FR-12: Nothing linkable in the Host's view. No Host page, response or export links an Answer or Answer set to an Invite link; the Host reads no Answer before close (automated Host-session test during Collection); after close Review groups Answers by Group only; no setting disables §4.4.
 - FR-13: Unlinkable storage after close. No Token, Token hash, Invite link reference or Answer set ID stored; each Answer carries only a per-Question random Contributor key; no submission time, insertion sequence or increasing ID; an automated schema and data inspection after close enforces it.
-- FR-14: Honest anonymity notice. Two sentences or fewer, above the first Question, no stronger claim than PRD §1.1; README documents the pre-close database risk.
+- FR-14: Honest anonymity notice. Two sentences or fewer, above the first Question, no stronger claim than PRD §1.1, and that Answers may be sent to an external AI service; README documents the pre-close database risk.
 - FR-15: Judge Grouping at close. Runs exactly once per Game, never re-run by reopening Review; Count counts distinct Contributor keys; the sizing Game (30 sets, 15 Questions, up to 5 Answers) groups within two minutes; each Stored ruling records prompt version and model ID; tests and Demo mode make no network call.
 - FR-16: Ranking and labels. Groups rank by Count; ties by number of rank-1 Answers, then alphabetically by label; default label is the most frequent normalised Answer text, ties by shortest.
 - FR-17: Manual Grouping fallback. No key, Judge failure or more than 30 s on a Question gives one Group per distinct normalised text; with no key, close succeeds and Review opens with fallback Groups everywhere; on partial failure the Host is told which Questions fell back and the others keep the Judge's proposals.
-- FR-18: Content-free usage counters. Judge-proposed Groups, Groups changed by merge, split, rename or discard, Judge calls, fallback per Question; exportable as a local report; deleted with the Game.
+- FR-18: Content-free usage counters. Judge-proposed Groups, Groups changed by merge, move, rename or discard, Judge calls, fallback per Question; exportable as a local report; deleted with the Game.
 - FR-19: Review display. Every Group with label, Count and Answers in Board order; Groups below the Board limit listed separately and marked not shown in play; every Answer under exactly one Group; no confidence signal.
 - FR-20: Correct the Grouping. Merge, move selected Answers to a new or existing Group, rename (1 to 40 characters), discard; Counts recalculated as distinct Contributor keys; merged Group keeps the label of the highest-Count source (ties by rank); discarded Groups stay visible in Review under a discarded heading and never reach play; any change clears the Question's reviewed mark.
 - FR-21: Mark reviewed and confirm the Board. Board shows at most eight highest-ranked non-discarded Groups per Question; confirm needs every Question reviewed, moves the Game to *ready* and locks every Review operation.
@@ -106,7 +106,7 @@ From `ARCHITECTURE-SPINE.md` (AD-n) and `delivery-notes.md`.
 - **AD-23 Retention.** Cascade from `game`; `games.purgeExpired()` (30 days after `played_at`, 90 after `updated_at`), at most hourly per process from Host requests and `GET /api/purge` with `CRON_SECRET`; failures never fail the request.
 - **AD-24 Environments.** Node runtime only; `next.config.ts` with `serverExternalPackages`, `outputFileTracingIncludes` for `data/rulings/**`, `agentRules: false`; close action and Game page `maxDuration = 300`; pilot on Vercel Hobby + Neon EU with explicit `db:migrate`, `REGISTRATION_CODE`, `CRON_SECRET`.
 - **Conventions.** English code and DB names, bokmål UI and URL segments, `<html lang="nb">`, bokmål `not-found.tsx`, `error.tsx`, `global-error.tsx`, no i18n library; routes per EXPERIENCE.md; limits only in `src/lib/limits.ts`; UTC timestamps only on `host`, `session`, `game`; random UUID v4 IDs; logging only through `log.ts` (`no-console`); fonts self-hosted; the fourteen script names; ESLint flat config + Prettier with the listed ignores; no commented-out code.
-- **Delivery notes.** README contract (what and for whom with a screenshot, prerequisites, three commands and demo login, env table, tests, structure and links, Stage 2 and cuts, the eight anonymity limits, deletion); `.github/pull_request_template.md` with three questions; `scripts/make-zip.sh` via `git archive HEAD`; cut order if time runs short: pilot deployment, CI Postgres job and Cron first, then `judge:record` and `--live` polish, then e2e breadth beyond the required specs; never cut AD-4, AD-7 to AD-10, the replay demo, network-free tests or the README.
+- **Delivery notes.** README contract (what and for whom with a screenshot, prerequisites, three commands and demo login, env table, tests, structure and links, Stage 2 and cuts, the eight anonymity limits, deletion); `.github/pull_request_template.md` with three questions; `scripts/make-zip.sh` via `git archive HEAD`; cut order if time runs short, mirroring the PRD §6.5 slip list: pilot deployment, CI Postgres job and Cron first, then FR-32 live regeneration (`judge:eval --live`) and SM-4, then e2e breadth beyond the required specs; never cut AD-4, AD-7 to AD-10, the replay demo, network-free tests or the README.
 
 ### UX Design Requirements
 
@@ -130,7 +130,7 @@ From `DESIGN.md` (tokens, components) and `EXPERIENCE.md` (behaviour). Copy stri
 - UX-DR16: Game page as a state-driven hub. One primary action per state per the EXPERIENCE.md table; "Slett spillet" at the bottom in every state as a `secondary-danger` button; usage report button from *in review* onward.
 - UX-DR17: Review layout. 288 px Question rail ("K av N gjennomgått", visible status words only "✓ Gjennomgått" and "Manuell", no status line meaning not reviewed with "Ikke gjennomgått" kept in the accessible name only, `aria-current`), "Lås brettet" with `aria-disabled` reason "Gjennomgå alle spørsmålene først (N igjen)."; "Marker som gjennomgått" at the right of the Question header (replacing the status pill); sections with `<h3>` headings in `title` type, "På brettet (8 grupper)", "Ikke på brettet (1 gruppe)" (with its sentence, cards on `surface-sunken` with a `1px dashed line-strong` border) and "Forkastet (1 gruppe)" (read-only, struck label, "Angre forkasting"); a 2 px `line-strong` divider "Alt under streken vises ikke i spillet" (only above eight); a Group with one chip equal to its label renders as a compact 52 px row (presentation only, still an ordinary Group); fallback Notice copy by `fallback_reason` (failures: "Dommeren fikk ikke gruppert spørsmål {N}. Det starter med én gruppe per ulikt svar."), Demo mode using the NO_STORED_RULING wording; rail 240 px below 1280 px, a `<select>` below 1024 px, a "Gjennomgangen er laget for større skjerm." notice below 768 px.
 - UX-DR18: Review operations. Pessimistic: wait for the server, affected cards `aria-busy` and dimmed; polite live-region announcements with the literal strings in EXPERIENCE.md; focus to the affected Group heading; failure shows "Endringen ble ikke lagret. Prøv igjen." where the Host is looking (selection operations inside the SelectionBar above its actions in `danger-soft`/`danger`, card operations inline at the top of the affected GroupCard, mark reviewed under its button) with the screen and selection otherwise unchanged; "Brettet er allerede låst." on a stale tab; no general undo.
-- UX-DR19: Answer form. Header wordmark and Game title, no identity anywhere; client sets the title "{Game title} – Toppsvar"; the exact notice "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet." followed by the instruction line "Gi 1–5 svar per spørsmål. Skriv det første du kommer på i Svar 1."; inputs `maxlength="80"`, `autocomplete="off"`, `autocapitalize="sentences"`, `enterkeyhint="next"`, counter from 60; non-sticky progress line "N av M spørsmål har svar"; "Send inn svar" or "Lagre endringer"; validation on submit only with error summary taking focus and inline "Skriv minst ett svar."; confirmation "Svarene dine er lagret." with the device sentence and "Se eller endre svarene"; returning notice "Du har allerede sendt inn. …"; one helper line under the submit button in both visits, "Utkastet lagres bare på denne enheten. Sender du inn fra en annen enhet, erstatter det de forrige svarene."; closed, unknown and network-error pages with their exact copy.
+- UX-DR19: Answer form. Header wordmark and Game title, no identity anywhere; client sets the title "{Game title} – Toppsvar"; the exact notice "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet, og svarene kan bli sendt til en ekstern KI-tjeneste for gruppering." followed by the instruction line "Gi 1–5 svar per spørsmål. Skriv det første du kommer på i Svar 1."; inputs `maxlength="80"`, `autocomplete="off"`, `autocapitalize="sentences"`, `enterkeyhint="next"`, counter from 60; non-sticky progress line "N av M spørsmål har svar"; "Send inn svar" or "Lagre endringer"; validation on submit only with error summary taking focus and inline "Skriv minst ett svar."; confirmation "Svarene dine er lagret." with the device sentence and "Se eller endre svarene"; returning notice "Du har allerede sendt inn. …"; one helper line under the submit button in both visits, "Utkastet lagres bare på denne enheten. Sender du inn fra en annen enhet, erstatter det de forrige svarene."; closed, unknown and network-error pages with their exact copy.
 - UX-DR20: Unsent draft. Saved to the per-link `localStorage` key, debounced about 500 ms, never sent before submit; status shown by the single helper line under the submit button, "Utkastet lagres bare på denne enheten. Sender du inn fra en annen enhet, erstatter det de forrige svarene."; a local draft wins over the server copy with "Du har endringer som ikke er sendt inn." and "Forkast endringene"; cleared on successful submit; whole key cleared on closed or unknown.
 - UX-DR21: Play view. Fixed 1920×1080 canvas scaled to the window with `transform: scale()`, letterboxed; stage colors; vertical budget per DESIGN.md; Questions up to 80 characters at 56 px and over 80 characters at 48 px, budgeted at four lines (vertical budget 48 px top gutter, 221 px Question block, 696 px list, 64 px control bar = 1077 px); "Spørsmål N av M" at the top of the Team column in `tv-team` / `stage-muted`; control bar "Bom [M]", "Angre [Z]", "Neste lag [T]", "Vis resten uten poeng [U]", "Neste spørsmål [N]" ("Vis sluttstilling" on the last), "?" overlay; shortcuts `1`–`8`, `M`, `Z`, `T`, `U`, `N`/`→`, `F`, `?`, `Esc`, ignored in text fields; "Bom" as a centred 80 px panel (`stage-raised`, 2 px `stage-line` border) with 150 ms in, 1.2 s hold, 150 ms out and no state change; unscored toggle with `aria-pressed`, the item reading "Avslører uten poeng [U]" in `stage-ink` weight 700 and hidden tiles dashed, off on the next Question; "Alle svarene er avslørt." hint; save-failure banner "Fikk ikke lagret trekket. Prøv igjen." / "Mistet forbindelsen." with no red, replacing the control-bar row (`control-bar-error`, 64 px) and never overlaying the list; staged CSS-only Reveal of about 700 ms (tile fill 180 ms, label fade with 12 px slide from 120 ms, Count badge scaling 0.9 → 1 from 300 ms, Score count-up from 460 ms), all instant under reduced motion with the colour change kept; no sound; final Scores "Sluttstilling" with Teams centred vertically and Scores at 120 px, the winner styled as the active card with "Vinner" (or "Uavgjort"), the deletion date line and "Tilbake til spillet".
 - UX-DR22: Team setup. "Hvem spiller?", fields prefilled "Lag 1" and "Lag 2", "Legg til lag" up to four, "Fjern" down to two, names 1 to 14 characters ("Navnet kan ha maks 14 tegn.", "Laget trenger et navn."), "Start spillet" with the hint "Trykk F for fullskjerm."
@@ -559,7 +559,7 @@ So that my Answers count without anyone knowing they are mine.
 **AC1 (FR-14 · e2e)**
 **Given** an open Invite link
 **When** the answer form renders
-**Then** above the first Question it shows, as an info Notice, exactly "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet."
+**Then** above the first Question it shows, as an info Notice, exactly "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet, og svarene kan bli sendt til en ekstern KI-tjeneste for gruppering."
 
 **AC2 (FR-6, NFR-4, UX-DR9, UX-DR19 · e2e)**
 **Given** the answer form on a 360 px viewport
@@ -1018,7 +1018,7 @@ So that one answer is not split across several rows on the Board.
 ### Story 5.3: Move Answers to another Group or a new Group
 
 As a Host,
-I want to move selected Answers to another Group or split them into a new one,
+I want to move selected Answers to another Group or to a new one,
 So that Answers the Judge joined wrongly can stand apart.
 
 **Architecture:** AD-5, AD-11, AD-15, AD-18.
@@ -1314,8 +1314,8 @@ So that Grouping quality is measured, not claimed (SM-2).
 **AC2 (FR-32, SM-2 · integration)**
 **Given** `data/protoqa/dev.crowdsourced.jsonl` and `data/rulings/protoqa-dev.json`
 **When** `npm run judge:eval` runs with no key and no network (`tests/integration/judge-eval.test.ts`)
-**Then** it prints B-cubed precision, recall and F1, Judge calls per Question, the prompt version and the model ID, warns if the rulings' versions differ from the current ones, and the replayed F1 is at least 0.70
-**And** if F1 falls short, the prompt, effort or `JUDGE_MODEL` is changed, `PROMPT_VERSION` bumped and the rulings re-recorded until it passes
+**Then** it prints B-cubed precision, recall and F1, Judge calls per Question, the prompt version and the model ID, warns if the rulings' versions differ from the current ones, and the figures equal the pinned values for the committed rulings, and it states whether F1 reaches 0.70
+**And** before the freeze a shortfall may be tuned (prompt, effort or `JUDGE_MODEL`, with `PROMPT_VERSION` bumped and rulings re-recorded and re-pinned), and every version tried is recorded for the README; after the freeze nothing is changed to chase the figure (PRD SM-2)
 
 **AC3 (FR-32, SM-4 · manual, opt-in)**
 **Given** a live key, and separately a local labelled file
@@ -1350,7 +1350,7 @@ So that SM-1 can be declared passed and Stage 2 can be considered.
 **AC3 (SM-1, UX-DR26, NFR-5, NFR-6 · manual)**
 **Given** `tests/manual/checklist.md` holding A1 to A10, the NFR-5 timing items for Review and play on the sizing Game, and the demo-content item
 **When** the group runs it once before the Stage 1 freeze
-**Then** every item has a recorded result and date, and any failure has a fix or a stated cut in the README
+**Then** every item has a recorded result and date, and any failure has a fix or, only for an item on the PRD §6.5 slip list, a stated slip in the README; the SM-1 gate counts every Stage 1 consequence except slipped items the README names (PRD SM-1, §6.5)
 
 **AC4 (SM-3 · manual)**
 **Given** `tests/manual/anonymity-audit.md` describing the SM-3 procedure (Host access, the list of Invite links and a database dump taken after the Board is confirmed)
@@ -1380,7 +1380,7 @@ So that I can assess the project without the group's help.
 **AC2 (FR-14 · manual)**
 **Given** the README's anonymity section
 **When** it is checked against the delivery notes and EXPERIENCE.md
-**Then** it states that nobody can see who wrote an Answer, and lists all eight limits from the delivery notes plus the unsent draft kept on the Participant's device
+**Then** it states that nobody can see who wrote an Answer and that Answers may be sent to an external AI service for grouping (the FR-14 notice), and lists all eight limits from the delivery notes plus the unsent draft kept on the Participant's device, pointing to the sprint change proposal of 2026-11-23
 
 **AC3 (NFR-8 · integration + manual)**
 **Given** the README's environment table and `.env.example`
@@ -1395,7 +1395,7 @@ So that I can assess the project without the group's help.
 **AC5 (NFR-1 · manual)**
 **Given** the finished README
 **When** it is reviewed against the delivery-notes contract
-**Then** it covers what and for whom with a screenshot in `docs-assets/`, prerequisites, structure with links to `.docs/`, `wiki/` and `prompting/`, what Stage 2 left out and why, every Stage 1 cut with its reason, and that retention runs only while the app is running
+**Then** it covers what and for whom with a screenshot in `docs-assets/`, prerequisites, structure with links to `.docs/`, `wiki/` and `prompting/`, what Stage 2 left out and why, every item of the PRD §6.5 slip list that slipped (or that none did), the SM-2 figure with every prompt version and model tried, and that retention runs only while the app is running
 
 ### Story 7.5: Pilot deployment (first to cut)
 
@@ -1548,7 +1548,7 @@ The group delegated product decisions for this run, as it did for the PRD on 202
 11. **TRACE.md from day one.** Created in 1.1 and filled by every story; its completeness test lands in 7.3, because it would fail earlier.
 12. **NFR-5 by manual timing.** Measured on the sizing Game in the checklist, not asserted in CI, to avoid flaky timing tests.
 13. **FR-12 "no setting weakens §4.4".** Proven by fixed-set tests on the `env.ts` keys and `game` columns (3.3 AC5).
-14. **Cuttable work at the end.** The CI Postgres job (7.3 AC5) and the pilot deployment (7.5) follow the delivery-notes cut order; the pilot is its own story because NFR-2 and SM-6 need it.
+14. **Cuttable work at the end.** The CI Postgres job (7.3 AC5), the pilot deployment (7.5), FR-32 live regeneration and SM-4 (7.2 AC3) follow the delivery-notes cut order, which mirrors the PRD §6.5 slip list (amended 2026-11-23); the pilot is its own story because NFR-2 and SM-6 need it.
 15. **Stage 2.** One epic, acceptance criteria only, taken from the PRD consequences, FR-33 first. FR-29 "switch on" is read as off by default.
 16. **Left out on purpose.** EXPERIENCE.md Open Question 3 (Host preview of the answer form) and 4 (extended display) are not in the PRD, so no story builds them. Open Question 1 (palette) is built as specified.
 17. **Demo and evaluation rulings need a live key once (resolved 2026-11-22).** AD-14 allows rulings only from `npm run judge:record`. The group has an OpenRouter key: a group member runs the recording for Stories 7.1 and 7.2 with the key in an untracked `.env`; the AI developer never handles the key.
