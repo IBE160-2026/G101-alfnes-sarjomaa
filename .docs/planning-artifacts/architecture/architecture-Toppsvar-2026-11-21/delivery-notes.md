@@ -38,6 +38,21 @@ Before the fix, the 7-item smoke run needed 2 calls because reasoning used all 9
 
 **Consequence.** Time is never the limit: 240 items took 6.7 s against the 30 s timeout. The limit is output reliability. The model returns a valid positional `assignments` array up to at least 120 distinct items and fails somewhere between 120 and 180. A Question above that falls back to manual grouping after 2 calls (about USD 0.0006), which FR-17 allows. The sizing Game (at most 150 raw Answers per Question, usually far fewer distinct after normalisation) is normally below the limit; only a Question in the largest Game where almost every Answer is different reaches it. `shortcut: positional output fails above ~120-180 distinct items; if real Games hit it, split large Questions into chunks or ask for groups instead of a positional array.`
 
+### Pilot measurements (2026-11-23, production)
+
+Run by the orchestrator with a Playwright script against https://toppsvar.vercel.app (Neon Postgres in `fra1`, live Judge), one fictional Game of 5 Questions and 5 Answer sets, timed from the click until the UI settled. Grouping of all 5 Questions took 18.9 s with no fallback. Collection close, including `VACUUM (FULL, SKIP_LOCKED)`, logged no error or skip.
+
+| Host action | Functions in `iad1` | Functions in `fra1` |
+| --- | --- | --- |
+| Merge two Groups | 5.3 s | 0.82 s |
+| Rename | 3.3 s | 0.29 s |
+| Discard | 3.8 s | 0.31 s |
+| Mark reviewed | 3.3 to 3.9 s | 0.81 to 0.83 s |
+| Lock the Board, including the redirect to the Game page | 6.3 s | 1.18 s |
+| Save a Question | 1.8 s | 0.18 s |
+
+**Consequence.** NFR-5 failed by a factor of 3 to 6 while the functions ran on another continent from the database, because every action makes several round trips. `vercel.json` now pins the functions to `fra1`, next to Neon. Only Board lock is slightly above one second, and that figure includes the navigation it triggers.
+
 ## README contract
 
 The README covers the sensorveiledning checklist:
