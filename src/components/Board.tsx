@@ -378,7 +378,7 @@ export function Board({
         {credit ? (
           // FR-33: the credit takes a second line at the right end, so the fullest bar
           // (every control and both hints) still fits 1920 px.
-          <div className={failure ? "hidden" : "ml-auto text-right"}>
+          <div className={failure ? "hidden" : "ml-auto text-right leading-none"}>
             <div className="flex justify-end gap-6">{hints}</div>
             <p>{credit}</p>
           </div>
