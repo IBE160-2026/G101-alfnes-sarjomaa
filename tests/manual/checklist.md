@@ -1,6 +1,6 @@
 # Manual checklist
 
-What the automated tests cannot prove (SM-1). The A rows are copied from the Accessibility Floor table in `EXPERIENCE.md`. Run every row once before the Stage 1 freeze (1 December) and again before handing in, on a real phone or TV where the row says so. A person fills in Result and Date: write "pass" or "fail", the device or machine, and for a T row the slowest of five tries. The AI that builds the app fills in no result. A failed row needs a fix, or, only for a slip-list item, a slip stated in the README.
+What the automated tests cannot prove (SM-1). The A rows are copied from the Accessibility Floor table in `EXPERIENCE.md`. Run every row once before the Stage 1 freeze (1 December) and again before handing in, on a real phone or TV where the row says so. A person fills in Result and Date: write "pass" or "fail", the device or machine, and for a T row the slowest of five tries. The AI that builds the app fills in no result, except F1, which the group asked it to run and which a person still repeats. A failed row needs a fix, or, only for a slip-list item, a slip stated in the README.
 
 ## How to prepare
 
@@ -65,9 +65,13 @@ Before a branch that changes the demo is merged, and once before the freeze, som
 
 Story 7.4 records the fresh-clone run here.
 
-| #   | Check                                                                                                                                                                                                           | Covers       | Run on        | Result | Date |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------- | ------ | ---- |
-| F1  | On a machine without the repository and with no key set: `git clone`, `npm install`, `npm run demo` and the printed login reach the demo Game; `npm run test`, `npm run test:e2e` and `npm run judge:eval` pass | NFR-1, FR-30 | fresh machine |        |      |
+| #   | Check                                                                                                                                                                                                           | Covers       | Run on        | Result                                                                        | Date       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------- | ----------------------------------------------------------------------------- | ---------- |
+| F1  | On a machine without the repository and with no key set: `git clone`, `npm install`, `npm run demo` and the printed login reach the demo Game; `npm run test`, `npm run test:e2e` and `npm run judge:eval` pass | NFR-1, FR-30 | fresh machine | pass, AI run on the developer's Mac; a person's run is still open (see below) | 2026-11-23 |
+
+**F1 run of 2026-11-23 (Story 7.4).** Run by the AI, not a group member, so it does not replace a person's run on another machine. Commit `4b353f1` was cloned with `git clone` into a scratch directory outside the repository, with no `.env`, `.data` or `.next`, on macOS with Node 26.12.1 and npm 11.20.0, and with `OPENROUTER_API_KEY` removed from the environment. The npm cache and the Playwright browser were already on the machine, so the times are faster than on a new machine. Clone and `npm install`: 3 s. `PORT=3457 npm run demo` answered `/api/health` 3 s later and printed the login; a Playwright script logged in with it in 2.5 s and reached "Mine spill" and the demo Game ("6 av 8 svar mottatt"). `npm test`: 805 passed, 1 skipped, 13 s. `npx playwright install chromium`: already installed. `npm run test:e2e`: 99 passed, 74 s. `npm run judge:eval`: F1 0.6849, 1 s. In all, 125 s from clone to the last test. One finding: `npm install` with npm 11.20.0 added `"peer": true` to four optional entries in `package-lock.json`, a metadata change only; `npm ci`, which CI uses, leaves the lockfile alone.
+
+**Hand-in zip, 2026-11-23 (Story 7.4, AC4).** `./scripts/make-zip.sh` in that clone gave `G101-alfnes-sarjomaa.zip`, 8.7 MB with 1,269 entries, every one under `G101-alfnes-sarjomaa/`. It holds no `.env` other than `.env.example`, no `.env.local`, `.idea/`, `.data/`, `.next/` or `node_modules/`. A search for the first names of the private persons in the `.idea/` source material matched only unrelated public people (font designers in a font licence list and a well-known author) in vendored third-party skill data under `.claude/skills/`, never the private persons and never the group's own files. A scan of tracked files for key and password patterns found no real secret; the only credentials are the invented demo login, test fakes and a local probe password in the Story 7.3 spec.
 
 ## SM-1 gate
 
@@ -80,8 +84,9 @@ Open items:
 - Accessibility rows without a result: A1, A2, A3, A4, A5, A6, A7, A8, A9, A10.
 - Timing rows without a result: T1, T2, T3, T4, T5, T6, T7, T8.
 - Demo content: D1.
-- Fresh clone: F1 (Story 7.4).
+- Fresh clone: F1 was run by the AI on the developer's machine (Story 7.4); a group member still runs it once on a machine without the repository.
 - SM-3 anonymity audit: `tests/manual/anonymity-audit.md` has no recorded run.
+- README: the "Status" section is dated 23 November. Update it at the freeze (1 December) and before hand-in, so it states what slipped.
 
 SM-2 is reported, not gated. The live ProtoQA figure, recorded 2026-11-23 with prompt version 1 and `deepseek/deepseek-v4.1-flash`, is B-cubed F1 0.6849 (precision 0.9809, recall 0.5261), 1.40 calls per Question, with 15 of 52 Questions falling back on `INVALID_OUTPUT`. Reasoning was tried and rejected (see `.docs/implementation-artifacts/spec-7-2-judge-evaluation-against-protoqa.md`). The figure is below 0.70, which does not fail SM-1. The README reports it, with every version tried, in its "Status" section.
 

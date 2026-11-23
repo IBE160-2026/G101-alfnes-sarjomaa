@@ -173,7 +173,7 @@ Per 23. november. Trinn 1 fryses 1. desember.
   [anonymitetsrevisjonen](tests/manual/anonymity-audit.md) gjenstår.
 - **Ingenting er kuttet, og ingenting har glidd.** Av glidelista i PRD §6.5 kjører piloten (uten
   Vercel Cron), og kjennelsene er tatt opp live på nytt. Målingen på ekte norske svar (SM-4) er
-  ikke kjørt. Skjer det ikke før frysen, flyttes den til trinn 2.
+  ikke kjørt. Det som ikke er ferdig ved frysen, flyttes til trinn 2.
 - **Trinn 2 venter** til trinn 1 er godkjent: ferdige spørsmålssett (FR-33), egen rekkefølge på
   brettet (FR-22), hjelp til gjetninger (FR-28), strikes og steals (FR-29).
 - **Dommeren mot ProtoQA (SM-2): B-cubed F1 0.6849**, under målet på 0.70. Spørsmål med mange
@@ -271,11 +271,12 @@ Node 22 og 26, uten nøkkel. Feilloggen fra e2e er `dev.log` i en `toppsvar-e2e-
 `$TMPDIR` (macOS) eller `/tmp` (Linux).
 
 ```bash
+npm ci
 npm run lint                # ESLint, også lagreglene mellom src/app, src/server og src/lib
 npm run format:check        # Prettier (npm run format retter)
 npm run typecheck           # next typegen + tsc
 npx drizzle-kit check       # migrasjonene i drizzle/ henger sammen
-npm run db:generate         # feiler CI hvis schema.ts mangler en committet migrasjon
+npm run db:generate         # CI feiler hvis drizzle/ endres etterpå (manglende migrasjon)
 npm test
 npm run judge:eval
 npm run test:e2e
@@ -338,6 +339,7 @@ beslutningslogg.
 ```
 
 Bare committede filer kommer med, aldri `.env.local`, `.idea/`, `.data/` eller `node_modules/`.
-Skriptet advarer om endringer som ikke er committet.
+Skriptet advarer om endringer som ikke er committet. Git-historikken er ikke med i zipen, den
+ligger på <https://github.com/IBE160-2026/G101-alfnes-sarjomaa>.
 
 </details>

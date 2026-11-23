@@ -64,4 +64,4 @@ Thumbs.db
 .data/
 
 # Hand-in zip (scripts/make-zip.sh)
-*.zip
+/G101-alfnes-sarjomaa.zip
