@@ -25,7 +25,7 @@
 - [x] Brief revidert etter tilbakemeldingen — 2026-10-12 (trinn 1/2, testbare kriterier, poeng og dobbeltsvar avklart)
 - [x] `PRD.md` — **ferdig 2026-10-13** (`status: final`), uke 42. Én uke foran sliden
 - [x] Uke 44–45 — UX og arkitektur, ferdig 2026-11-22 (BMAD v6 kaller dem `DESIGN.md`/`EXPERIENCE.md` og `ARCHITECTURE-SPINE.md`)
-- [ ] Uke 46–47 — implementering ← **nå** (epic 1–4 merget 2026-11-23)
+- [ ] Uke 46–47 — implementering ← **nå** (epic 1–7 og story 8.1 merget 2026-11-23/24; SM-1 venter på manuelle sjekker)
 - [ ] Uke 48–49 — refleksjonsrapport + innlevering
 
 ## Kullets faktiske tempo — vi ligger etter (per 2026-11-21)

@@ -223,7 +223,7 @@ Se [[sensorveiledning-del-1]] **før hver fase**. Tre konsekvenser som lett glem
 - [x] `proposal.md` (fjorårets format, ikke krevd i år). Se [[proposal]]
 - [x] **Fase 2 — `PRD.md`** (skill: `bmad-prd`), `status: final` 2026-10-13. 33 FR-er merket Stage 1/2. Se [[beslutninger]]
 - [x] **Fase 3** 2026-11-21/22 på branchen `fase-3-planlegging`: UX, arkitektur, krysssjekk, impeccable-critique, 38 stories, sprintplan. Se [[plan-fase-3-og-4]]
-- [ ] Fase 4 — implementering, én branch per epic ← **nå**. Epic 1–4 merget til `main` 2026-11-23 (PR #2–#5, CI grønn), epic 5 i review. Pilot på https://toppsvar.vercel.app
+- [ ] Fase 4 — implementering, én branch per epic ← **nå**. Epic 1–7 og story 8.1 merget til `main` 2026-11-23/24 (PR #2–#9, CI grønn på Node 22/26 og Postgres). SM-1-porten er åpen til de manuelle sjekkene er gjort. Pilot på https://toppsvar.vercel.app, med månedlig Vercel Cron
 - [ ] Refleksjonsrapport
 
 Fase 1 er satt til `status: final`. Samme status brukes på `addendum.md`, og skal brukes

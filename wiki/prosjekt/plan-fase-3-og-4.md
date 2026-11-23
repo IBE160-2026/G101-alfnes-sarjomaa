@@ -70,7 +70,7 @@ frysen 1. des. kjøres `ponytail-debt`, og før innlevering `ponytail-audit`.
 | 5. des. | Innlevering: repoet som zip + rapporten |
 
 Trinn 2 (FR-33 først) tas bare hvis det er tid etter 1. des., og ikke på bekostning av
-rapporten.
+rapporten. *Endret 2026-11-23: gruppa startet story 8.1 før SM-1 var bestått, se [[beslutninger]].*
 
 ## Risiko
 

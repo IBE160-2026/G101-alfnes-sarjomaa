@@ -7,7 +7,7 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 
 - [[ibe160]] — hva emnet krever, og vektingen: **kode 70 %, rapport 30 %, ingen muntlig**
 - [[sensorveiledning-del-1]] — de sju kriteriene, hvordan sensor går fram, og varseltegnene (hele dokumentet fra Canvas). **Les før hver fase**
-- [[tidsplan]] — ukeplan, faser og frister **(nå: implementering, epic 5 av 7)**
+- [[tidsplan]] — ukeplan, faser og frister **(nå: implementering, epic 1–7 og story 8.1 merget, SM-1 åpen)**
 - [[kunngjoringer]] — hva Canvas-kunngjøringene betyr for oss: publisering er ikke krav, Vercel, kullets tempo
 - [[produktide]] — hva vi bygger: **Toppsvar**
 - [[plan-fase-3-og-4]] — **planen fra PRD til innlevert app**: fase 3, epics, frys 1. des.
@@ -18,7 +18,7 @@ Obsidian-stil: notater lenkes med `[[wikilenker]]`.
 - `proposal.md` — fjorårets format, skrevet 2026-09-14. Ikke krevd i år, men grunnlag for arkitekturen. Se [[proposal]]
 - `PRD.md` — fase 2, **ferdig 2026-10-13** (`status: final`). Kanonisk i `.docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/`, generert til rota av `sync-brief.sh`
 - Fase 3 — UX, arkitektur, epics og sprintplan, ferdig 2026-11-22 (PR #1)
-- Fase 4 — implementering, én PR per epic. Faglærers PRD-tilbakemelding (`tilbakemelding-prd.md`) er tatt inn 2026-11-23, se `sprint-change-proposal-2026-11-23.md`
+- Fase 4 — implementering, én PR per epic. Faglærers PRD-tilbakemelding (`tilbakemelding-prd.md`) er tatt inn 2026-11-23, se `sprint-change-proposal-2026-11-23.md`. KI-arbeidet per økt står i `prompting/fase-4-implementering/`
 
 ## BMAD
 
