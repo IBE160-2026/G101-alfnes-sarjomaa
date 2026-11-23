@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DomainError } from "@/lib/errors";
 import {
@@ -10,9 +10,19 @@ import {
 } from "@/lib/game-state";
 import { getDb, type Tx } from "@/server/db/client";
 import * as collection from "@/server/collection";
-import { game, host, inviteLink, question } from "@/server/db/schema";
+import {
+  game,
+  groupingResult,
+  host,
+  inviteLink,
+  playState,
+  question,
+} from "@/server/db/schema";
 import * as games from "@/server/games";
+import * as grouping from "@/server/grouping";
+import * as play from "@/server/play";
 import * as questions from "@/server/questions";
+import * as review from "@/server/review";
 import { sqlRows } from "./driver";
 
 const T0 = new Date("2026-11-01T12:00:00Z");
@@ -275,4 +285,274 @@ describe("close outside collecting", () => {
       expect(await links(), state).toEqual(before);
     }
   });
+});
+
+// AC2: every real entry point of every Operation, in every state. "Refused" differs by
+// kind on purpose: Host actions throw WRONG_STATE, Participant link actions show the link
+// as closed (COLLECTION_CLOSED), and Grouping stops without a trace (no grouping_result).
+// Inside a permitted state any other outcome counts; the module tests cover that behaviour.
+type Entry = {
+  name: string;
+  kind: "host" | "participant" | "grouping";
+  call: (gameId: string, questionId: string) => Promise<unknown>;
+};
+const BAD_TOKEN = "A".repeat(43);
+const ENTRY_POINTS: Record<Operation, Entry[]> = {
+  editQuestions: [
+    {
+      name: "questions.save",
+      kind: "host",
+      call: (gameId, questionId) =>
+        questions.save(hostId, { gameId, questionId, text: "Endret" }),
+    },
+    {
+      name: "questions.move",
+      kind: "host",
+      call: (gameId, questionId) =>
+        questions.move(hostId, { gameId, questionId, direction: "down" }),
+    },
+    {
+      name: "questions.remove",
+      kind: "host",
+      call: (gameId, questionId) =>
+        questions.remove(hostId, { gameId, questionId }),
+    },
+  ],
+  createInviteLinks: [
+    {
+      name: "collection.createInviteLinks",
+      kind: "host",
+      call: (gameId) =>
+        collection.createInviteLinks(hostId, { gameId, count: 1 }),
+    },
+  ],
+  revokeInviteLink: [
+    {
+      name: "collection.revokeInviteLink",
+      kind: "host",
+      call: (gameId) =>
+        collection.revokeInviteLink(hostId, {
+          gameId,
+          link: `http://localhost/svar/${gameId}#${BAD_TOKEN}`,
+        }),
+    },
+  ],
+  openInviteLink: [
+    {
+      name: "collection.openInviteLink",
+      kind: "participant",
+      call: (gameId) => collection.openInviteLink(gameId, BAD_TOKEN),
+    },
+  ],
+  submitAnswers: [
+    {
+      name: "collection.submit",
+      kind: "participant",
+      call: (gameId, questionId) =>
+        collection.submit(gameId, BAD_TOKEN, {
+          editSecret: BAD_TOKEN,
+          answers: { [questionId]: ["Svar"] },
+        }),
+    },
+  ],
+  closeCollection: [
+    {
+      name: "collection.close",
+      kind: "host",
+      call: (gameId) => collection.close(hostId, { gameId }),
+    },
+  ],
+  writeGrouping: [
+    { name: "grouping.run", kind: "grouping", call: grouping.run },
+    {
+      name: "grouping.resumeIfStale",
+      kind: "grouping",
+      call: grouping.resumeIfStale,
+    },
+  ],
+  editReview: [
+    {
+      name: "review.merge",
+      kind: "host",
+      call: (gameId) =>
+        review.merge(hostId, {
+          gameId,
+          groupIds: [randomUUID(), randomUUID()],
+        }),
+    },
+    {
+      name: "review.moveAnswers",
+      kind: "host",
+      call: (gameId) =>
+        review.moveAnswers(hostId, { gameId, answerIds: [randomUUID()] }),
+    },
+    {
+      name: "review.rename",
+      kind: "host",
+      call: (gameId) =>
+        review.rename(hostId, { gameId, groupId: randomUUID(), label: "Ny" }),
+    },
+    {
+      name: "review.discard",
+      kind: "host",
+      call: (gameId) =>
+        review.discard(hostId, { gameId, groupId: randomUUID() }),
+    },
+    {
+      name: "review.restore",
+      kind: "host",
+      call: (gameId) =>
+        review.restore(hostId, { gameId, groupId: randomUUID() }),
+    },
+    {
+      name: "review.setReviewed",
+      kind: "host",
+      call: (gameId, questionId) =>
+        review.setReviewed(hostId, { gameId, questionId, reviewed: true }),
+    },
+  ],
+  confirmBoard: [
+    {
+      name: "review.confirmBoard",
+      kind: "host",
+      call: (gameId) => review.confirmBoard(hostId, { gameId }),
+    },
+  ],
+  startPlay: [
+    {
+      name: "play.start",
+      kind: "host",
+      call: (gameId) => play.start(hostId, { gameId, teams: ["Rød", "Blå"] }),
+    },
+  ],
+  playMove: [
+    {
+      name: "play.reveal",
+      kind: "host",
+      call: (gameId) =>
+        play.reveal(hostId, {
+          gameId,
+          boardSlotId: randomUUID(),
+          scored: true,
+        }),
+    },
+    {
+      name: "play.undo",
+      kind: "host",
+      call: (gameId) =>
+        play.undo(hostId, { gameId, boardSlotId: randomUUID() }),
+    },
+    {
+      name: "play.nextTeam",
+      kind: "host",
+      call: (gameId) => play.nextTeam(hostId, { gameId }),
+    },
+    {
+      name: "play.nextQuestion",
+      kind: "host",
+      call: (gameId) => play.nextQuestion(hostId, { gameId, position: 1 }),
+    },
+  ],
+  // play.nextQuestion past the last Question finishes the Game under playMove's lock, so
+  // play_state is moved to the last Question first (a no-op where there is none).
+  finishPlay: [
+    {
+      name: "play.nextQuestion (finish)",
+      kind: "host",
+      call: async (gameId) => {
+        const db = await getDb();
+        const [last] = await db
+          .select({ id: question.id })
+          .from(question)
+          .where(and(eq(question.gameId, gameId), eq(question.position, 2)));
+        await db
+          .update(playState)
+          .set({ currentQuestionId: last.id })
+          .where(eq(playState.gameId, gameId));
+        return play.nextQuestion(hostId, { gameId, position: 2 });
+      },
+    },
+  ],
+  deleteGame: [
+    {
+      name: "games.deleteOwned",
+      kind: "host",
+      call: (gameId) => games.deleteOwned(hostId, gameId),
+    },
+  ],
+};
+
+// A fresh Game per call, so no call's side effects reach the next one. Play states go
+// through the real play.start, so play_state exists as it would.
+async function gameIn(state: GameState) {
+  const { id } = await games.create(hostId, { title: "Matrise" });
+  const questionId = randomUUID();
+  await questions.save(hostId, { gameId: id, questionId, text: "Hvem?" });
+  await questions.save(hostId, {
+    gameId: id,
+    questionId: randomUUID(),
+    text: "Hva?",
+  });
+  const playing = state === "playing" || state === "played";
+  const set = (to: GameState) =>
+    getDb().then((db) =>
+      db
+        .update(game)
+        .set({ state: to, groupingLeaseUntil: T0 })
+        .where(eq(game.id, id)),
+    );
+  await set(playing ? "ready" : state);
+  if (playing) {
+    await play.start(hostId, { gameId: id, teams: ["Rød", "Blå"] });
+    if (state === "played") await set("played");
+  }
+  return { id, questionId };
+}
+
+async function attempt(entry: Entry, state: GameState) {
+  const { id, questionId } = await gameIn(state);
+  const outcome = await codeOf(entry.call(id, questionId));
+  if (entry.kind !== "grouping")
+    return {
+      outcome,
+      refused:
+        outcome ===
+        (entry.kind === "host" ? "WRONG_STATE" : "COLLECTION_CLOSED"),
+    };
+  const results = await (
+    await getDb()
+  )
+    .select()
+    .from(groupingResult)
+    .where(eq(groupingResult.questionId, questionId));
+  return { outcome, refused: results.length === 0 };
+}
+
+describe("the permitted-operations table against the real operations", () => {
+  it("AD-4: every Operation has at least one entry point", () => {
+    for (const op of Object.keys(PERMITTED) as Operation[])
+      expect(ENTRY_POINTS[op].length, op).toBeGreaterThan(0);
+  });
+
+  it.each(Object.keys(PERMITTED) as Operation[])(
+    "AD-4: every entry point of %s is refused exactly outside its permitted states, and inside them ends in ok or another DomainError",
+    async (op) => {
+      for (const entry of ENTRY_POINTS[op])
+        for (const state of GAME_STATES) {
+          const { outcome, refused } = await attempt(entry, state);
+          const label = `${entry.name} in ${state}: ${String(outcome)}`;
+          if (!PERMITTED[op].includes(state)) {
+            expect(refused, label).toBe(true);
+            continue;
+          }
+          // Allowed means "ok" or a DomainError other than the refusal, never INTERNAL
+          // or a crash.
+          expect(refused, label).toBe(false);
+          expect(
+            typeof outcome === "string" && outcome !== "INTERNAL",
+            label,
+          ).toBe(true);
+        }
+    },
+  );
 });
