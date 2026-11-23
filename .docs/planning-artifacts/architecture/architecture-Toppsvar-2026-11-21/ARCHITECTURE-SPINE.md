@@ -7,7 +7,7 @@ paradigm: 'modular monolith, layered (routes -> server modules -> db) in one Nex
 scope: 'Toppsvar Stage 1, the whole system in one deployable Next.js app, with Stage 2 (FR-22, FR-28, FR-29, FR-33) kept possible'
 status: final
 created: '2026-11-21'
-updated: '2026-11-21'
+updated: '2026-11-22'
 binds: [FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, FR-7, FR-8, FR-9, FR-10, FR-11, FR-12, FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-23, FR-24, FR-25, FR-26, FR-27, FR-30, FR-31, FR-32, NFR-1, NFR-2, NFR-3, NFR-4, NFR-5, NFR-6, NFR-7, NFR-8]
 sources:
   - .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md
@@ -140,7 +140,7 @@ stateDiagram-v2
   - **Session.** Host entry points take `hostId` from `auth.requireHost()`, which each Host page and action calls. No proxy makes an auth decision.
   - **The Game.** The Game is resolved through `lockForMutation` for mutations, or `games.getOwned` for reads. Both throw `NOT_FOUND` whether the Game is missing or belongs to someone else.
   - **Child IDs.** Every other input ID (`questionId`, `groupId`, `answerId`, `boardSlotId`, `teamId`) and every pasted link is resolved by a query constrained to the owned `gameId`. The IDs in one Review operation must also share one `question_id`. Any miss is `NOT_FOUND`, and the whole operation is refused.
-  - **Rendering.** Pages turn `NOT_FOUND` into the bokmål 404. Under `/svar` the segment has its own `not-found.tsx`, which renders the Participant's "unknown link" page instead, with no Host chrome.
+  - **Rendering.** Pages turn `NOT_FOUND` into the bokmål 404. Under `/svar` the segment has its own `not-found.tsx`, which renders the Participant's "unknown link" page instead, with no Host chrome. A Game page behind `loading.tsx` streams, so its `NOT_FOUND` renders the bokmål not-found UI with status 200 and `noindex`, identical for missing and foreign Games; logged-out redirects happen in the spill layout before streaming.
 
 ### AD-6 — In-app auth: scrypt, hashed DB sessions, bounded cost [ADOPTED]
 
@@ -311,7 +311,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Rule:**
   - **Reads.** Pages read data in server components. After a mutation, the action calls `revalidatePath`. There is no client data library.
   - **Mutations and token reads** are Server Actions in `src/app/**/actions.ts`, with their zod shape schemas in a sibling `schema.ts`. A module entry point enforces every invariant again, using the shared schemas from `src/lib`, so the CLI and tests get the same checks.
-  - **Result shape.** Actions return `{ ok: true, data } | { ok: false, code, message, fieldErrors? }`. The only exception is `redirect()` flows (login, create Game).
+  - **Result shape.** Actions return `{ ok: true, data } | { ok: false, code, message, fieldErrors? }`. The only exception is `redirect()` flows (login, create Game, delete Game).
   - **Error codes.** `ErrorCode` is a closed union, with bokmål messages, in `src/lib/errors.ts`. A zod failure gives `INVALID_INPUT` with `fieldErrors`.
   - **Error boundary.** Entry points and `after()` tasks convert any error that is not a `DomainError` into `DomainError('INTERNAL')`, with no cause and no original message. `src/server/log.ts` receives only `{ module, op, code, sqlstate }`. Actions never throw to Next.
   - **Route Handlers** are limited to `GET /api/health` (no side effects), `GET /api/purge` (requires `CRON_SECRET`, AD-23) and `GET /api/spill/[gameId]/rapport` (the AD-18 export).
@@ -454,7 +454,7 @@ The pilot is Vercel Hobby (300 s per function with fluid compute), production fr
 | Transactions | A multi-row change is one transaction, opened by the entry point. The Judge is never called inside one. |
 | Assets | Fonts come from npm packages or `next/font/local`, never `next/font/google` or a CDN, so builds and tests work offline. Nothing names or imitates the TV show (PRD §6.3). |
 | Scripts | `dev`, `demo`, `build`, `start`, `lint`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `judge:eval`, `judge:record`. README, CI and Playwright use these names only. |
-| Style | ESLint flat config (`eslint-config-next`, `typescript-eslint`, `eslint-config-prettier`) and Prettier defaults, over `src`, `tests` and the root config files. Ignored: `_bmad .claude wiki .docs prompting scripts drizzle .idea .next .data`. No commented-out code. |
+| Style | ESLint flat config (`eslint-config-next`, `typescript-eslint`, `eslint-config-prettier`) and Prettier defaults, over `src`, `tests` and the root config files. Ignored: `_bmad .claude wiki .docs prompting scripts drizzle .idea .next .data .logs`. No commented-out code. |
 | Delivery | The README states the anonymity limits that AD-7 to AD-10, AD-13 and AD-24 name. One PR per epic. A departure from this spine amends it in the same PR. Details are in `delivery-notes.md`. |
 
 ## Stack

@@ -48,6 +48,36 @@ krav, tester eller sikkerhet.
 Prompter arkiveres underveis i [`prompting/`](prompting/README.md) — refleksjonsrapporten
 krever eksplisitt at alle stegene dokumenteres, og det lar seg ikke rekonstruere i etterkant.
 
+## Utvikling
+
+Krever Node.js 22.13 eller nyere (testet på 22 og 26) og git. Ingen database å installere,
+ingen nøkkel og ingen konto: appen bruker innebygd PGlite i `.data/local` som standard.
+
+```bash
+npm install
+npm run dev                 # http://localhost:3000, helsesjekk på /api/health
+```
+
+Variablene står i [`.env.example`](.env.example). Kopier den til `.env.local` for å endre noe.
+
+CI kjører de samme skriptene på Node 22 og 26, uten nøkkel:
+
+```bash
+npm run lint                # ESLint, inkludert lagreglene mellom src/app, src/server og src/lib
+npm run format:check        # Prettier (npm run format retter)
+npm run typecheck           # next typegen + tsc
+npx drizzle-kit check       # migrasjonene i drizzle/ henger sammen
+npm test                    # Vitest: enhets- og integrasjonstester, uten nettverk
+npx playwright install chromium   # én gang
+npm run test:e2e            # Playwright mot next build && next start
+```
+
+Databaseskjemaet ligger i `src/server/db/schema.ts`. `npm run db:generate` skriver SQL til
+`drizzle/`, og `npm run db:migrate` kjører migrasjonene mot `DATABASE_URL`. PGlite-databaser
+migreres automatisk første gang appen bruker databasen. Stopp `npm run dev` før
+`npm run db:migrate` (én prosess per PGlite-mappe), start dev på nytt etter `db:generate`, og
+slett `.data/` for å nullstille den lokale databasen.
+
 ## Dokumentasjon
 
 All prosjektdokumentasjon ligger i [`wiki/`](wiki/index.md) — emnekrav og vurdering,

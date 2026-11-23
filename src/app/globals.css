@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+/* Every DESIGN.md token under its own name. tests/unit/design-tokens.test.ts keeps them equal. */
+@theme {
+  --color-*: initial;
+  --text-*: initial;
+
+  --font-display:
+    "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Light surfaces */
+  --color-paper: #faf7f2;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f1ece4;
+  --color-ink: #1e1a22;
+  --color-ink-muted: #5a5363;
+  --color-line: #e2dbd0;
+  --color-line-strong: #857d8c;
+  --color-primary: #7b2d5e;
+  --color-primary-hover: #5f2148;
+  --color-primary-soft: #f5e7f0;
+  --color-on-primary: #ffffff;
+  --color-focus-ring: #1e1a22;
+  --color-focus-inverse: #ffffff;
+  --color-success: #1d6b45;
+  --color-success-soft: #e2f1e8;
+  --color-warning: #7a4e00;
+  --color-warning-soft: #fcefd2;
+  --color-danger: #a8231a;
+  --color-danger-soft: #fbe9e7;
+
+  /* Stage surfaces: the play view only */
+  --color-stage: #10201e;
+  --color-stage-raised: #1a302c;
+  --color-stage-tile: #24413c;
+  --color-stage-line: #739690;
+  --color-stage-ink: #f6f1e7;
+  --color-stage-muted: #a7bab4;
+  --color-stage-accent: #7fe0c2;
+  --color-stage-on-accent: #10201e;
+  --color-count-badge: #10201e;
+
+  --text-display: 32px;
+  --text-display--line-height: 1.2;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.01em;
+  --text-heading: 24px;
+  --text-heading--line-height: 1.25;
+  --text-heading--font-weight: 700;
+  --text-title: 18px;
+  --text-title--line-height: 1.4;
+  --text-title--font-weight: 600;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.45;
+  --text-body-sm--font-weight: 400;
+  --text-label: 14px;
+  --text-label--line-height: 1.4;
+  --text-label--font-weight: 600;
+  --text-tv-question: 56px;
+  --text-tv-question--line-height: 1.15;
+  --text-tv-question--font-weight: 700;
+  --text-tv-question-long: 48px;
+  --text-tv-question-long--line-height: 1.15;
+  --text-tv-question-long--font-weight: 700;
+  --text-tv-label: 48px;
+  --text-tv-label--line-height: 1.15;
+  --text-tv-label--font-weight: 600;
+  --text-tv-count: 48px;
+  --text-tv-count--line-height: 1;
+  --text-tv-count--font-weight: 800;
+  --text-tv-score: 80px;
+  --text-tv-score--line-height: 1;
+  --text-tv-score--font-weight: 800;
+  --text-tv-score-final: 120px;
+  --text-tv-score-final--line-height: 1;
+  --text-tv-score-final--font-weight: 800;
+  --text-tv-team: 48px;
+  --text-tv-team--line-height: 1.15;
+  --text-tv-team--font-weight: 600;
+  --text-tv-control: 24px;
+  --text-tv-control--line-height: 1.2;
+  --text-tv-control--font-weight: 600;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Loading skeletons stay invisible for 300 ms, so fast loads never flash; no fade, so no motion. */
+  --animate-appear: appear 0s 300ms both;
+  @keyframes appear {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-paper text-body text-ink;
+  }
+
+  h1,
+  h2 {
+    font-family: var(--font-display);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    /* primary-soft is 1.1:1 on paper, so selected text was invisible; ink stays above 7:1 on this. */
+    background-color: color-mix(
+      in oklab,
+      var(--color-primary) 40%,
+      var(--color-surface)
+    );
+    color: var(--color-ink);
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+  }
+}

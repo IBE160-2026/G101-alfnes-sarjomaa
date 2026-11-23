@@ -1,0 +1,16 @@
+_bmad/
+.claude/
+wiki/
+.docs/
+prompting/
+scripts/
+drizzle/
+.idea/
+.next/
+.data/
+.logs/
+/*.md
+package-lock.json
+next-env.d.ts
+test-results/
+playwright-report/
