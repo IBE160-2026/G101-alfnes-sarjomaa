@@ -110,7 +110,13 @@ export async function tabThrough(page: Page) {
   return stops;
 }
 
+// Next 16 streams a dynamic page's metadata after its body, and a router.refresh() streams it
+// again, so <title> is missing for a few hundred ms. Axe must not run in that gap; a page that
+// never gets a title still fails here.
 export async function seriousViolations(page: Page) {
+  await expect
+    .poll(() => page.title(), { message: "the page never got a <title>" })
+    .not.toBe("");
   const { violations } = await new AxeBuilder({ page }).analyze();
   return violations
     .filter((v) => v.impact === "serious" || v.impact === "critical")
