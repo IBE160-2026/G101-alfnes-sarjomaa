@@ -39,7 +39,7 @@ hadde allerede slått sammen skrivemåter som «Ullsokker», «ullsokker» og «
 | Engangslenkene | ![Lista med invitasjonslenker](docs-assets/skjermbilder/invitasjonslenker.png) |
 | Svaret er lagret | <img src="docs-assets/skjermbilder/svar-lagret-mobil.png" alt="Bekreftelsen etter innsending på mobil" width="300"> |
 | Innsamlingen stenges (lokalt, uten nøkkel) | ![Bekreftelsesdialog før innsamlingen stenges](docs-assets/skjermbilder/steng-dialog.png) |
-| Dommeren er ferdig (5 spørsmål, 29 grupper, ingen til manuell gruppering) | ![Spillsiden etter live gruppering](docs-assets/skjermbilder/gruppering-ferdig.png) |
+| Dommeren er ferdig (5 spørsmål, 30 grupper, ingen til manuell gruppering) | ![Spillsiden etter live gruppering](docs-assets/skjermbilder/gruppering-ferdig.png) |
 | Gjennomgang av ett spørsmål | ![Gjennomgangen med sammenslåtte og omdøpte grupper](docs-assets/skjermbilder/gjennomgang.png) |
 | Forkastede grupper | ![Forkastet-seksjonen med Angre forkasting](docs-assets/skjermbilder/gjennomgang-forkastet.png) |
 | Brettet er låst | ![Spillsiden etter at brettet er låst](docs-assets/skjermbilder/brett-last.png) |
