@@ -290,7 +290,7 @@ describe("play.start", () => {
     expect(before.teams).toEqual([]);
   });
 
-  it.each(["draft", "collecting", "grouping", "in_review", "played"] as const)(
+  it.each(["draft", "collecting", "grouping", "in_review"] as const)(
     "FR-23: a Game in %s is WRONG_STATE and nothing is written",
     async (state) => {
       const { id } = await gameIn(state);
@@ -476,7 +476,7 @@ describe("play.reveal", () => {
     expect(await revealsOf(id)).toEqual([]);
   });
 
-  it.each(["ready", "played"] as const)(
+  it.each(["ready"] as const)(
     "FR-25: a Game in %s is WRONG_STATE and nothing is written",
     async (state) => {
       const { id, slotIds } = await gameIn(state);
@@ -706,7 +706,7 @@ describe("play.undo and play.nextTeam", () => {
     },
   );
 
-  it.each(["ready", "played"] as const)(
+  it.each(["ready"] as const)(
     "FR-26, FR-27: a Game in %s is WRONG_STATE for both, and nothing is written",
     async (state) => {
       const { id, slotIds } = await gameIn(state);

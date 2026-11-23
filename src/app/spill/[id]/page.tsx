@@ -36,6 +36,24 @@ const PRIMARY_LINK =
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
 
+// Each Team and its Score, on the playing and the played Game page.
+const scoreList = (teams: { id: string; name: string; score: number }[]) => (
+  <dl className="mt-4 max-w-md border-t border-line">
+    {teams.map((team) => (
+      <div
+        key={team.id}
+        className="flex items-baseline justify-between gap-4 border-b border-line py-3"
+      >
+        <dt className="min-w-0 break-words">{team.name}</dt>
+        <dd className="text-title tabular-nums">
+          {team.score}
+          <span className="sr-only"> poeng</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+);
+
 // cache(): generateMetadata and the page share one owner-checked read per request.
 const ownedGame = cache(async (gameId: string) => {
   const { hostId } = await auth.requireHost();
@@ -230,20 +248,7 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <p className="mt-4">
           Spørsmål {question.position} av {total}.
         </p>
-        <dl className="mt-4 max-w-md border-t border-line">
-          {teams.map((team) => (
-            <div
-              key={team.id}
-              className="flex items-baseline justify-between gap-4 border-b border-line py-3"
-            >
-              <dt className="min-w-0 break-words">{team.name}</dt>
-              <dd className="text-title tabular-nums">
-                {team.score}
-                <span className="sr-only"> poeng</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
+        {scoreList(teams)}
         <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
           Fortsett spillet
         </Link>
@@ -257,20 +262,7 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <h2 id="sluttstilling" className="text-heading">
           Sluttstilling
         </h2>
-        <dl className="mt-4 max-w-md border-t border-line">
-          {teams.map((team) => (
-            <div
-              key={team.id}
-              className="flex items-baseline justify-between gap-4 border-b border-line py-3"
-            >
-              <dt className="min-w-0 break-words">{team.name}</dt>
-              <dd className="text-title tabular-nums">
-                {team.score}
-                <span className="sr-only"> poeng</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
+        {scoreList(teams)}
         <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
           Vis sluttstilling
         </Link>
