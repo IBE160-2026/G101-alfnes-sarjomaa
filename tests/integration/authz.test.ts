@@ -13,6 +13,7 @@ import {
   mergeGroups,
   moveAnswers,
   moveQuestion,
+  nextQuestion,
   removeQuestion,
   renameGroup,
   restoreGroup,
@@ -27,6 +28,7 @@ import ReviewPage, {
   generateMetadata as reviewMetadata,
 } from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
+import ScreenPage from "@/app/spill/[id]/skjerm/page";
 import { createGame } from "@/app/spill/actions";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import GamesPage from "@/app/spill/page";
@@ -620,6 +622,56 @@ describe("Host B against Host A's Game", () => {
       expect(await passTurn({ gameId }), gameId).toEqual(notFound);
     }
     expect(await stateOfA()).toEqual(before);
+  });
+
+  it("FR-27, AD-5: B's play.nextQuestion and nextQuestion on A's playing Game, a random UUID or a malformed ID give NOT_FOUND and leave A's play_state and state; once A's Game is played, B's play.finalScores is NOT_FOUND and its screen page calls notFound()", async () => {
+    const db = await getDb();
+    const [{ id }] = await db
+      .insert(game)
+      .values({ hostId: hosts.A, title: "Siste spørsmål", state: "ready" })
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: id, position: 1, text: "?" });
+    await db
+      .insert(boardSlot)
+      .values({ questionId, position: 1, label: "Kari", count: 3 });
+    await play.start(hosts.A, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+    const stateOfA = async () => ({
+      game: (await gameRow(id)).state,
+      play: await db.select().from(playState).where(eq(playState.gameId, id)),
+    });
+    const before = await stateOfA();
+    as("B");
+    for (const gameId of [id, randomUUID(), "abc"]) {
+      const input = { gameId, position: 1 };
+      expect(
+        ((await rejection(play.nextQuestion(hosts.B, input))) as DomainError)
+          .code,
+        gameId,
+      ).toBe("NOT_FOUND");
+      expect(await nextQuestion(input), gameId).toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    }
+    expect(await stateOfA()).toEqual(before);
+    expect(before.game).toBe("playing");
+    await play.nextQuestion(hosts.A, { gameId: id, position: 1 });
+    expect((await gameRow(id)).state).toBe("played");
+    expect(
+      ((await rejection(play.finalScores(hosts.B, id))) as DomainError).code,
+    ).toBe("NOT_FOUND");
+    expect(
+      await rejection(
+        ScreenPage({
+          params: Promise.resolve({ id }),
+          searchParams: Promise.resolve({}),
+        }),
+      ),
+    ).toBeInstanceOf(NotFoundError);
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {

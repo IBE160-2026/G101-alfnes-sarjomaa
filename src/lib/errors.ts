@@ -38,7 +38,7 @@ export const MESSAGES: Record<ErrorCode, string> = {
   NO_GROUPS_ON_BOARD:
     "Minst én gruppe må være på brettet før du kan markere spørsmålet.",
   QUESTIONS_UNREVIEWED: "Gjennomgå alle spørsmålene først.",
-  WRONG_QUESTION: "Den plassen hører til et annet spørsmål.",
+  WRONG_QUESTION: "Spillet er på et annet spørsmål nå.",
   ALREADY_REVEALED: "Den plassen er allerede avslørt.",
   NOTHING_TO_UNDO: "Det er ingenting å angre.",
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",

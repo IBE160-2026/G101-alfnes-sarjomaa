@@ -16,6 +16,7 @@ import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import { REPORT_STATES } from "@/lib/game-state";
+import { formatDate } from "@/lib/format";
 import { FEWER_THAN_3 } from "@/lib/limits";
 import * as auth from "@/server/auth";
 import * as collection from "@/server/collection";
@@ -246,6 +247,36 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
           Fortsett spillet
         </Link>
+      </section>,
+    ];
+  } else if (game.state === "played") {
+    const { hostId } = await auth.requireHost();
+    const { teams, deleteAfter } = await play.finalScores(hostId, game.id);
+    panel = [
+      <section key="played" aria-labelledby="sluttstilling" className="mt-10">
+        <h2 id="sluttstilling" className="text-heading">
+          Sluttstilling
+        </h2>
+        <dl className="mt-4 max-w-md border-t border-line">
+          {teams.map((team) => (
+            <div
+              key={team.id}
+              className="flex items-baseline justify-between gap-4 border-b border-line py-3"
+            >
+              <dt className="min-w-0 break-words">{team.name}</dt>
+              <dd className="text-title tabular-nums">
+                {team.score}
+                <span className="sr-only"> poeng</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+          Vis sluttstilling
+        </Link>
+        <Notice tone="info" className="mt-6 max-w-prose">
+          Spillet og alle svarene slettes automatisk {formatDate(deleteAfter)}.
+        </Notice>
       </section>,
     ];
   }

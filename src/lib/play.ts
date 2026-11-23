@@ -28,3 +28,10 @@ export const revealSchema = z.object({
 
 // Undo and next Team act on the Game's saved play state; the Game is all they take.
 export const playGameSchema = z.object({ gameId: z.string() });
+
+// The Question the Host's screen shows: a stale tab or a double press must never skip
+// a Question or end the Game (WRONG_QUESTION).
+export const nextQuestionSchema = z.object({
+  gameId: z.string(),
+  position: z.number().int(),
+});

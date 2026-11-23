@@ -2,8 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { passTurn, revealSlot, undoReveal } from "@/app/spill/[id]/actions";
+import {
+  nextQuestion,
+  passTurn,
+  revealSlot,
+  undoReveal,
+} from "@/app/spill/[id]/actions";
 import { FullscreenKey } from "@/components/FullscreenKey";
+import { focusHeading } from "@/components/RouteFocus";
 import { callAction } from "@/components/useFormAction";
 import type { ActionResult, ErrorCode } from "@/lib/errors";
 import type { PlayView } from "@/server/play";
@@ -29,6 +35,7 @@ const SHORTCUTS = [
   ["Z", "Angre siste avsløring"],
   ["T", "Neste lag"],
   ["U", "Vis resten uten poeng"],
+  ["N, →", "Neste spørsmål"],
   ["F", "Fullskjerm av og på"],
   ["?", "Vis hurtigtastene"],
   ["Esc", "Lukk"],
@@ -41,10 +48,12 @@ const CONTROL = "min-h-11 rounded-sm px-2 hover:text-stage-ink";
 export function Board({
   gameId,
   questionPosition,
+  total,
   board,
 }: {
   gameId: string;
   questionPosition: number;
+  total: number;
   board: PlayView["board"];
 }) {
   const router = useRouter();
@@ -64,6 +73,8 @@ export function Board({
   const missTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   // The slot to focus once it renders in this state (a revealed row, or a tile again).
   const focusAfter = useRef<{ id: string; revealed: boolean }>(undefined);
+  // The Question whose <h1> takes focus once it renders (a focused tile unmounted).
+  const focusQuestion = useRef<number>(undefined);
 
   const canUndo = board.some((s) => s.revealed);
   const allRevealed = board.every((s) => s.revealed);
@@ -146,6 +157,19 @@ export function Board({
     );
   }
 
+  // On the last Question this finishes the Game, and the page swaps to "Sluttstilling".
+  function next() {
+    const inList = listRef.current?.contains(document.activeElement);
+    run(
+      () => nextQuestion({ gameId, position: questionPosition }),
+      (result) => {
+        if (result.finished) return;
+        setSaid(`Spørsmål ${result.position} av ${total}.`);
+        if (inList) focusQuestion.current = result.position;
+      },
+    );
+  }
+
   function bom() {
     setMiss((n) => n + 1);
     // A trailing no-break space on every other miss, so a repeat is announced again.
@@ -177,6 +201,7 @@ export function Board({
         if (canUndo) undo();
       } else if (key === "t") nextTeam();
       else if (key === "u") toggleUnscored();
+      else if (key === "n" || key === "arrowright") next();
       else {
         const slot = board.find((s) => String(s.position) === event.key);
         if (slot && !slot.revealed) reveal(slot.id);
@@ -187,6 +212,10 @@ export function Board({
   });
 
   useEffect(() => {
+    if (focusQuestion.current === questionPosition) {
+      focusQuestion.current = undefined;
+      focusHeading();
+    }
     const want = focusAfter.current;
     if (
       !want ||
@@ -195,7 +224,7 @@ export function Board({
       return;
     focusAfter.current = undefined;
     slotElement(want.id)?.focus();
-  }, [board]);
+  }, [board, questionPosition]);
 
   const height = rowHeight(board.length);
   return (
@@ -314,6 +343,15 @@ export function Board({
               {unscored
                 ? "Avslører uten poeng [U]"
                 : "Vis resten uten poeng [U]"}
+            </button>
+            <button
+              type="button"
+              className={`${CONTROL} ${allRevealed ? "font-bold text-stage-ink" : ""}`}
+              onClick={next}
+            >
+              {questionPosition === total
+                ? "Vis sluttstilling [N]"
+                : "Neste spørsmål [N]"}
             </button>
             <button
               type="button"

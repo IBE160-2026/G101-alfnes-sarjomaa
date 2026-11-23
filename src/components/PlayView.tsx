@@ -1,6 +1,10 @@
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Board } from "@/components/Board";
-import type { PlayView as Data } from "@/server/play";
+import { FullscreenKey } from "@/components/FullscreenKey";
+import { FocusOnMount } from "@/components/RouteFocus";
+import { formatDate } from "@/lib/format";
+import type { PlayView as Data, FinalScores as Final } from "@/server/play";
 
 // 56 px up to this many characters, 48 px above (EXPERIENCE.md, play view rules).
 const SHORT_QUESTION = 80;
@@ -64,8 +68,72 @@ export function PlayView({
         <Board
           gameId={gameId}
           questionPosition={question.position}
+          total={total}
           board={board}
         />
+      </div>
+    </div>
+  );
+}
+
+// FR-27, UX-DR21: "Sluttstilling" on the same canvas. The top Score takes the active
+// card look with "Vinner", or "Uavgjort" on every Team that shares it.
+export function FinalScores({
+  gameId,
+  teams,
+  deleteAfter,
+}: Final & { gameId: string }) {
+  const top = teams[0].score;
+  const tied = teams.filter((t) => t.score === top).length > 1;
+  return (
+    <div data-stage="" className={STAGE}>
+      <div className="stage-canvas flex flex-col items-center justify-center">
+        <div className="w-280">
+          <h1 id="sluttstilling" className="text-tv-question">
+            Sluttstilling
+          </h1>
+          <FocusOnMount id="sluttstilling" />
+          <ol aria-label="Sluttstilling" className="mt-12 flex flex-col gap-4">
+            {teams.map((team) => {
+              const best = team.score === top;
+              return (
+                <li
+                  key={team.id}
+                  className={`flex items-center justify-between gap-8 rounded-md px-8 py-6 ${
+                    best
+                      ? "bg-stage-accent text-stage-on-accent"
+                      : "bg-stage-raised"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    {best && (
+                      <p className="text-tv-team">
+                        {tied ? "Uavgjort" : "Vinner"}
+                      </p>
+                    )}
+                    <p className="text-tv-team break-words">{team.name}</p>
+                  </div>
+                  <p className="text-tv-score-final tabular-nums">
+                    {team.score}
+                    <span className="sr-only"> poeng</span>
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="mt-12 flex items-center justify-between gap-8 font-sans text-tv-control">
+            <p className="text-stage-muted">
+              {`Spillet slettes automatisk ${formatDate(deleteAfter)}.`}
+            </p>
+            <FullscreenKey className="text-stage-muted" />
+            <Link
+              href={`/spill/${gameId}`}
+              className="inline-flex min-h-11 items-center rounded-sm text-stage-ink underline underline-offset-4"
+            >
+              Tilbake til spillet
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

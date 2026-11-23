@@ -27,3 +27,4 @@ Measured by hand on the sizing Game (30 Answer sets, 15 Questions, up to 5 Answe
 | T5  | "Lås brettet" in the dialog: from the click to the Game page showing "Brettet er låst", within one second                   | NFR-5, FR-21               |
 | T6  | Avslør a tile: from the click (or rank key) to the revealed label and Score, within one second                              | NFR-5, FR-25               |
 | T7  | Bom, Angre, Neste lag and the uten-poeng toggle each show their result within one second                                    | NFR-5, FR-25, FR-26, FR-27 |
+| T8  | "Neste spørsmål" to the next Question, and "Vis sluttstilling" to "Sluttstilling", each within one second                   | NFR-5, FR-27               |

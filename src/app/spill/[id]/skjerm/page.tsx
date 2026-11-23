@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { cache, Suspense } from "react";
-import { PlayView, StageLoading } from "@/components/PlayView";
+import { FinalScores, PlayView, StageLoading } from "@/components/PlayView";
 import { TeamSetup } from "@/components/TeamSetup";
 import { DomainError } from "@/lib/errors";
 import * as auth from "@/server/auth";
@@ -30,7 +30,8 @@ export async function generateMetadata({
   }
 }
 
-// FR-23: Team setup in ready, the play view in playing, the Game page otherwise.
+// FR-23, FR-27: Team setup in ready, the play view in playing, the final Scores in
+// played, the Game page otherwise.
 export default async function ScreenPage({
   params,
 }: PageProps<"/spill/[id]/skjerm">) {
@@ -44,7 +45,13 @@ export default async function ScreenPage({
     throw error;
   }
   if (game.state === "ready") return <TeamSetup gameId={game.id} />;
-  // shortcut: a played Game redirects too until Story 6.4 shows its final Scores here.
+  if (game.state === "played")
+    return (
+      <FinalScores
+        gameId={game.id}
+        {...await play.finalScores(game.hostId, game.id)}
+      />
+    );
   if (game.state !== "playing") redirect(`/spill/${game.id}`);
   return (
     <Suspense fallback={<StageLoading />}>

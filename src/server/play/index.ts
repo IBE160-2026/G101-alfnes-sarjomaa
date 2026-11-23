@@ -1,10 +1,16 @@
 import "server-only";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, sql } from "drizzle-orm";
 import { DomainError, validate } from "@/lib/errors";
 import { PERMITTED } from "@/lib/game-state";
-import { playGameSchema, revealSchema, startPlaySchema } from "@/lib/play";
+import { RETENTION_PLAYED_MS } from "@/lib/limits";
+import {
+  nextQuestionSchema,
+  playGameSchema,
+  revealSchema,
+  startPlaySchema,
+} from "@/lib/play";
 import { withBoundary } from "@/server/boundary";
-import { getDb } from "@/server/db/client";
+import { getDb, type Db, type Tx } from "@/server/db/client";
 import {
   playState,
   question,
@@ -39,6 +45,32 @@ export type RevealResult = {
 };
 
 export type UndoResult = RevealResult & { boardSlotId: string };
+
+export type NextQuestionResult =
+  { finished: false; position: number } | { finished: true; deleteAfter: Date };
+
+export type FinalScores = {
+  teams: { id: string; name: string; score: number }[];
+  deleteAfter: Date;
+};
+
+// AD-11: Score is the sum of the Counts of a Team's scored Reveals, never stored.
+// Teams in position order.
+function teamsWithScores(db: Db, gameId: string) {
+  const board = review.getBoard(db, gameId).as("board");
+  return db
+    .select({
+      id: team.id,
+      name: team.name,
+      score: sql<number>`coalesce(sum(${board.count}), 0)`.mapWith(Number),
+    })
+    .from(team)
+    .leftJoin(revealRow, eq(revealRow.teamId, team.id))
+    .leftJoin(board, eq(board.id, revealRow.boardSlotId))
+    .where(eq(team.gameId, gameId))
+    .groupBy(team.id)
+    .orderBy(asc(team.position));
+}
 
 // FR-23, AD-16: names the Teams and starts play at Question 1 with Team 1, in one
 // transaction under the Game lock, so the owner and state checks hold to the end.
@@ -90,20 +122,7 @@ export function load(hostId: string, gameId: string): Promise<PlayView> {
       .innerJoin(question, eq(question.id, playState.currentQuestionId))
       .where(eq(playState.gameId, gameId));
     const total = await db.$count(question, eq(question.gameId, gameId));
-    // AD-11: Score is the sum of the Counts of a Team's scored Reveals, never stored.
-    const board = review.getBoard(db, gameId).as("board");
-    const teams = await db
-      .select({
-        id: team.id,
-        name: team.name,
-        score: sql<number>`coalesce(sum(${board.count}), 0)`.mapWith(Number),
-      })
-      .from(team)
-      .leftJoin(revealRow, eq(revealRow.teamId, team.id))
-      .leftJoin(board, eq(board.id, revealRow.boardSlotId))
-      .where(eq(team.gameId, gameId))
-      .groupBy(team.id)
-      .orderBy(asc(team.position));
+    const teams = await teamsWithScores(db, gameId);
     const slots = (await review.getBoard(db, gameId)).filter(
       (s) => s.questionId === current.questionId,
     );
@@ -258,5 +277,74 @@ export function nextTeam(
         .where(eq(playState.gameId, gameId));
       return { team: next.name };
     });
+  });
+}
+
+// AD-16: ends the round; the purge deletes the Game RETENTION_PLAYED_MS after played_at.
+async function finish(tx: Tx, gameId: string) {
+  const { playedAt } = await games.transition(tx, gameId, "playing", "played");
+  return {
+    finished: true as const,
+    deleteAfter: new Date(playedAt!.getTime() + RETENTION_PLAYED_MS),
+  };
+}
+
+// FR-27, AD-16: moves to the Question with the smallest greater position, or past the
+// last one finishes the Game. `position` must be the current one, so a stale tab or a
+// double press is WRONG_QUESTION instead of a skipped Question or an ended Game.
+export function nextQuestion(
+  hostId: string,
+  input: unknown,
+): Promise<NextQuestionResult> {
+  return withBoundary("play", "nextQuestion", async () => {
+    const { gameId, position } = validate(nextQuestionSchema, input);
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      // PERMITTED.finishPlay equals playMove, so this one lock covers finish too.
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.playMove,
+      });
+      const [current] = await tx
+        .select({ position: question.position })
+        .from(playState)
+        .innerJoin(question, eq(question.id, playState.currentQuestionId))
+        .where(eq(playState.gameId, gameId));
+      if (current.position !== position)
+        throw new DomainError("WRONG_QUESTION");
+      const [next] = await tx
+        .select({ id: question.id, position: question.position })
+        .from(question)
+        .where(
+          and(eq(question.gameId, gameId), gt(question.position, position)),
+        )
+        .orderBy(asc(question.position))
+        .limit(1);
+      if (!next) return finish(tx, gameId);
+      await tx
+        .update(playState)
+        .set({ currentQuestionId: next.id })
+        .where(eq(playState.gameId, gameId));
+      return { finished: false as const, position: next.position };
+    });
+  });
+}
+
+// FR-27: the final Scores of a played Game, highest first, ties in Team order.
+export function finalScores(
+  hostId: string,
+  gameId: string,
+): Promise<FinalScores> {
+  return withBoundary("play", "finalScores", async () => {
+    const { state, playedAt } = await games.getOwned(hostId, gameId);
+    if (state !== "played") throw new DomainError("WRONG_STATE");
+    // played_at is set by the same transition that sets played (games.transition).
+    const teams = await teamsWithScores(await getDb(), gameId);
+    return {
+      // Array.sort is stable, so equal Scores keep the position order.
+      teams: teams.sort((a, b) => b.score - a.score),
+      deleteAfter: new Date(playedAt!.getTime() + RETENTION_PLAYED_MS),
+    };
   });
 }

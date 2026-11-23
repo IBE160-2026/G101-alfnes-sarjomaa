@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { prerenderToNodeStream } from "react-dom/static";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  nextQuestion,
   passTurn,
   revealSlot,
   startPlay,
@@ -15,7 +16,9 @@ import ScreenPage, {
   generateMetadata as screenMetadata,
 } from "@/app/spill/[id]/skjerm/page";
 import { DomainError } from "@/lib/errors";
+import { formatDate } from "@/lib/format";
 import type { GameState } from "@/lib/game-state";
+import { RETENTION_PLAYED_MS } from "@/lib/limits";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import {
@@ -433,7 +436,7 @@ describe("play.reveal", () => {
     expect(await revealSlot(other)).toEqual({
       ok: false,
       code: "WRONG_QUESTION",
-      message: "Den plassen hører til et annet spørsmål.",
+      message: "Spillet er på et annet spørsmål nå.",
     });
     expect(await revealsOf(id)).toEqual(before);
     expect(await scoresOf(id)).toEqual([5, 0]);
@@ -487,7 +490,8 @@ describe("play.reveal", () => {
   );
 });
 
-// Moves play_state to another Question by hand (Story 6.4 adds the real move).
+// Moves play_state to any Question by hand: the property test wraps back to Question 1,
+// which play.nextQuestion never does.
 const moveTo = async (gameId: string, questionId: string) =>
   (await getDb())
     .update(playState)
@@ -759,7 +763,7 @@ describe("/spill/[id]/skjerm", () => {
     expect(html).toContain("data-stage");
     expect(html).toContain(`text-tv-question">${QUESTIONS[0]}</h1>`);
     expect(text(html)).toContain(
-      "Spørsmål 1 av 3 Svarer nå Hyttegjengen 0 poeng Lag 2 0 poeng 1 2 3 Bom [M] Neste lag [T] Vis resten uten poeng [U] ? Trykk F for fullskjerm.",
+      "Spørsmål 1 av 3 Svarer nå Hyttegjengen 0 poeng Lag 2 0 poeng 1 2 3 Bom [M] Neste lag [T] Vis resten uten poeng [U] Neste spørsmål [N] ? Trykk F for fullskjerm.",
     );
   });
 
@@ -854,7 +858,7 @@ describe("/spill/[id]/skjerm", () => {
     }
   });
 
-  it.each(["draft", "collecting", "grouping", "in_review", "played"] as const)(
+  it.each(["draft", "collecting", "grouping", "in_review"] as const)(
     "FR-23: a Game in %s redirects to the Game page",
     async (state) => {
       const { id } = await gameIn(state);
@@ -880,5 +884,281 @@ describe("Game page", () => {
     expect(text(html)).toContain(
       "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Fortsett spillet",
     );
+  });
+});
+
+const playedAtOf = async (gameId: string) =>
+  (
+    await (
+      await getDb()
+    )
+      .select({ playedAt: game.playedAt })
+      .from(game)
+      .where(eq(game.id, gameId))
+  )[0].playedAt;
+
+const deleteDate = async (gameId: string) =>
+  formatDate(
+    new Date((await playedAtOf(gameId))!.getTime() + RETENTION_PLAYED_MS),
+  );
+
+// Plays a Game from playing() through all three Questions to played.
+async function finishGame(id: string) {
+  for (const position of [1, 2, 3])
+    await play.nextQuestion(hostId, { gameId: id, position });
+}
+
+// Three Teams with Scores 3, 7, 7 by position: Lag 1 Ola (3), Lag 2 Kari and Per
+// (5 + 2), Lag 3 Bergen and Molde (1 + 6). Played to the end unless `finish` is false.
+async function tiedGame(finish = true) {
+  const { id, slotIds } = await gameIn();
+  await play.start(hostId, {
+    gameId: id,
+    teams: ["Lag 1", "Lag 2", "Lag 3"],
+  });
+  const reveal = (q: number, i: number) =>
+    play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[q][i],
+      scored: true,
+    });
+  await reveal(0, 1);
+  await play.nextTeam(hostId, { gameId: id });
+  await reveal(0, 0);
+  await reveal(0, 2);
+  await play.nextQuestion(hostId, { gameId: id, position: 1 });
+  await play.nextTeam(hostId, { gameId: id });
+  await reveal(1, 1);
+  await play.nextQuestion(hostId, { gameId: id, position: 2 });
+  await reveal(2, 0);
+  if (finish) await play.nextQuestion(hostId, { gameId: id, position: 3 });
+  return id;
+}
+
+describe("play.nextQuestion", () => {
+  it("FR-27, AD-16 (AC1): the nextQuestion action moves Question 1 → 2 → 3 with the current Team unchanged and every new slot hidden, keeps earlier Reveals and Scores, and revalidates both pages", async () => {
+    const { id, questionIds, slotIds, teamIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][0],
+      scored: true,
+    });
+    await play.nextTeam(hostId, { gameId: id });
+    const reveals = await revealsOf(id);
+    for (const q of [1, 2]) {
+      nextCache.revalidatePath.mockClear();
+      expect(await nextQuestion({ gameId: id, position: q })).toEqual({
+        ok: true,
+        data: { finished: false, position: q + 1 },
+      });
+      expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
+      expect(nextCache.revalidatePath).toHaveBeenCalledWith(
+        `/spill/${id}/skjerm`,
+      );
+      expect((await rowsOf(id)).playState).toEqual([
+        {
+          gameId: id,
+          currentQuestionId: questionIds[q],
+          currentTeamId: teamIds[1],
+        },
+      ]);
+      const view = await play.load(hostId, id);
+      expect(view.question).toEqual({ position: q + 1, text: QUESTIONS[q] });
+      expect(view.board).toEqual(
+        slotIds[q].map((slotId, i) => ({
+          id: slotId,
+          position: i + 1,
+          revealed: false,
+        })),
+      );
+      expect(view.teams.map((t) => [t.score, t.current])).toEqual([
+        [5, false],
+        [0, true],
+      ]);
+      expect(await revealsOf(id)).toEqual(reveals);
+    }
+  });
+
+  it("FR-27, AD-16, AD-23 (AC1): past the last Question the Game is played, played_at is set within the call and deleteAfter is exactly played_at + 30 days; Reveals and Scores are kept", async () => {
+    const { id, slotIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][0],
+      scored: true,
+    });
+    for (const position of [1, 2])
+      await play.nextQuestion(hostId, { gameId: id, position });
+    nextCache.revalidatePath.mockClear();
+    const before = Date.now();
+    const result = await nextQuestion({ gameId: id, position: 3 });
+    const after = Date.now();
+    const playedAt = (await playedAtOf(id))!;
+    expect(playedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(playedAt.getTime()).toBeLessThanOrEqual(after);
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        finished: true,
+        deleteAfter: new Date(playedAt.getTime() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+    expect((await rowsOf(id)).state).toBe("played");
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(
+      `/spill/${id}/skjerm`,
+    );
+    expect(await rawSums(id)).toEqual([5, 0]);
+    expect(await revealsOf(id)).toHaveLength(1);
+  });
+
+  it("FR-27, AD-4 (AC1): on the played Game every play operation and action and play.load is WRONG_STATE, and nothing changes", async () => {
+    const { id, slotIds } = await playing();
+    await finishGame(id);
+    const snapshot = async () => [
+      await rowsOf(id),
+      await revealsOf(id),
+      await playedAtOf(id),
+    ];
+    const before = await snapshot();
+    const slot = { gameId: id, boardSlotId: slotIds[2][0], scored: true };
+    const next = { gameId: id, position: 3 };
+    const start = { gameId: id, teams: ["Lag 1", "Lag 2"] };
+    for (const call of [
+      play.reveal(hostId, slot),
+      play.undo(hostId, { gameId: id }),
+      play.nextTeam(hostId, { gameId: id }),
+      play.nextQuestion(hostId, next),
+      play.start(hostId, start),
+      play.load(hostId, id),
+    ])
+      expect(await codeOf(call)).toBe("WRONG_STATE");
+    for (const result of [
+      await revealSlot(slot),
+      await undoReveal({ gameId: id }),
+      await passTurn({ gameId: id }),
+      await nextQuestion(next),
+      await startPlay(start),
+    ])
+      expect(result).toMatchObject({ ok: false, code: "WRONG_STATE" });
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it.each([1, 3])(
+    "FR-27, AD-16: on Question 2 a stale position %i is WRONG_QUESTION, and nothing is written",
+    async (position) => {
+      const { id } = await playing();
+      await play.nextQuestion(hostId, { gameId: id, position: 1 });
+      const before = await rowsOf(id);
+      const input = { gameId: id, position };
+      expect(await codeOf(play.nextQuestion(hostId, input))).toBe(
+        "WRONG_QUESTION",
+      );
+      expect(await nextQuestion(input)).toEqual({
+        ok: false,
+        code: "WRONG_QUESTION",
+        message: "Spillet er på et annet spørsmål nå.",
+      });
+      expect(await rowsOf(id)).toEqual(before);
+      expect(await playedAtOf(id)).toBeNull();
+    },
+  );
+
+  it("FR-27: a missing gameId or position, a string or a fractional position is INVALID_INPUT, and nothing is written", async () => {
+    const { id } = await playing();
+    const before = await rowsOf(id);
+    for (const input of [
+      { position: 1 },
+      { gameId: id },
+      { gameId: id, position: "1" },
+      { gameId: id, position: 1.5 },
+    ]) {
+      expect(await codeOf(play.nextQuestion(hostId, input))).toBe(
+        "INVALID_INPUT",
+      );
+      expect(await nextQuestion(input)).toMatchObject({
+        ok: false,
+        code: "INVALID_INPUT",
+      });
+    }
+    expect(await rowsOf(id)).toEqual(before);
+  });
+
+  it("FR-27: a ready Game is WRONG_STATE, and nothing is written", async () => {
+    const { id } = await gameIn();
+    const input = { gameId: id, position: 1 };
+    expect(await codeOf(play.nextQuestion(hostId, input))).toBe("WRONG_STATE");
+    expect(await nextQuestion(input)).toMatchObject({ code: "WRONG_STATE" });
+    expect(await rowsOf(id)).toEqual({
+      state: "ready",
+      teams: [],
+      playState: [],
+    });
+  });
+});
+
+describe("play.finalScores", () => {
+  it("FR-27, AD-11: Scores 3, 7, 7 by position come back as Lag 2, Lag 3, Lag 1 (ties in position order) with deleteAfter = played_at + 30 days", async () => {
+    const id = await tiedGame();
+    const { teams, deleteAfter } = await play.finalScores(hostId, id);
+    expect(teams.map((t) => [t.name, t.score])).toEqual([
+      ["Lag 2", 7],
+      ["Lag 3", 7],
+      ["Lag 1", 3],
+    ]);
+    expect(deleteAfter).toEqual(
+      new Date((await playedAtOf(id))!.getTime() + RETENTION_PLAYED_MS),
+    );
+  });
+
+  it("FR-27, AD-4: a playing Game is WRONG_STATE", async () => {
+    const id = await tiedGame(false);
+    expect(await codeOf(play.finalScores(hostId, id))).toBe("WRONG_STATE");
+  });
+});
+
+describe("Sluttstilling (AC3)", () => {
+  it("FR-27, UX-DR21: the screen of a finished Game shows Sluttstilling, the Teams by Score with Vinner on the top Team, the deletion date and Tilbake til spillet to the Game page", async () => {
+    const { id, slotIds } = await playing();
+    await play.nextTeam(hostId, { gameId: id });
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][0],
+      scored: true,
+    });
+    await finishGame(id);
+    const html = await screen(id);
+    expect(html).toContain("data-stage");
+    expect(html).toMatch(/<h1 id="sluttstilling"[^>]*>Sluttstilling<\/h1>/);
+    expect(html).toContain('<ol aria-label="Sluttstilling"');
+    expect(html).toMatch(
+      new RegExp(`<a [^>]*href="/spill/${id}"[^>]*>Tilbake til spillet</a>`),
+    );
+    expect(text(html)).toContain(
+      `Sluttstilling Vinner Lag 2 5 poeng Lag 1 0 poeng Spillet slettes automatisk ${await deleteDate(id)}. Trykk F for fullskjerm. Tilbake til spillet`,
+    );
+    expect(text(html)).not.toContain("Uavgjort");
+  });
+
+  it("FR-27: a tied top Score shows Uavgjort on each tied Team and no Vinner", async () => {
+    const id = await tiedGame();
+    const shown = text(await screen(id));
+    expect(shown).toContain(
+      "Sluttstilling Uavgjort Lag 2 7 poeng Uavgjort Lag 3 7 poeng Lag 1 3 poeng",
+    );
+    expect(shown).not.toContain("Vinner");
+  });
+
+  it("FR-3, FR-27: the Game page of a played Game shows Sluttstilling with each Team and Score, Vis sluttstilling to the screen and the deletion notice 30 days after played_at", async () => {
+    const id = await tiedGame();
+    const html = await gamePage(id);
+    expect(html).toMatch(
+      new RegExp(
+        `<a class="[^"]*bg-primary[^"]*" href="/spill/${id}/skjerm">Vis sluttstilling</a>`,
+      ),
+    );
+    expect(text(html)).toContain(
+      `Sluttstilling Lag 2 7 poeng Lag 3 7 poeng Lag 1 3 poeng Vis sluttstilling Spillet og alle svarene slettes automatisk ${await deleteDate(id)}.`,
+    );
+    expect(html).toMatch(/role="status"[^>]*>Spillet og alle svarene/);
   });
 });

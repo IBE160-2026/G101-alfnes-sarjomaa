@@ -662,6 +662,14 @@ describe("Game page", () => {
       );
       if (playing)
         await play.start(hostId, { gameId, teams: ["Lag 1", "Lag 2"] });
+      // A played Game's page shows the deletion date from played_at, so set it as finish would.
+      if (state === "played")
+        await (
+          await getDb()
+        )
+          .update(game)
+          .set({ playedAt: new Date() })
+          .where(eq(game.id, gameId));
       const html = renderToStaticMarkup(
         await GamePage({
           params: Promise.resolve({ id: gameId }),

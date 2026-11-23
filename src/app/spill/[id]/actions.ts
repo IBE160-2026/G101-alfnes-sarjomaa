@@ -164,3 +164,9 @@ export async function passTurn(
 ): Promise<ActionResult<{ team: string }>> {
   return hostAction(play.nextTeam, input, "skjerm");
 }
+
+export async function nextQuestion(
+  input: unknown,
+): Promise<ActionResult<play.NextQuestionResult>> {
+  return hostAction(play.nextQuestion, input, "skjerm");
+}
