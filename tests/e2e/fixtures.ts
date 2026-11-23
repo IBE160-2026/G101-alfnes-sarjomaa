@@ -134,7 +134,21 @@ export const SETS = [
   ["Dina", "Erik", "Frida", "Kari"],
 ];
 
-// Set i answers Question q with sets[q][i].
+// Fills the open answer form: set i answers Question q with sets[q][i].
+export async function fillSet(page: Page, i: number, sets = [SETS]) {
+  for (const [q, questionSets] of sets.entries()) {
+    const fieldset = page.locator("fieldset").nth(q);
+    const [first, ...rest] = questionSets[i];
+    await fieldset.getByLabel("Svar 1", { exact: true }).fill(first);
+    for (const [j, text] of rest.entries()) {
+      if (j > 0)
+        await fieldset.getByRole("button", { name: "Legg til svar" }).click();
+      await fieldset.getByLabel(`Svar ${j + 2} (valgfritt)`).fill(text);
+    }
+  }
+}
+
+// Submits every link from one context: a reload per link, fillSet, submit, then the confirmation.
 export async function submitSets(
   browser: Browser,
   baseURL: string | undefined,
@@ -148,16 +162,7 @@ export async function submitSets(
     // Links share a path, so a bare hash change would not reload the form.
     await page.goto("/");
     await page.goto(link);
-    for (const [q, questionSets] of sets.entries()) {
-      const fieldset = page.locator("fieldset").nth(q);
-      const [first, ...rest] = questionSets[i];
-      await fieldset.getByLabel("Svar 1", { exact: true }).fill(first);
-      for (const [j, text] of rest.entries()) {
-        if (j > 0)
-          await fieldset.getByRole("button", { name: "Legg til svar" }).click();
-        await fieldset.getByLabel(`Svar ${j + 2} (valgfritt)`).fill(text);
-      }
-    }
+    await fillSet(page, i, sets);
     await page.getByRole("button", { name: "Send inn svar" }).click();
     await expect(
       page.getByRole("heading", { name: "Svarene dine er lagret." }),

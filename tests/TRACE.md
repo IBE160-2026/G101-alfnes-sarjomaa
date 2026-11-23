@@ -167,7 +167,7 @@ No identity in the answering flow.
 - `tests/integration/collection.test.ts`: a driver error forced in `openInviteLink` and in `submit` (the `linkExists` select), carrying the Token, its hash, the edit secret, its hash and an Answer in `message`, `detail`, `query`, `parameters` and `cause.message` with `code: "23514"`, gives exactly `INTERNAL` and one line `{ module: "collection", op, code: "INTERNAL", sqlstate: "23514" }` across stdout, stderr and every `console` method, with no secret in the result or any output; checked to fail with a `console.error(error)` or a `stdout` write of `detail` in `withBoundary` (Story 3.3, AC4).
 - `tests/integration/host-view.test.ts`: no output of any Host read or action during Collection (pages, metadata, module reads, the link shell, `openInviteLink` without a secret, refused edits and close, revoke, new links, delete) holds a Token other than the fresh links it returns, a hash of a Token or edit secret, an edit secret or an Answer; checked to fail with the pasted link echoed in the revoke result (Story 3.3, AC1).
 - `tests/e2e/server-output.spec.ts` with `tests/e2e/server-output.teardown.ts`: both `next start` and a second `next dev` server write their output to files; the teardown fails the run if a file is missing or empty, or holds (word-bounded) any Token, edit secret or Answer the browsers sent or received, or its sha256; in `next dev` a submit plus the Token logged in the guest's `console` leave no Token, edit secret or Answer in `dev.log`, after the submit's `POST /svar/` line proves the capture live; checked to fail with `serverFunctions: true`, `browserToTerminal: true`, a Token or its sha256 written to stdout by the submit action, and `start.log` sent to `/dev/null`; `host-anonymity.spec.ts` asserts `secrets.jsonl` holds its Tokens, edit secrets and Answers, so the scan is never empty; the recorder reads the context's `request` event, so a request a page route forwards with `route.fetch()` is recorded too (Story 3.3, AC3; Epic 3 review, finding 4).
-- Pending: Story 6.5.
+- `tests/e2e/no-key.spec.ts`: after a full no-key round (three Answer sets from three browser contexts through Review and play to "Sluttstilling"), `secrets.jsonl` holds the round's three Tokens and every Answer it sent, so the global teardown's word-bounded scan of `start.log` and `dev.log` covers a whole round and fails the run on any hit (Story 6.5, AC3).
 
 ## FR-12
 
@@ -367,8 +367,7 @@ Turns and moving on.
 
 Full Stage 1 without a key.
 
-- None yet.
-- Pending: Story 6.5.
+- `tests/e2e/no-key.spec.ts`: on `next build && next start` with `OPENROUTER_API_KEY` empty and replay, one Host registers and creates a Game with two Questions and three links; three Answer sets are sent from three browser contexts; close gives the fallback Grouping and Review shows the `NO_KEY` Notice; Frida and Per (below the Board line) merge into one Group of 2 people; both Questions are marked and the Board locked; Teams "Hyttegjengen" and "Byfolket" start play; scored Reveals, "Neste lag", one undo, an unscored Reveal, the next Question and "Vis sluttstilling" end on "Sluttstilling", where each Team's Score equals the sum of the Counts read from its scored tiles, highest first with "Vinner"; each scored tile shows its expected label and Count (Kari 3, the merged Frida 2, Anne 1, Rød 2); passed five times in a row with `--repeat-each=5` (2026-11-23); checked to fail when the undone Count is kept in the expected sum (Story 6.5, AC1).
 
 ## FR-31
 
@@ -409,6 +408,7 @@ Tests without network.
 - `tests/unit/judge.test.ts`: the mock provider does no I/O and returns the test's map canonicalised, or one cluster per item; replay reads the invented fixtures under `tests/fixtures/rulings` or temp dirs the test writes (Story 4.1, AC5).
 - `tests/e2e/smoke.spec.ts`: the browser aborts requests to any host but localhost.
 - `tests/integration/db.test.ts`: each integration file gets a fresh `pglite://:memory:` database.
+- `tests/e2e/no-key.spec.ts`: the whole Stage 1 round runs with no model key and every non-localhost request blocked, in the Host's context and in each of the three Participant contexts (`localOnly`) (Story 6.5, AC1).
 - Pending: every story with unit or integration proof.
 
 ## NFR-4
@@ -456,6 +456,7 @@ Accessibility (WCAG 2.1 AA).
 - `tests/e2e/review.spec.ts`: at 1280×800, ticking Frida (rank 7, where the SelectionBar appears) scrolls its checkbox above the bar's top edge, and Tab on to Ola's checkbox below the fold also stops above the bar (WCAG 2.4.11); the link "Gå til spillet" in the bar's locked Notice has the dark 3 px focus ring on the light Notice; every "Mer for «…»" trigger is `aria-disabled` while a merge runs; checked to fail without the scroll padding and the ring class (Epic 5 review, impeccable S1, S3, bmad finding 7).
 - `tests/manual/checklist.md`: A6, Review end to end by keyboard only (Story 5.5).
 - `tests/e2e/play.spec.ts`: axe finds no serious or critical violations on Team setup and on the play view; on the stage the Host chrome is gone from view and tab order and the focused Question has the inverse focus ring (Story 6.1, AC2).
+- `tests/e2e/no-key.spec.ts`: in one no-key round axe finds no serious or critical violations on the filled answer form before submit, on Review with the `NO_KEY` Notice, on the play view with scored and unscored tiles, and on "Sluttstilling" (Story 6.5, AC2).
 - Pending: every story that builds a screen.
 
 ## NFR-7
