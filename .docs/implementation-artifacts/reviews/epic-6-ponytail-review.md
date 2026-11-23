@@ -55,3 +55,19 @@ Verdict: Ship. Findings 1 to 3 are cheap cleanups worth doing before the PR. Fin
 Lean: -50 lines possible (about 15 in the Game page, 19 in the unit test, 4 in the key guard and 12 in the tiles).
 
 Not checked: the full Vitest and Playwright runs (other reviewers share this working copy), the drizzle snapshots, the canvas on a real TV or projector, and how much `tests/e2e/play.spec.ts` overlaps with the page-render tests in `tests/integration/play.test.ts` beyond what the titles show.
+
+## Epic 6 review fixes (2026-11-23)
+
+Every finding was checked against the code before it was fixed. None was rejected.
+
+**1. The Team score list written twice: fixed in `b064a13`.** `scoreList(teams)` in `src/app/spill/[id]/page.tsx` renders the `<dl>` for both the *playing* and the *played* branch.
+
+**2. The unit test for `revealSchema`: fixed in `b064a13`.** `tests/unit/play.test.ts` is deleted. Its TRACE row is gone, and the FR-25 integration row now says that the missing, non-boolean and numeric inputs reach `revealSchema` through both `play.reveal` and the action.
+
+**3. The faked *played* cases: fixed in `b064a13`.** `"played"` is removed from the three `it.each` arrays (start, reveal, and undo with next Team). The test that plays a real Game to the end checks every operation, action and `load`. The TRACE rows for FR-23, FR-25, FR-26 and FR-27 point there.
+
+**4. The duplicated key guard: fixed in `19ca741`.** `isShortcut(event)` in `FullscreenKey.tsx` holds the modifier, repeat and text-field/overlay check, and both listeners use it. `F` still refuses Shift on its own, and the Board still lets Shift through for `?`.
+
+**5. Two revealed tiles: fixed in `19ca741`.** One revealed `<div>` chooses its colours by `slot.scored` and branches only the Count part. That made the impeccable M1 fix (`min-w-0`, `30e855a`) a single class.
+
+Result: the Vitest suite went from 734 tests (after the two stale-undo tests in `2afa998`) to 730 in `b064a13`, and ended at 731 after the S3 test in `b2ddea6`.

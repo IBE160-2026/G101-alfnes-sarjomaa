@@ -101,3 +101,23 @@ Review shows "Mine spill › Hyttetur 2026 › Gjennomgang". Team setup shows on
 3. S2 and S3: the two `GroupCard` conditions, with the *Forkastet* sentence in `EXPERIENCE.md`.
 4. N3: the contract lines for the count-up colour (two sentences).
 5. N1, N2 and N4 if time allows. N2 needs a decision in the contract first.
+
+## Epic 6 review fixes (2026-11-23)
+
+Every finding was checked against the code and, for M1 and S1, against a measured render before it was fixed.
+
+**M1. A long revealed label breaks out of its tile: fixed in `30e855a`.** The revealed row `div` (one block since ponytail finding 5, `19ca741`) has `min-w-0`. A new e2e test renames Kari in Review to 39 × "M" + "Ø", reveals it as tile 1 scored, then undoes it and reveals it unscored. Each time the label is shown in full with no horizontal overflow, the tile stays inside the list and is at most 112 px tall, the Count (badge, or Count plus "uten poeng") stays inside the tile, and tile 8 ends above the control bar. The test fails without the class.
+
+**S1. Four wide Team names overflow the Team column: fixed in `30e855a`, with a change to the suggested fix.** Measured in Chromium with Bricolage Grotesque, a name of 14 × "W" or "M" wraps to three lines beside a two-digit Score, not two, so the Score beside the name on inactive cards alone still overflowed (about 1005 px in a 941 px column). The fix has three parts. On every card the Score sits to the right of the name. On the active card it sits to the right of "Svarer nå", with the name across the full width below. The gap between cards is 12 px. Four such names now take about 930 px. Names wrap with `hyphens-auto`, so a medium name that no longer fits beside the Score breaks at a Norwegian syllable ("Hyttegjen-gen") instead of between two arbitrary letters, and ordinary names take less height than before (about 710 px for four, against about 880 px stacked). `DESIGN.md` (TeamScore) and `EXPERIENCE.md` (Team setup, Team column and A8) are amended, the `limits.ts` comment is corrected with a `shortcut:` note that three-digit Scores with four such names would still overflow, and manual row A8 now names four 14-character wide Team names. The same e2e test plays with four such names and checks that every card ends above the control bar with its Score inside the card. It fails without the change.
+
+**S2. The loose "· N svar": fixed in `b2ddea6`.** One helper in `GroupCard` builds the raw form and its Answer count, and leaves the label out when it is the only raw form. An unrenamed row now reads "Kari 3 svar 3 personer", and a renamed row still reads "Sjokolade · 2 svar". The count is kept, without the dot, because it was asked for even though it often repeats the Count. The integration and Review e2e tests assert the new text and that no "·" is left. `EXPERIENCE.md` and `DESIGN.md` describe the rule.
+
+**S3. A discarded Group repeats its raw Answer: fixed in `b2ddea6`.** The *Forkastet* card leaves out a single raw Answer that equals the label, and shows only "N svar" when there are several such Answers. A renamed discarded Group still lists its Answers (new integration test). The Review e2e test checks that the discarded "Kari" card shows the label once, then "3 svar". The sentence is added to the *Forkastet* row in `EXPERIENCE.md`.
+
+**N1. Two polite live regions: fixed in `dfa15c6`.** The Reveal that uncovers the last tile announces "… Alle svarene er avslørt." in the one `role="status"` region, and the hint in the control bar is plain text with no role. The e2e tests assert both.
+
+**N2. The focus ring on a focused heading on the TV: kept, no change.** `EXPERIENCE.md` says focus is never removed, and the ring tells a keyboard Host where focus went after the Board changed. Removing it from the stage `<h1>` would need a contract decision first, as the audit notes. The group can take that decision later; the e2e assertion stays as it is.
+
+**N3. The contract still asks for a mint count-up: fixed in `cd0dde6`.** `EXPERIENCE.md` (play view rules) now says the Score counts up in the card's own text colour, which is `stage-on-accent` on the mint active card, and `DESIGN.md` (Colors) no longer lists "Score change" as a role of `stage-accent`.
+
+**N4. No breadcrumb on Team setup: deferred.** The breadcrumb markup is written out on the Game page and on Review (about 30 lines each), with no shared component. A third copy, or extracting a component used by three pages, is more than the few lines this finding was worth in this round. Team setup keeps "Mine spill" in the Host chrome and the browser's back button.

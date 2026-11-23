@@ -182,3 +182,15 @@
 - **The low finding:** missing evidence for the end-of-game stale path (finding 2).
 - **The one-key finish on the last Question:** it complies with the PRD, AD-4 and EXPERIENCE. Neither a confirm nor an undo of finish is warranted.
 - **Before the PR:** fix finding 1. Finding 2 is a short extension of an existing e2e step.
+
+## Epic 6 review fixes (2026-11-23)
+
+Both findings were checked against the code before they were fixed, and both held.
+
+**1. Undo from a stale tab: fixed in `2afa998`.** `play.load` now returns `lastReveal`, the slot of the highest-`seq` Reveal on the current Question (null when there is none). `Board` sends it back as `boardSlotId` with every undo, and `undoSchema` requires it. `play.undo` keeps AD-16's rule (delete the highest-`seq` Reveal on the current Question) and refuses with `NOTHING_TO_UNDO` when that Reveal is not the one the tab named, so the tab refreshes silently through `STALE`. `canUndo` now reads `lastReveal !== null`, which is the same condition as before. New integration tests cover the two scenarios in the finding: a tab that still names Ola after another tab undid it (and a tab naming the older Kari while Per is the last), and a tab still on Question 1 after another tab revealed on Question 2. In both, the Reveals and Scores stay. The seeded property test now reads `lastReveal` from `load` before every undo and checks it against the model. The second-tab e2e step now makes two Reveals: after the other tab undoes the second one, `Z` in the stale tab refreshes with no banner, Kari is still shown and scored, and the next `Z` undoes Kari as usual. That step fails without the fix. The undo calls in `authz.test.ts` and the played-Game test send a `boardSlotId`, so they still reach the owner and state checks.
+
+**2. `WRONG_STATE` stale path untested: fixed in `c998ea1`.** In the three-Question e2e test a second tab is opened on Question 3 before the main tab presses "Vis sluttstilling". After the finish, `n` in that tab gets `WRONG_STATE` and the tab lands on "Sluttstilling" with neither "Fikk ikke lagret trekket" nor "Mistet forbindelsen". The `NOT_FOUND` path (a deleted Game) is still covered only by the integration tests, since it reaches the same `STALE` branch and would need a delete flow inside the play test.
+
+**The one-key finish:** unchanged, as recommended. The decision is logged in `wiki/prosjekt/beslutninger.md` on `main`.
+
+**Dismissed items:** none were reopened. Item 21 (two polite live regions) was fixed anyway, because the impeccable audit raised it as N1 with the reason that a screen reader often reads only one of two simultaneous updates (`dfa15c6`).
