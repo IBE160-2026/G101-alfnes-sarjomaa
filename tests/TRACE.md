@@ -374,8 +374,10 @@ Full Stage 1 without a key.
 
 Demo mode.
 
-- None yet.
-- Pending: Stories 7.1, 7.4.
+- `tests/integration/demo-replay.test.ts`: the demo seed (`src/server/demo.ts`, through `auth.createHost`, `games.create`, `questions.save`, `collection.createInviteLinks` and `collection.submit`) gives a Host with the demo email and one _collecting_ Game with eight links and six Answer sets; `collection.close` and `grouping.run` with `JUDGE_PROVIDER=replay` give every Question `source = replay`, `uncovered_items = 0`, `fell_back = false`, no fallback reason, zero Judge calls and model `hand-written`, every Group of origin `judge`, the Game _in_review_, and `fetch` is never called; each Question's ruling in `data/rulings/demo.json` has exactly the sorted distinct normalised seeded Answers as items, and its Group count equals the ruling's distinct assignments; checked to fail when one item is removed from `data/rulings/demo.json` (Story 7.1, AC2).
+- `tests/e2e/demo.spec.ts`, on the demo server (`npm run demo` on 3101): `/` and `/logg-inn` show the demo login, "Fyll inn demobrukeren" fills email and password and logs in; "Mine spill", the demo Game page ("6 av 8 svar mottatt") and Review show the band sentence; closing the demo Game reaches _Til gjennomgang_, and Review groups "Kortstokk" with "Kortspill", shows no "Manuell" and no fallback Notice; no serious axe violation on `/logg-inn` and Review; after marking all three Questions, locking the Board and starting play, the band is hidden under the play stage. On the normal server (3100), `/` and `/logg-inn` show no demo login and "Mine spill" no band (Story 7.1, AC1, AC3).
+- `tests/manual/checklist.md` D1: the demo content is invented and nothing in it derives from `.idea/` (Story 7.1, AC4).
+- Pending: Story 7.4 (README).
 
 ## FR-32
 
@@ -392,7 +394,8 @@ Local runnability.
 - `tests/integration/env.test.ts`: an empty environment gives the no-key defaults.
 - `tests/integration/db.test.ts`: `DATABASE_URL` parsing, PGlite directory creation and migration on open, the health route.
 - CI (`.github/workflows/ci.yml`) runs the README scripts on Node 22 and 26 with no key.
-- Pending: Stories 7.1, 7.4 (demo and README).
+- CI runs `npm run demo` in the background, polls `/api/health` until 200 (failing with the log after 120 s) and stops it; `tests/e2e/server-output.spec.ts` and `demo.spec.ts` run on `npm run demo` on 3101 (Story 7.1, AC1).
+- Pending: Story 7.4 (README).
 
 ## NFR-2
 

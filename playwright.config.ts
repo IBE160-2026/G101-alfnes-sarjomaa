@@ -68,19 +68,16 @@ export default defineConfig({
       env,
     },
     // Only next dev prints Server Function arguments and forwards browser console output,
-    // so server-output.spec.ts drives this one. Its own DB, so the smoke spec is unaffected.
-    // shortcut: Next 16's lockDistDir lets one next dev run per repo, so this exits (reason in dev.log) while a developer's npm run dev runs; give it its own distDir if that bites.
+    // so server-output.spec.ts drives this one. It is npm run demo (next dev on .data/demo,
+    // replay, DEMO_MODE=1), which demo.spec.ts needs, since one next dev runs per repo.
+    // The demo sets its own DATABASE_URL, JUDGE_PROVIDER, DEMO_MODE and APP_BASE_URL.
+    // shortcut: Next 16's lockDistDir lets one next dev run per repo, so this exits (reason in dev.log) while a developer's npm run dev or demo runs, and every e2e run deletes and recreates the working copy's .data/demo; give it its own distDir if that bites.
     {
-      command: `npm run dev > "${OUT}/dev.log" 2>&1`,
+      command: `npm run demo > "${OUT}/dev.log" 2>&1`,
       url: `${devURL}/api/health`,
       reuseExistingServer: false,
       timeout: 300_000,
-      env: {
-        ...env,
-        DATABASE_URL: `pglite://${OUT}/dev-db`,
-        PORT: String(DEV_PORT),
-        APP_BASE_URL: devURL,
-      },
+      env: { ...env, PORT: String(DEV_PORT) },
     },
   ],
 });

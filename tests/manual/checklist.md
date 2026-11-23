@@ -28,3 +28,11 @@ Measured by hand on the sizing Game (30 Answer sets, 15 Questions, up to 5 Answe
 | T6  | Avslør a tile: from the click (or rank key) to the revealed label and Score, within one second                              | NFR-5, FR-25               |
 | T7  | Bom, Angre, Neste lag and the uten-poeng toggle each show their result within one second                                    | NFR-5, FR-25, FR-26, FR-27 |
 | T8  | "Neste spørsmål" to the next Question, and "Vis sluttstilling" to "Sluttstilling", each within one second                   | NFR-5, FR-27               |
+
+## Demo content
+
+Before a branch that changes the demo is merged, someone reads `src/server/demo.ts`, `src/lib/demo.ts` and `data/rulings/demo.json`. Note the date, the reviewer and the result.
+
+| #   | Check                                                                                                                                      | Covers      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| D1  | Every Question, Answer, title and credential in the demo is invented, holds no real person's name, and nothing in it derives from `.idea/` | FR-31, §6.1 |

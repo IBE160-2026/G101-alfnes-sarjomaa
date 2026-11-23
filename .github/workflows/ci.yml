@@ -35,3 +35,21 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      # Last, since Next 16 runs one next dev per repo and the e2e demo server is one.
+      - name: Demo smoke (npm run demo answers /api/health, then stops)
+        timeout-minutes: 5
+        run: |
+          npm run demo > demo.log 2>&1 &
+          pid=$!
+          for _ in $(seq 1 120); do
+            if curl -sf -m 5 http://localhost:3000/api/health > /dev/null; then
+              kill "$pid"
+              wait "$pid" || true
+              exit 0
+            fi
+            kill -0 "$pid" 2> /dev/null || break
+            sleep 1
+          done
+          cat demo.log
+          kill "$pid" 2> /dev/null || true
+          exit 1
