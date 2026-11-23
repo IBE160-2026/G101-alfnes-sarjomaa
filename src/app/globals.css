@@ -193,10 +193,26 @@ body:has([data-stage]) [data-host-chrome] {
   content: counter(score);
 }
 
+/* "Bom" (FR-25 miss): 150 ms in, 1.2 s hold, 150 ms out; Board.tsx removes it at 1.5 s. */
+@keyframes bom {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+}
+.bom-panel {
+  animation: bom 1.5s linear both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-revealing],
   [data-revealing] .reveal-label,
-  [data-revealing] .reveal-count {
+  [data-revealing] .reveal-count,
+  .bom-panel {
     animation: none;
   }
   .score-count {

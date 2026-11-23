@@ -4,7 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { prerenderToNodeStream } from "react-dom/static";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { revealSlot, startPlay } from "@/app/spill/[id]/actions";
+import {
+  passTurn,
+  revealSlot,
+  startPlay,
+  undoReveal,
+} from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
 import ScreenPage, {
   generateMetadata as screenMetadata,
@@ -350,6 +355,7 @@ describe("play.reveal", () => {
         revealed: true,
         label: "Kari",
         count: 5,
+        scored: true,
       },
       { id: slotIds[0][1], position: 2, revealed: false },
       { id: slotIds[0][2], position: 3, revealed: false },
@@ -388,7 +394,7 @@ describe("play.reveal", () => {
     expect(await rawSums(id)).toEqual([5, 3]);
   });
 
-  it("FR-25, AD-16: an unscored Reveal stores a null team_id, returns team null and changes no Score", async () => {
+  it("FR-25, FR-27, AD-16 (AC3): an unscored Reveal stores a null team_id, returns team null, changes no Score, and load shows it with scored false", async () => {
     const { id, slotIds } = await playing();
     expect(
       await revealSlot({
@@ -401,9 +407,13 @@ describe("play.reveal", () => {
       { boardSlotId: slotIds[0][2], teamId: null, seq: 1 },
     ]);
     expect(await scoresOf(id)).toEqual([0, 0]);
-    expect((await play.load(hostId, id)).board[2]).toMatchObject({
+    expect((await play.load(hostId, id)).board[2]).toEqual({
+      id: slotIds[0][2],
+      position: 3,
       revealed: true,
       label: "Per",
+      count: 2,
+      scored: false,
     });
   });
 
@@ -477,6 +487,252 @@ describe("play.reveal", () => {
   );
 });
 
+// Moves play_state to another Question by hand (Story 6.4 adds the real move).
+const moveTo = async (gameId: string, questionId: string) =>
+  (await getDb())
+    .update(playState)
+    .set({ currentQuestionId: questionId })
+    .where(eq(playState.gameId, gameId));
+
+describe("play.undo", () => {
+  it("FR-26, AD-11 (AC2): the undoReveal action deletes the unscored Reveal first (team null), then the scored one (team Lag 1), the Score falls 5 → 0, and both pages are revalidated", async () => {
+    const { id, slotIds, teamIds } = await playing();
+    const reveal = (i: number, scored: boolean) =>
+      play.reveal(hostId, { gameId: id, boardSlotId: slotIds[0][i], scored });
+    await reveal(0, true);
+    await reveal(1, false);
+    expect(await scoresOf(id)).toEqual([5, 0]);
+    nextCache.revalidatePath.mockClear();
+    expect(await undoReveal({ gameId: id })).toEqual({
+      ok: true,
+      data: { boardSlotId: slotIds[0][1], label: "Ola", count: 3, team: null },
+    });
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(
+      `/spill/${id}/skjerm`,
+    );
+    expect(await revealsOf(id)).toEqual([
+      { boardSlotId: slotIds[0][0], teamId: teamIds[0], seq: 1 },
+    ]);
+    expect(await scoresOf(id)).toEqual([5, 0]);
+    expect(await undoReveal({ gameId: id })).toEqual({
+      ok: true,
+      data: {
+        boardSlotId: slotIds[0][0],
+        label: "Kari",
+        count: 5,
+        team: "Lag 1",
+      },
+    });
+    expect(await revealsOf(id)).toEqual([]);
+    expect(await scoresOf(id)).toEqual([0, 0]);
+    expect(await rawSums(id)).toEqual([0, 0]);
+    expect((await play.load(hostId, id)).board.map((s) => s.revealed)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+    // The turn never moves with an undo.
+    expect((await rowsOf(id)).playState[0].currentTeamId).toBe(teamIds[0]);
+  });
+
+  it("FR-26 (AC2): with Reveals on Question 1 and play_state moved to Question 2, undo deletes Question 2's Reveals in seq order, then is NOTHING_TO_UNDO, and Question 1's Reveals stay", async () => {
+    const { id, questionIds, slotIds, teamIds } = await playing();
+    const reveal = (q: number, i: number, scored: boolean) =>
+      play.reveal(hostId, { gameId: id, boardSlotId: slotIds[q][i], scored });
+    await reveal(0, 0, true); // Kari 5 → Lag 1
+    await reveal(0, 2, false); // Per, unscored
+    await moveTo(id, questionIds[1]);
+    await reveal(1, 0, true); // Oslo 4 → Lag 1
+    await reveal(1, 1, false); // Bergen, unscored
+    expect(await scoresOf(id)).toEqual([9, 0]);
+    expect(await undoReveal({ gameId: id })).toMatchObject({
+      ok: true,
+      data: { boardSlotId: slotIds[1][1], team: null },
+    });
+    expect(await scoresOf(id)).toEqual([9, 0]);
+    expect(await rawSums(id)).toEqual([9, 0]);
+    expect(await play.undo(hostId, { gameId: id })).toEqual({
+      boardSlotId: slotIds[1][0],
+      label: "Oslo",
+      count: 4,
+      team: "Lag 1",
+    });
+    expect(await scoresOf(id)).toEqual([5, 0]);
+    expect(await rawSums(id)).toEqual([5, 0]);
+    const before = await revealsOf(id);
+    expect(await codeOf(play.undo(hostId, { gameId: id }))).toBe(
+      "NOTHING_TO_UNDO",
+    );
+    expect(await undoReveal({ gameId: id })).toEqual({
+      ok: false,
+      code: "NOTHING_TO_UNDO",
+      message: "Det er ingenting å angre.",
+    });
+    expect(await revealsOf(id)).toEqual(before);
+    expect(before).toEqual([
+      { boardSlotId: slotIds[0][0], teamId: teamIds[0], seq: 1 },
+      { boardSlotId: slotIds[0][2], teamId: null, seq: 2 },
+    ]);
+  });
+
+  it("FR-26: undo with no Reveal on the current Question is NOTHING_TO_UNDO and writes nothing", async () => {
+    const { id } = await playing();
+    const before = await rowsOf(id);
+    expect(await codeOf(play.undo(hostId, { gameId: id }))).toBe(
+      "NOTHING_TO_UNDO",
+    );
+    expect(await rowsOf(id)).toEqual(before);
+    expect(await revealsOf(id)).toEqual([]);
+  });
+});
+
+describe("play.nextTeam", () => {
+  it("FR-27 (AC3): the passTurn action moves the turn Lag 1 → Lag 2 → Lag 3 → Lag 1, returns the new Team and revalidates both pages; load shows it current", async () => {
+    const { id } = await gameIn();
+    await play.start(hostId, {
+      gameId: id,
+      teams: ["Lag 1", "Lag 2", "Lag 3"],
+    });
+    for (const name of ["Lag 2", "Lag 3", "Lag 1"]) {
+      nextCache.revalidatePath.mockClear();
+      expect(await passTurn({ gameId: id })).toEqual({
+        ok: true,
+        data: { team: name },
+      });
+      expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
+      expect(nextCache.revalidatePath).toHaveBeenCalledWith(
+        `/spill/${id}/skjerm`,
+      );
+      const { teams } = await play.load(hostId, id);
+      expect(teams.filter((t) => t.current).map((t) => t.name)).toEqual([name]);
+    }
+  });
+});
+
+describe("play.undo and play.nextTeam", () => {
+  it.each([
+    ["missing", {}],
+    ["non-string", { gameId: 1 }],
+  ])(
+    "FR-26, FR-27: a %s gameId is INVALID_INPUT for both, and nothing is written",
+    async (_, input) => {
+      const { id, slotIds } = await playing();
+      await play.reveal(hostId, {
+        gameId: id,
+        boardSlotId: slotIds[0][0],
+        scored: true,
+      });
+      const before = [await rowsOf(id), await revealsOf(id)];
+      for (const op of [play.undo, play.nextTeam])
+        expect(await codeOf(op(hostId, input))).toBe("INVALID_INPUT");
+      expect(await undoReveal(input)).toMatchObject({ code: "INVALID_INPUT" });
+      expect(await passTurn(input)).toMatchObject({ code: "INVALID_INPUT" });
+      expect([await rowsOf(id), await revealsOf(id)]).toEqual(before);
+    },
+  );
+
+  it.each(["ready", "played"] as const)(
+    "FR-26, FR-27: a Game in %s is WRONG_STATE for both, and nothing is written",
+    async (state) => {
+      const { id } = await gameIn(state);
+      for (const op of [play.undo, play.nextTeam])
+        expect(await codeOf(op(hostId, { gameId: id }))).toBe("WRONG_STATE");
+      expect(await undoReveal({ gameId: id })).toMatchObject({
+        code: "WRONG_STATE",
+      });
+      expect(await passTurn({ gameId: id })).toMatchObject({
+        code: "WRONG_STATE",
+      });
+      expect(await rowsOf(id)).toEqual({ state, teams: [], playState: [] });
+    },
+  );
+});
+
+// Seeded PRNG (mulberry32), so a failing sequence can be replayed.
+function prng(seed: number) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+describe("Score property", () => {
+  const SEED = 20261123;
+  it(`FR-25, FR-26, FR-27, AD-11 (AC3): over 240 seeded random reveal, undo, next-Team and next-Question steps (seed ${SEED}) on three Teams, every Score equals the model's sum of its scored Counts and the raw SQL sum, and undo with nothing on the current Question is NOTHING_TO_UNDO`, async () => {
+    const random = prng(SEED);
+    const pick = <T>(xs: readonly T[]) => xs[Math.floor(random() * xs.length)];
+    const { id, questionIds, slotIds } = await gameIn();
+    await play.start(hostId, {
+      gameId: id,
+      teams: ["Lag 1", "Lag 2", "Lag 3"],
+    });
+    // The model: Reveals in seq order, the current Question and Team.
+    const model: { q: number; i: number; team: number | null }[] = [];
+    let q = 0;
+    let turn = 0;
+    const counts = BOARD.map((slots) => slots.map(([, count]) => count));
+    const ops = new Set<string>();
+    for (let step = 0; step < 240; step++) {
+      const at = `step ${step}`;
+      const hidden = counts[q]
+        .map((_, i) => i)
+        .filter((i) => !model.some((r) => r.q === q && r.i === i));
+      let op = pick(["reveal", "reveal", "undo", "next", "question"]);
+      // Nothing left to reveal: undo instead, so every step ends in the Score checks.
+      if (op === "reveal" && hidden.length === 0) op = "undo";
+      if (op === "reveal") {
+        const i = pick(hidden);
+        const scored = random() < 0.6;
+        await play.reveal(hostId, {
+          gameId: id,
+          boardSlotId: slotIds[q][i],
+          scored,
+        });
+        model.push({ q, i, team: scored ? turn : null });
+      } else if (op === "undo") {
+        const last = model.findLastIndex((r) => r.q === q);
+        if (last === -1) {
+          expect(await codeOf(play.undo(hostId, { gameId: id })), at).toBe(
+            "NOTHING_TO_UNDO",
+          );
+          ops.add("nothing");
+        } else {
+          const [r] = model.splice(last, 1);
+          expect(await play.undo(hostId, { gameId: id }), at).toMatchObject({
+            boardSlotId: slotIds[r.q][r.i],
+            count: counts[r.q][r.i],
+            team: r.team === null ? null : `Lag ${r.team + 1}`,
+          });
+        }
+      } else if (op === "next") {
+        turn = (turn + 1) % 3;
+        expect(await play.nextTeam(hostId, { gameId: id }), at).toEqual({
+          team: `Lag ${turn + 1}`,
+        });
+      } else {
+        q = (q + 1) % questionIds.length;
+        await moveTo(id, questionIds[q]);
+      }
+      ops.add(op);
+      const expected = [0, 1, 2].map((t) =>
+        model
+          .filter((r) => r.team === t)
+          .reduce((sum, r) => sum + counts[r.q][r.i], 0),
+      );
+      expect(await scoresOf(id), at).toEqual(expected);
+      expect(await rawSums(id), at).toEqual(expected);
+      expect((await revealsOf(id)).length, at).toBe(model.length);
+    }
+    // The seed exercises every kind of step.
+    expect([...ops].sort()).toEqual(
+      ["next", "nothing", "question", "reveal", "undo"].sort(),
+    );
+  });
+});
+
 describe("/spill/[id]/skjerm", () => {
   it("FR-23, UX-DR22: a ready Game shows Team setup with Hvem spiller?, Lag 1 and Lag 2, no Fjern, Legg til lag and Start spillet, titled by the Game", async () => {
     const { id } = await gameIn();
@@ -496,14 +752,14 @@ describe("/spill/[id]/skjerm", () => {
     });
   });
 
-  it("FR-23: a playing Game shows the stage with the Question, Spørsmål 1 av 3, Svarer nå on Team 1, every Score 0 and Trykk F for fullskjerm.", async () => {
+  it("FR-23: a playing Game shows the stage with the Question, Spørsmål 1 av 3, Svarer nå on Team 1, every Score 0, the controls without Angre and Trykk F for fullskjerm.", async () => {
     const { id } = await gameIn();
     await play.start(hostId, { gameId: id, teams: ["Hyttegjengen", "Lag 2"] });
     const html = await screen(id);
     expect(html).toContain("data-stage");
     expect(html).toContain(`text-tv-question">${QUESTIONS[0]}</h1>`);
     expect(text(html)).toContain(
-      "Spørsmål 1 av 3 Svarer nå Hyttegjengen 0 poeng Lag 2 0 poeng 1 2 3 Trykk F for fullskjerm.",
+      "Spørsmål 1 av 3 Svarer nå Hyttegjengen 0 poeng Lag 2 0 poeng 1 2 3 Bom [M] Neste lag [T] Vis resten uten poeng [U] ? Trykk F for fullskjerm.",
     );
   });
 

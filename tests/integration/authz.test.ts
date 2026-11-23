@@ -17,9 +17,11 @@ import {
   renameGroup,
   restoreGroup,
   revokeInviteLink,
+  passTurn,
   revealSlot,
   saveQuestion,
   startPlay,
+  undoReveal,
 } from "@/app/spill/[id]/actions";
 import ReviewPage, {
   generateMetadata as reviewMetadata,
@@ -574,6 +576,50 @@ describe("Host B against Host A's Game", () => {
     }
     expect(await db.select().from(reveal)).toEqual([]);
     expect((await gameRow(ofA.id)).state).toBe("playing");
+  });
+
+  it("FR-26, FR-27, AD-5: B's play.undo, undoReveal, play.nextTeam and passTurn on A's playing Game with a Reveal, a random UUID or a malformed ID give NOT_FOUND, and A's Reveal and current Team are unchanged", async () => {
+    const db = await getDb();
+    const [{ id }] = await db
+      .insert(game)
+      .values({ hostId: hosts.A, title: "Spill med avsløring", state: "ready" })
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: id, position: 1, text: "?" });
+    const [{ id: slotId }] = await db
+      .insert(boardSlot)
+      .values({ questionId, position: 1, label: "Kari", count: 3 })
+      .returning({ id: boardSlot.id });
+    await play.start(hosts.A, { gameId: id, teams: ["Lag 1", "Lag 2"] });
+    await play.reveal(hosts.A, {
+      gameId: id,
+      boardSlotId: slotId,
+      scored: true,
+    });
+    const stateOfA = async () => ({
+      reveals: await db.select().from(reveal).where(eq(reveal.gameId, id)),
+      play: await db.select().from(playState).where(eq(playState.gameId, id)),
+    });
+    const before = await stateOfA();
+    expect(before.reveals).toHaveLength(1);
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [id, randomUUID(), "abc"]) {
+      for (const op of [play.undo, play.nextTeam])
+        expect(
+          ((await rejection(op(hosts.B, { gameId }))) as DomainError).code,
+          gameId,
+        ).toBe("NOT_FOUND");
+      expect(await undoReveal({ gameId }), gameId).toEqual(notFound);
+      expect(await passTurn({ gameId }), gameId).toEqual(notFound);
+    }
+    expect(await stateOfA()).toEqual(before);
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {

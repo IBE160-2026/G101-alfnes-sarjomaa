@@ -18,6 +18,7 @@ export type ErrorCode =
   | "QUESTIONS_UNREVIEWED"
   | "WRONG_QUESTION"
   | "ALREADY_REVEALED"
+  | "NOTHING_TO_UNDO"
   | "INTERNAL";
 
 export const MESSAGES: Record<ErrorCode, string> = {
@@ -39,6 +40,7 @@ export const MESSAGES: Record<ErrorCode, string> = {
   QUESTIONS_UNREVIEWED: "Gjennomgå alle spørsmålene først.",
   WRONG_QUESTION: "Den plassen hører til et annet spørsmål.",
   ALREADY_REVEALED: "Den plassen er allerede avslørt.",
+  NOTHING_TO_UNDO: "Det er ingenting å angre.",
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",
 };
 

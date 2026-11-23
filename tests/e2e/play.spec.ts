@@ -1,4 +1,4 @@
-import type { Locator } from "@playwright/test";
+import type { Browser, Locator, Page } from "@playwright/test";
 import {
   closeAndOpenReview,
   collectingGame,
@@ -121,8 +121,9 @@ test("FR-23 (AC1, AC2), UX-DR22, NFR-6: a collecting Game's screen redirects to 
     page.getByRole("link", { name: "Hopp til innhold" }),
   ).toHaveCount(0);
   await expect(page.getByRole("link")).toHaveCount(0);
-  // The Board's hidden tiles are the only buttons (nine Groups, eight on the Board).
-  await expect(page.getByRole("button")).toHaveCount(8);
+  // The Board's hidden tiles (nine Groups, eight on the Board) and the controls: Bom, Neste
+  // lag, the uten-poeng toggle and "?" (no Angre before a Reveal).
+  await expect(page.getByRole("button")).toHaveCount(12);
   await expect(
     page.getByRole("button", { name: /^Avslør plass [1-8]$/ }),
   ).toHaveCount(8);
@@ -316,7 +317,7 @@ test("FR-24, FR-25, FR-27 (AC1, AC2, AC4, AC5), UX-DR13, UX-DR14, UX-DR21, NFR-5
   release();
   await expect(tile(1)).toHaveText("1Kari3 poeng");
   await page.unroute(isScreen);
-  const status = stage.locator('[role="status"]');
+  const status = stage.locator('[role="status"].sr-only');
   await expect(status).toHaveText("«Kari», 3 poeng til Lag 1.");
   await expect(tile(1)).not.toHaveRole("button");
   await expect(tile(1)).toBeFocused();
@@ -411,5 +412,259 @@ test("FR-24, FR-25, FR-27 (AC1, AC2, AC4, AC5), UX-DR13, UX-DR14, UX-DR21, NFR-5
   const html = await page.content();
   for (const label of BOARD) expect(html).toContain(label);
   for (const text of NEVER) expect(html, text).not.toContain(text);
+  expect(await seriousViolations(page)).toEqual([]);
+});
+
+// The default flow (nine Groups, eight on the Board) to a playing Game with Lag 1 and Lag 2.
+async function playingGame(
+  page: Page,
+  browser: Browser,
+  baseURL: string | undefined,
+) {
+  const { gamePath, links } = await collectingGame(page);
+  await submitSets(browser, baseURL, links);
+  await closeAndOpenReview(page, gamePath);
+  await page.getByRole("button", { name: "Marker som gjennomgått" }).click();
+  await page
+    .getByRole("navigation", { name: "Spørsmål" })
+    .locator("..")
+    .getByRole("button", { name: "Lås brettet" })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Låse brettet?" })
+    .getByRole("button", { name: "Lås brettet" })
+    .click();
+  await expect(page).toHaveURL(gamePath);
+  await page.getByRole("link", { name: "Start spillet" }).click();
+  await page.getByRole("button", { name: "Start spillet" }).click();
+  await expect(page.locator("h1")).toHaveText(QUESTION);
+  return gamePath;
+}
+
+test("FR-25, FR-26, FR-27 (AC1, AC4), UX-DR21, NFR-5, NFR-6: Bom shows the 80 px panel over the list and changes nothing; Angre undoes scored and unscored Reveals with the announcement and focus; Neste lag wraps; the uten-poeng toggle dashes the hidden tiles and makes unscored Reveals; shortcuts are ignored in a text field; ? opens the overlay; a refused save shows the banner; all revealed shows the hint; axe is clean", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  const gamePath = await playingGame(page, browser, baseURL);
+  const stage = page.locator("[data-stage]");
+  const list = stage.locator("ol:has([data-slot])");
+  const tile = (n: number) => stage.locator("[data-slot]").nth(n - 1);
+  const tiles = page.getByRole("button", { name: /^Avslør plass/ });
+  const status = stage.locator('[role="status"].sr-only');
+  const teams = stage.getByRole("list", { name: "Lag" }).getByRole("listitem");
+  const hint = page.getByText("Trykk F for fullskjerm.", { exact: true });
+  const bar = hint.locator("..");
+  const control = (name: string) =>
+    bar.getByRole("button", { name, exact: true });
+  const angre = control("Angre [Z]");
+  const toggle = bar.getByRole("button", { name: /uten poeng \[U\]$/ });
+  const style = (locator: Locator, property: string) =>
+    locator.evaluate(
+      (el, p) => getComputedStyle(el).getPropertyValue(p),
+      property,
+    );
+  const box = async (locator: Locator) => (await locator.boundingBox())!;
+  const lag1 = ["Svarer nåLag 10 poeng", "Lag 20 poeng"];
+
+  // AC1: Bom is an 80 px stage-ink panel on stage-raised, centred over the list, no icon.
+  const panel = stage.locator(".bom-panel");
+  const t0 = Date.now();
+  await page.keyboard.press("m");
+  await expect(panel).toHaveText("Bom");
+  await expect(status).toHaveText("Bom.");
+  expect(await style(panel, "font-size")).toBe("80px");
+  expect(await style(panel, "color")).toBe("rgb(246, 241, 231)");
+  expect(await style(panel, "background-color")).toBe("rgb(26, 48, 44)");
+  expect(await style(panel, "animation-name")).toBe("bom");
+  expect(await style(panel, "pointer-events")).toBe("none");
+  await expect(panel).toHaveAttribute("aria-hidden", "true");
+  await expect(panel.locator("svg, img")).toHaveCount(0);
+  const [p, l] = [await box(panel), await box(list)];
+  expect(p.x + p.width / 2).toBeCloseTo(l.x + l.width / 2, 0);
+  expect(p.y + p.height / 2).toBeCloseTo(l.y + l.height / 2, 0);
+  await expect(panel).toHaveCount(0, { timeout: 3000 });
+  expect(Date.now() - t0).toBeGreaterThan(1200);
+  // The turn did not pass and nothing was saved, also after a reload.
+  await expect(teams).toHaveText(lag1);
+  await expect(tiles).toHaveCount(8);
+  await page.reload();
+  await expect(teams).toHaveText(lag1);
+  await expect(tiles).toHaveCount(8);
+
+  // Reduced motion: the panel shows without the animation.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.keyboard.press("m");
+  await expect(panel).toHaveText("Bom");
+  expect(await style(panel, "animation-name")).toBe("none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+
+  // AC4: Angre only with a Reveal on the Question; Z undoes it and takes the points back.
+  await expect(angre).toHaveCount(0);
+  await tile(1).click();
+  await expect(tile(1)).toHaveText("1Kari3 poeng");
+  await expect(tile(1)).toBeFocused();
+  await expect(teams.first()).toContainText("3 poeng");
+  await expect(angre).toBeVisible();
+  await page.keyboard.press("z");
+  await expect(status).toHaveText(
+    "Angret. «Kari» er skjult igjen, 3 poeng trukket fra Lag 1.",
+  );
+  await expect(tile(1)).toHaveRole("button");
+  // The revealed row had focus, so its tile takes it back.
+  await expect(tile(1)).toBeFocused();
+  await expect(teams).toHaveText(lag1);
+  await expect(angre).toHaveCount(0);
+
+  // Another tab undoes this tab's Reveal: Z here refreshes to the saved state, no banner.
+  await tile(1).click();
+  await expect(angre).toBeVisible();
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await other.getByRole("button", { name: "Angre [Z]", exact: true }).click();
+  await expect(
+    other.getByRole("button", { name: "Angre [Z]", exact: true }),
+  ).toHaveCount(0);
+  await other.close();
+  await page.keyboard.press("z");
+  await expect(tile(1)).toHaveRole("button");
+  await expect(angre).toHaveCount(0);
+  await expect(bar.getByRole("alert")).toHaveCount(0);
+  await expect(teams).toHaveText(lag1);
+
+  // Neste lag by click and by T, wrapping back to Lag 1.
+  await control("Neste lag [T]").click();
+  await expect(teams).toHaveText(["Lag 10 poeng", "Svarer nåLag 20 poeng"]);
+  await expect(status).toHaveText("Lag 2 svarer nå.");
+  await page.keyboard.press("T");
+  await expect(teams).toHaveText(lag1);
+  await expect(status).toHaveText("Lag 1 svarer nå.");
+
+  // U: the toggle is pressed, reads Avslører uten poeng in bold stage-ink, tiles dashed.
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await page.keyboard.press("u");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveText("Avslører uten poeng [U]");
+  expect(await style(toggle, "font-weight")).toBe("700");
+  expect(await style(toggle, "color")).toBe("rgb(246, 241, 231)");
+  for (const t of await tiles.all())
+    expect(await style(t, "border-top-style")).toBe("dashed");
+
+  // An unscored Reveal: "uten poeng" on the tile, no Score changes.
+  await tile(2).click();
+  await expect(tile(2)).toContainText("uten poeng");
+  await expect(tile(2)).not.toHaveRole("button");
+  await expect(status).toHaveText(/^«.+» er avslørt uten poeng\.$/);
+  expect(await style(tile(2), "border-top-style")).toBe("dashed");
+  // Polled: the staged reveal starts the fill from stage-tile.
+  await expect
+    .poll(() => style(tile(2), "background-color"))
+    .toBe("rgb(26, 48, 44)");
+  await expect(teams).toHaveText(lag1);
+
+  // Angre by click: the unscored announcement, and focus to the tile it hid again.
+  await angre.click();
+  await expect(status).toHaveText(/^Angret\. «.+» er skjult igjen\.$/);
+  await expect(tile(2)).toHaveRole("button");
+  await expect(tile(2)).toBeFocused();
+  await expect(angre).toHaveCount(0);
+
+  // U off: solid borders again.
+  await page.keyboard.press("u");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toHaveText("Vis resten uten poeng [U]");
+  for (const t of await tiles.all())
+    expect(await style(t, "border-top-style")).toBe("solid");
+
+  // A text field swallows every shortcut.
+  await stage.evaluate((el) => {
+    const input = document.createElement("input");
+    input.id = "probe";
+    input.setAttribute("aria-label", "Prøve");
+    el.append(input);
+  });
+  await page.locator("#probe").focus();
+  for (const key of ["m", "t", "u", "1", "?"]) await page.keyboard.press(key);
+  await expect(panel).toHaveCount(0);
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.locator("#probe").evaluate((el) => el.remove());
+  // A swallowed T would have passed the turn: this click must land on Lag 2.
+  await control("Neste lag [T]").click();
+  await expect(status).toHaveText("Lag 2 svarer nå.");
+  await expect(tile(1)).toHaveRole("button");
+  await page.keyboard.press("t");
+  await expect(status).toHaveText("Lag 1 svarer nå.");
+
+  // ?: the overlay lists the shortcuts; axe is clean with it open; Esc closes it.
+  await page.keyboard.press("Shift+?");
+  const overlay = page.getByRole("dialog", { name: "Hurtigtaster" });
+  await expect(overlay).toBeVisible();
+  for (const text of [
+    "Avslør plassen med det nummeret",
+    "Angre siste avsløring",
+    "Vis resten uten poeng",
+    "Fullskjerm av og på",
+  ])
+    await expect(overlay).toContainText(text);
+  await expect(overlay.getByRole("button", { name: "Lukk" })).toBeFocused();
+  expect(await seriousViolations(page)).toEqual([]);
+  // Inside the open overlay every shortcut is ignored.
+  const said = await status.textContent();
+  for (const key of ["1", "m", "t", "u", "f"]) await page.keyboard.press(key);
+  await expect(tile(1)).toHaveRole("button");
+  await expect(panel).toHaveCount(0);
+  await expect(status).toHaveText(said!);
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+  await page.keyboard.press("Escape");
+  await expect(overlay).toBeHidden();
+  await control("Hurtigtaster").click();
+  await expect(overlay).toBeVisible();
+  await overlay.getByRole("button", { name: "Lukk" }).click();
+  await expect(overlay).toBeHidden();
+
+  // A save the server refuses (the body rewritten to an invalid scored): the banner
+  // replaces the controls, the tile stays hidden, and a reload shows nothing changed.
+  const isScreen = (url: URL) => url.pathname === `${gamePath}/skjerm`;
+  await page.route(isScreen, (route) => {
+    const body = route.request().postData();
+    return route.request().method() === "POST" && body
+      ? route.continue({
+          postData: body.replace('"scored":true', '"scored":"x"'),
+        })
+      : route.fallback();
+  });
+  await page.keyboard.press("3");
+  const banner = bar.getByRole("alert");
+  await expect(banner).toHaveText("Fikk ikke lagret trekket. Prøv igjen.");
+  await expect(control("Bom [M]")).toHaveCount(0);
+  await expect(hint).toBeHidden();
+  await expect(tile(3)).toHaveRole("button");
+  await page.unroute(isScreen);
+  await page.reload();
+  await expect(tiles).toHaveCount(8);
+  await expect(teams).toHaveText(lag1);
+
+  // Every tile revealed, the last one unscored: the hint, and axe with both looks.
+  const allShown = bar.getByRole("status");
+  await expect(allShown).toHaveText("");
+  for (const n of [1, 2, 3, 4, 5, 6, 7]) {
+    await page.keyboard.press(String(n));
+    await expect(tile(n)).not.toHaveRole("button");
+  }
+  await page.keyboard.press("u");
+  await page.keyboard.press("8");
+  await expect(tile(8)).toContainText("uten poeng");
+  await expect(allShown).toHaveText("Alle svarene er avslørt.");
+  expect(await style(allShown, "color")).toBe("rgb(246, 241, 231)");
+  // The fullest bar (Angre shown, toggle on, both hints) does not overflow its row.
+  expect(
+    await bar.evaluate(
+      (el) =>
+        el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight,
+    ),
+  ).toBe(true);
   expect(await seriousViolations(page)).toEqual([]);
 });

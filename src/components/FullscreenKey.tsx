@@ -13,7 +13,8 @@ export function FullscreenKey({ className }: { className: string }) {
       if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
         return;
       const target = event.target as HTMLElement;
-      if (target.closest("input, textarea, select, [contenteditable]")) return;
+      if (target.closest("input, textarea, select, [contenteditable], dialog"))
+        return;
       // A refused request (no user gesture, a browser policy) leaves the page as it is.
       (document.fullscreenElement
         ? document.exitFullscreen()

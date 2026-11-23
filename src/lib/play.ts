@@ -25,3 +25,6 @@ export const revealSchema = z.object({
   boardSlotId: z.string(),
   scored: z.boolean(),
 });
+
+// Undo and next Team act on the Game's saved play state; the Game is all they take.
+export const playGameSchema = z.object({ gameId: z.string() });

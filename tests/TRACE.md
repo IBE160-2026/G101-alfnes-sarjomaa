@@ -337,14 +337,17 @@ Mark a match or a miss.
 - `tests/integration/delete.test.ts`: deleting a _playing_ Game with a Reveal removes its `reveal` rows (Story 6.2); the catalog test covers `reveal`'s foreign keys as `ON DELETE CASCADE`.
 - `tests/e2e/play.spec.ts`: tile 1's border is `stage-line`, and with the reveal POST held until the test releases it, `stage-ink` while the tile is still a button; then the tile shows "Kari" and "3 poeng", is no longer a button, keeps focus as the revealed row, carries the staged animation (`reveal-fill`, `reveal-label`, `reveal-count`), the status says "«Kari», 3 poeng til Lag 1." and Team 1's Score reads "3 poeng", counts up to 3 and its drawn digits have a width; Ctrl+3 and a revealed rank do nothing, key `2` reveals "Bjørn" and the Score becomes "4 poeng"; under reduced motion key `3` reveals with no animation or Score transition; an aborted POST shows "Mistet forbindelsen." in the control-bar row with the tile still hidden; after a second tab reveals tile 4, a click on it here shows it revealed, static (no animation) and focused, with no banner (Story 6.2, AC4).
 - `tests/manual/checklist.md`: T6, a Reveal within one second (Story 6.2, AC6, NFR-5).
-- Pending: Story 6.3 (miss, unscored Reveals from the UI).
+- `tests/integration/play.test.ts`: an unscored Reveal shows in `play.load` with `scored: false` (Story 6.3, AC3).
+- `tests/e2e/play.spec.ts`: "Bom [M]" (key `m`) shows "Bom" on an 80 px `stage-ink` panel on `stage-raised`, centred over the list, `aria-hidden`, with no `svg` or `img`, animation `bom` and `pointer-events: none`; the status says "Bom."; the panel is gone after about 1.5 s, and "Svarer nå" stays on Lag 1 with every tile hidden, also after a reload (Story 6.3, AC1). With "Vis resten uten poeng [U]" on, a click makes an unscored Reveal: the tile contains "uten poeng", has a dashed border on `stage-raised`, the status says "«…» er avslørt uten poeng." and no Score changes; the last tile revealed with the toggle on is unscored too (Story 6.3, AC4).
 
 ## FR-26
 
 Undo.
 
-- None yet.
-- Pending: Story 6.3.
+- `tests/integration/play.test.ts`: `undoReveal` (through `play.undo`) deletes the unscored Reveal first (`team: null`), then the scored one (`team: "Lag 1"`), the Score falls 5 → 0 by itself, both pages are revalidated and the turn does not move; with Reveals on Question 1 and `play_state` moved to Question 2 by hand, undo deletes Question 2's Reveals in `seq` order (Scores and the raw SQL sum after each), then answers `NOTHING_TO_UNDO` "Det er ingenting å angre." and Question 1's Reveals stay; undo with no Reveal writes nothing; a missing or non-string `gameId` is `INVALID_INPUT`; _ready_ and _played_ are `WRONG_STATE` (Story 6.3, AC2).
+- `tests/integration/play.test.ts`: 240 seeded random steps (reveal scored or unscored, undo, next Team, `play_state` moved to the next Question by hand) on a three-Team Game: after each step every Score equals the model's sum of its scored Counts and the raw SQL sum, each undo returns the model's Reveal, and undo with nothing on the current Question is `NOTHING_TO_UNDO`; the seed exercises every kind of step (Story 6.3, AC3).
+- `tests/integration/authz.test.ts`: Host B's `play.undo`, `undoReveal`, `play.nextTeam` and `passTurn` on A's _playing_ Game with a Reveal, a random UUID and `abc` give `NOT_FOUND`, and A's Reveal and current Team are unchanged (Story 6.3, AD-5).
+- `tests/e2e/play.spec.ts`: "Angre [Z]" is absent before a Reveal and after the last undo; `z` after revealing tile 1 says "Angret. «Kari» er skjult igjen, 3 poeng trukket fra Lag 1.", tile 1 is a button again and the Score is "0 poeng"; a click on Angre after an unscored Reveal says "Angret. «…» er skjult igjen." and moves focus to the tile it hid again, as `z` does when the revealed row had focus; after a second tab undoes this tab's Reveal, `z` here refreshes to the saved state with no banner and Angre gone (Story 6.3, AC4).
 
 ## FR-27
 
@@ -352,7 +355,9 @@ Turns and moving on.
 
 - `tests/integration/play.test.ts`: a Reveal leaves `play_state` unchanged, so the turn does not pass (Story 6.2).
 - `tests/e2e/play.spec.ts`: a reload after four Reveals restores the Question, "Svarer nå" on Lag 1, the four revealed tiles (static, no animation) and the Score "6 poeng" from the server (Story 6.2, AC5).
-- Pending: Stories 6.3, 6.4.
+- `tests/integration/play.test.ts`: `passTurn` (through `play.nextTeam`) moves the turn Lag 1 → Lag 2 → Lag 3 → Lag 1, returns the new Team and revalidates the screen; `play.load` shows it current; bad input is `INVALID_INPUT` and _ready_ and _played_ are `WRONG_STATE` (Story 6.3, AC3).
+- `tests/e2e/play.spec.ts`: "Neste lag [T]" moves "Svarer nå" to Lag 2 with the status "Lag 2 svarer nå.", and `T` wraps back to Lag 1 (Story 6.3, AC4).
+- Pending: Story 6.4 (next Question, final Scores; the uten-poeng toggle switching off on the next Question is asserted there).
 
 ## FR-30
 
@@ -420,7 +425,8 @@ Responsiveness: every Host action in Review and play shows its result within one
 - `tests/manual/checklist.md`: T3, rename, discard and "Angre forkasting" timing on the sizing Game (Story 5.4). Timed by hand, not in CI.
 - `tests/manual/checklist.md`: T4, "Marker som gjennomgått" to the next Question, and T5, "Lås brettet" to the Game page, the heaviest Review transaction (Story 5.5). Timed by hand, not in CI.
 - `tests/manual/checklist.md`: T6, a Reveal from the click or rank key to the revealed label and Score (Story 6.2). Timed by hand, not in CI.
-- Pending: Stories 6.3, 6.4.
+- `tests/manual/checklist.md`: T7, Bom, Angre, Neste lag and the uten-poeng toggle each show their result within one second (Story 6.3). Timed by hand, not in CI.
+- Pending: Story 6.4.
 
 ## NFR-6
 
@@ -487,4 +493,5 @@ Design and experience rules from `DESIGN.md` and `EXPERIENCE.md` that no FR cove
 - `tests/e2e/play.spec.ts`, `tests/integration/play.test.ts`: Team setup is a light Host page with "Hvem spiller?", fields "Navn på lag N" prefilled "Lag N", "Legg til lag" up to four, "Fjern lag N" only above two, errors under each field and "Start spillet" (Story 6.1, UX-DR22).
 - `tests/e2e/play.spec.ts`: the play view is a 1920×1080 canvas scaled by CSS alone (`tan(atan2())` ratios) and letterboxed: exactly the window at 1920×1080 and 1280×720; the Question, Team column, list and the 64 px control bar stay inside 1080 px with a 200-character Question and eight tiles (Story 6.2, UX-DR21).
 - `tests/e2e/play.spec.ts`, `tests/integration/play.test.ts`: a hidden tile is a button "Avslør plass N" showing only its rank, with a `stage-ink` border while pending; a revealed tile is a focusable row (not a button) with rank, label and Count badge ("N poeng" to screen readers) (Story 6.2, UX-DR13).
+- `tests/e2e/play.spec.ts`: the control bar holds "Bom [M]", "Angre [Z]" (only with a Reveal on the Question), "Neste lag [T]", the toggle (`aria-pressed`; on it reads "Avslører uten poeng [U]" in weight 700 `stage-ink` and dashes every hidden tile's border, off it is solid again) and "?" ("Hurtigtaster"); an injected `<input>` swallows `m`, `t`, `u`, `1` and `?`; Shift+`?` opens the dialog "Hurtigtaster" with the key list and focus on "Lukk", axe is clean with it open, `1`, `m`, `t`, `u` and `f` do nothing while it is open, `Esc` and "Lukk" close it; a reveal whose request body is rewritten so the server answers `INVALID_INPUT` shows "Fikk ikke lagret trekket. Prøv igjen." in the bar with the controls hidden and the tile still hidden, and a reload shows nothing changed; with every tile revealed the bar's status reads "Alle svarene er avslørt." in `stage-ink` and the fullest bar does not overflow its row; under reduced motion the Bom panel has no animation; axe is clean with scored and unscored tiles (Story 6.3, UX-DR21).
 - `tests/e2e/play.spec.ts`: only the tile revealed from this tab animates (`data-revealing`), a reload shows revealed tiles static, reduced motion removes the animations and the Score transition, and failures appear as a banner in the control-bar row, never over the list (Story 6.2, UX-DR14).

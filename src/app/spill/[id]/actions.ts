@@ -152,3 +152,15 @@ export async function revealSlot(
 ): Promise<ActionResult<play.RevealResult>> {
   return hostAction(play.reveal, input, "skjerm");
 }
+
+export async function undoReveal(
+  input: unknown,
+): Promise<ActionResult<play.UndoResult>> {
+  return hostAction(play.undo, input, "skjerm");
+}
+
+export async function passTurn(
+  input: unknown,
+): Promise<ActionResult<{ team: string }>> {
+  return hostAction(play.nextTeam, input, "skjerm");
+}

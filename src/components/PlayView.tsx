@@ -61,7 +61,11 @@ export function PlayView({
             ))}
           </ol>
         </div>
-        <Board gameId={gameId} board={board} />
+        <Board
+          gameId={gameId}
+          questionPosition={question.position}
+          board={board}
+        />
       </div>
     </div>
   );

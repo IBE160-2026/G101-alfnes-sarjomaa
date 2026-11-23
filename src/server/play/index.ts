@@ -1,8 +1,8 @@
 import "server-only";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { DomainError, validate } from "@/lib/errors";
 import { PERMITTED } from "@/lib/game-state";
-import { revealSchema, startPlaySchema } from "@/lib/play";
+import { playGameSchema, revealSchema, startPlaySchema } from "@/lib/play";
 import { withBoundary } from "@/server/boundary";
 import { getDb } from "@/server/db/client";
 import {
@@ -27,6 +27,7 @@ export type PlayView = {
         revealed: true;
         label: string;
         count: number;
+        scored: boolean;
       }
   )[];
 };
@@ -36,6 +37,8 @@ export type RevealResult = {
   count: number;
   team: string | null;
 };
+
+export type UndoResult = RevealResult & { boardSlotId: string };
 
 // FR-23, AD-16: names the Teams and starts play at Question 1 with Team 1, in one
 // transaction under the Game lock, so the owner and state checks hold to the end.
@@ -104,13 +107,14 @@ export function load(hostId: string, gameId: string): Promise<PlayView> {
     const slots = (await review.getBoard(db, gameId)).filter(
       (s) => s.questionId === current.questionId,
     );
-    const revealed = new Set(
+    // Slot id → scored (an unscored Reveal has no Team).
+    const revealed = new Map(
       (
         await db
-          .select({ id: revealRow.boardSlotId })
+          .select({ id: revealRow.boardSlotId, teamId: revealRow.teamId })
           .from(revealRow)
           .where(eq(revealRow.gameId, gameId))
-      ).map((r) => r.id),
+      ).map((r) => [r.id, r.teamId !== null]),
     );
     return {
       question: { position: current.position, text: current.text },
@@ -118,7 +122,14 @@ export function load(hostId: string, gameId: string): Promise<PlayView> {
       teams: teams.map((t) => ({ ...t, current: t.id === current.teamId })),
       board: slots.map(({ id, position, label, count }) =>
         revealed.has(id)
-          ? { id, position, revealed: true as const, label, count }
+          ? {
+              id,
+              position,
+              revealed: true as const,
+              label,
+              count,
+              scored: revealed.get(id)!,
+            }
           : { id, position, revealed: false as const },
       ),
     };
@@ -170,6 +181,82 @@ export function reveal(hostId: string, input: unknown): Promise<RevealResult> {
         count: slot.count,
         team: scored ? current.name : null,
       };
+    });
+  });
+}
+
+// FR-26, AD-16: deletes the most recent Reveal on the current Question, scored or not.
+// Earlier Questions' Reveals are never touched; the Score falls with it (AD-11).
+export function undo(hostId: string, input: unknown): Promise<UndoResult> {
+  return withBoundary("play", "undo", async () => {
+    const { gameId } = validate(playGameSchema, input);
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.playMove,
+      });
+      const board = review.getBoard(tx, gameId).as("board");
+      const [last] = await tx
+        .select({
+          id: revealRow.id,
+          boardSlotId: revealRow.boardSlotId,
+          label: board.label,
+          count: board.count,
+          team: team.name,
+        })
+        .from(revealRow)
+        .innerJoin(board, eq(board.id, revealRow.boardSlotId))
+        .innerJoin(
+          playState,
+          and(
+            eq(playState.gameId, revealRow.gameId),
+            eq(playState.currentQuestionId, board.questionId),
+          ),
+        )
+        .leftJoin(team, eq(team.id, revealRow.teamId))
+        .where(eq(revealRow.gameId, gameId))
+        .orderBy(desc(revealRow.seq))
+        .limit(1);
+      if (!last) throw new DomainError("NOTHING_TO_UNDO");
+      await tx.delete(revealRow).where(eq(revealRow.id, last.id));
+      const { boardSlotId, label, count } = last;
+      return { boardSlotId, label, count, team: last.team };
+    });
+  });
+}
+
+// FR-27, AD-16: passes the turn to the next Team by position, wrapping to the first.
+export function nextTeam(
+  hostId: string,
+  input: unknown,
+): Promise<{ team: string }> {
+  return withBoundary("play", "nextTeam", async () => {
+    const { gameId } = validate(playGameSchema, input);
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.playMove,
+      });
+      const teams = await tx
+        .select({ id: team.id, name: team.name })
+        .from(team)
+        .where(eq(team.gameId, gameId))
+        .orderBy(asc(team.position));
+      const [{ teamId }] = await tx
+        .select({ teamId: playState.currentTeamId })
+        .from(playState)
+        .where(eq(playState.gameId, gameId));
+      const next =
+        teams[(teams.findIndex((t) => t.id === teamId) + 1) % teams.length];
+      await tx
+        .update(playState)
+        .set({ currentTeamId: next.id })
+        .where(eq(playState.gameId, gameId));
+      return { team: next.name };
     });
   });
 }
