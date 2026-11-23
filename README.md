@@ -12,6 +12,70 @@ samme til rangerte topp-lister, verten retter opp grupperingen, og gjengen spill
 delt skjerm. I trinn 2 skal et ferdig spørsmålssett la en gjeng spille med én gang, uten å
 vente på at et skjema fylles ut.
 
+## Slik ser det ut
+
+Skjermbildene er tatt av den faktiske appen med et oppdiktet spill, «Hyttetur 2026», uten
+KI-nøkkel. Spillvisningen på TV-en kommer i epic 6.
+
+**Gjennomgangen.** Verten ser de rangerte gruppene per spørsmål, slår sammen, flytter, gir
+nytt navn og forkaster før brettet låses. Her er to grupper valgt for sammenslåing.
+
+![Gjennomgangen med to grupper valgt og valglinja nederst](docs-assets/skjermbilder/gjennomgang-valg.png)
+
+| Deltakeren svarer på mobilen | Verten følger innsamlingen |
+|---|---|
+| <img src="docs-assets/skjermbilder/svarskjema-mobil.png" alt="Svarskjemaet på mobil med anonymitetsvarselet øverst" width="300"> | <img src="docs-assets/skjermbilder/spill-oversikt.png" alt="Spillsiden under innsamling med antall svar mottatt" width="520"> |
+
+<details>
+<summary>Flere skjermbilder</summary>
+
+| Skjerm | Bilde |
+|---|---|
+| Forsiden | ![Forsiden](docs-assets/skjermbilder/forside.png) |
+| Spørsmålene skrives | ![Spørsmålsredigering med fem spørsmål](docs-assets/skjermbilder/sporsmal.png) |
+| Innsamlingen åpnes | ![Bekreftelsesdialog før innsamlingen åpnes](docs-assets/skjermbilder/apne-innsamling-dialog.png) |
+| Engangslenkene | ![Lista med invitasjonslenker](docs-assets/skjermbilder/invitasjonslenker.png) |
+| Svaret er lagret | <img src="docs-assets/skjermbilder/svar-lagret-mobil.png" alt="Bekreftelsen etter innsending på mobil" width="300"> |
+| Innsamlingen stenges | ![Bekreftelsesdialog før innsamlingen stenges](docs-assets/skjermbilder/steng-dialog.png) |
+| Gjennomgang av ett spørsmål | ![Gjennomgangen med sammenslåtte og omdøpte grupper](docs-assets/skjermbilder/gjennomgang.png) |
+| Forkastede grupper | ![Forkastet-seksjonen med Angre forkasting](docs-assets/skjermbilder/gjennomgang-forkastet.png) |
+
+</details>
+
+## Flytene
+
+Diagrammene er laget i [Excalidraw](https://excalidraw.com). `.excalidraw`-fila ved siden av
+hvert bilde kan åpnes og redigeres der.
+
+**Verten** lager spillet, samler inn svar, retter grupperingen og spiller. Tilstandene i
+midten er de samme som i koden (`src/lib/game-state.ts`).
+Kilde: [`vertsflyt.excalidraw`](docs-assets/diagrammer/vertsflyt.excalidraw)
+
+![Vertens flyt gjennom spillets tilstander](docs-assets/diagrammer/vertsflyt.png)
+
+**Deltakeren** får en personlig lenke, svarer anonymt og kan endre svarene fra samme enhet
+til innsamlingen stenges. Tokenet ligger etter `#` i lenken og sendes aldri i URL-en til
+serveren. Kilde: [`deltakerflyt.excalidraw`](docs-assets/diagrammer/deltakerflyt.excalidraw)
+
+![Deltakerens flyt fra lenke til lagrede svar](docs-assets/diagrammer/deltakerflyt.png)
+
+**Anonymiteten** avgjøres når innsamlingen stenges: én transaksjon kutter koblingen mellom
+lenke og svar, og ved låsing av brettet slettes også bidragsnøklene.
+Kilde: [`anonymitet.excalidraw`](docs-assets/diagrammer/anonymitet.excalidraw)
+
+![Hva som skjer med dataene før stenging, ved stenging og etter låsing](docs-assets/diagrammer/anonymitet.png)
+
+**Grupperingen** gjøres av en språkmodell når en nøkkel er satt, og ellers av lagrede
+kjennelser eller manuelt. Verten har alltid siste ord i gjennomgangen.
+Kilde: [`gruppering.excalidraw`](docs-assets/diagrammer/gruppering.excalidraw)
+
+![Dommeren, de tre leverandørene og fallback til manuell gruppering](docs-assets/diagrammer/gruppering.png)
+
+**Arkitekturen** i korte trekk: Next.js App Router, servermoduler i `src/server`, og PGlite
+lokalt eller Postgres ved deploy. Kilde: [`arkitektur.excalidraw`](docs-assets/diagrammer/arkitektur.excalidraw)
+
+![Arkitekturoversikt](docs-assets/diagrammer/arkitektur.png)
+
 ## Medlemmer
 
 - Sondre Alfnes
