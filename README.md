@@ -265,32 +265,10 @@ npm run judge:eval                # dommeren mot ProtoQA, fra lagrede avgjørels
 
 Stopp `npm run dev` og `npm run demo` før e2e: Next tillater bare én `next dev` per repo.
 
-<details>
-<summary>Kommandoene CI kjører</summary>
-
-Node 22 og 26, uten nøkkel. Feilloggen fra e2e er `dev.log` i en `toppsvar-e2e-*`-mappe under
-`$TMPDIR` (macOS) eller `/tmp` (Linux).
-
-```bash
-npm ci
-npm run lint                # ESLint, også lagreglene mellom src/app, src/server og src/lib
-npm run format:check        # Prettier (npm run format retter)
-npm run typecheck           # next typegen + tsc
-npx drizzle-kit check       # migrasjonene i drizzle/ henger sammen
-npm run db:generate         # CI feiler hvis drizzle/ endres etterpå (manglende migrasjon)
-npm test
-npm run judge:eval
-npm run test:e2e
-npm run demo                # til /api/health svarer, så stopp
-```
-
-En egen jobb kjører integrasjonstestene mot Postgres 17:
-
-```bash
-TEST_POSTGRES_URL=postgres://postgres@127.0.0.1:5432/postgres npm run test -- tests/integration
-```
-
-</details>
+CI kjører lint, format, typesjekk, migrasjonssjekk, testene, `judge:eval`, e2e og en
+demosjekk på Node 22 og 26 uten nøkkel, og integrasjonstestene mot Postgres 17 i en egen jobb
+(se [`ci.yml`](.github/workflows/ci.yml)). Feilloggen fra e2e er `dev.log` i en
+`toppsvar-e2e-*`-mappe under `$TMPDIR` (macOS) eller `/tmp` (Linux).
 
 <details>
 <summary>Database og migrasjoner</summary>
