@@ -106,7 +106,11 @@ export const submission = pgTable("submission", {
   editSecretHash: text("edit_secret_hash").notNull(),
 });
 
-export const groupOrigin = pgEnum("group_origin", ["judge", "fallback"]);
+export const groupOrigin = pgEnum("group_origin", [
+  "judge",
+  "fallback",
+  "host",
+]);
 export const groupingSource = pgEnum("grouping_source", [
   "judge",
   "replay",

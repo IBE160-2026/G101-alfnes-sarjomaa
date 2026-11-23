@@ -1,6 +1,11 @@
-// Review's pure helpers and input schemas: Answer chips, the fallback Notice and merge (FR-17, FR-19, FR-20).
+// Review's pure helpers and input schemas: Answer chips, the fallback Notice, merge,
+// move and rename (FR-16, FR-17, FR-19, FR-20).
 import { z } from "zod";
-import { ANSWERS_PER_QUESTION_MAX, INVITE_LINKS_MAX } from "@/lib/limits";
+import {
+  ANSWERS_PER_QUESTION_MAX,
+  INVITE_LINKS_MAX,
+  LABEL_MAX,
+} from "@/lib/limits";
 
 const MERGE_IDS = "Velg minst to ulike grupper.";
 
@@ -15,27 +20,53 @@ export const mergeGroupsSchema = z.object({
     .refine((ids) => new Set(ids).size === ids.length, MERGE_IDS),
 });
 
+const MOVE_IDS = "Velg minst ett svar.";
+
+// No groupId means a new Group. The cap is every Answer a Question can have.
+export const moveAnswersSchema = z.object({
+  gameId: z.string(),
+  answerIds: z
+    .array(z.string())
+    .min(1, MOVE_IDS)
+    .max(INVITE_LINKS_MAX * ANSWERS_PER_QUESTION_MAX, MOVE_IDS)
+    .refine((ids) => new Set(ids).size === ids.length, MOVE_IDS),
+  groupId: z.string().optional(),
+});
+
+export const renameGroupSchema = z.object({
+  gameId: z.string(),
+  groupId: z.string(),
+  label: z
+    .string()
+    .trim()
+    .min(1, "Skriv et navn.")
+    .max(LABEL_MAX, `Navnet kan ha maks ${LABEL_MAX} tegn.`),
+});
+
 // Answers come in SQL order (normalized_text, then text). Equal normalised texts become
 // one chip in its most common written form (ties: the first), keeping that order.
+// A chip carries its Answers' IDs, so ticking it selects all of them (UX-DR11).
 export function collapseChips(
-  answers: { text: string; normalizedText: string }[],
-): { text: string; n: number }[] {
-  const byText = new Map<string, Map<string, number>>();
-  for (const { text, normalizedText } of answers) {
-    const forms = byText.get(normalizedText) ?? new Map<string, number>();
-    forms.set(text, (forms.get(text) ?? 0) + 1);
-    byText.set(normalizedText, forms);
+  answers: { id: string; text: string; normalizedText: string }[],
+): { text: string; n: number; ids: string[] }[] {
+  type Chip = { forms: Map<string, number>; ids: string[] };
+  const byText = new Map<string, Chip>();
+  for (const { id, text, normalizedText } of answers) {
+    const chip: Chip = byText.get(normalizedText) ?? {
+      forms: new Map(),
+      ids: [],
+    };
+    chip.forms.set(text, (chip.forms.get(text) ?? 0) + 1);
+    chip.ids.push(id);
+    byText.set(normalizedText, chip);
   }
-  return [...byText.values()].map((forms) => {
+  return [...byText.values()].map(({ forms, ids }) => {
     let text = "";
     let best = 0;
-    let n = 0;
     // Map keeps insertion order, so a strict > keeps the first form on a tie.
-    for (const [form, count] of forms) {
-      n += count;
+    for (const [form, count] of forms)
       if (count > best) [text, best] = [form, count];
-    }
-    return { text, n };
+    return { text, n: ids.length, ids };
   });
 }
 

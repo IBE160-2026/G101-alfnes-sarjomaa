@@ -1,0 +1,1 @@
+ALTER TYPE "public"."group_origin" ADD VALUE 'host';

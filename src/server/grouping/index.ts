@@ -7,6 +7,8 @@ import {
   eq,
   inArray,
   isNotNull,
+  ne,
+  notExists,
   sql,
 } from "drizzle-orm";
 import { DomainError } from "@/lib/errors";
@@ -59,6 +61,69 @@ export async function mergeGroups(
     .update(answerGroup)
     .set({ customLabel: label, editCount: sql`${answerGroup.editCount} + 1` })
     .where(eq(answerGroup.id, targetId));
+}
+
+// Review's move and split (FR-20). The caller holds the Game lock and resolved every ID in
+// one non-discarded part of the Question. No targetId makes a new Group with origin host
+// (AD-12, never judge). Answers already in the target stay, so moved can be 0: then
+// nothing is written. Emptied sources are deleted only after the move (the delete cascades).
+export async function moveAnswers(
+  tx: Tx,
+  {
+    questionId,
+    answerIds,
+    targetId,
+  }: { questionId: string; answerIds: string[]; targetId?: string },
+): Promise<{ groupId: string; moved: number }> {
+  const groupId = targetId ?? randomUUID();
+  const moving = and(
+    inArray(answer.id, answerIds),
+    ne(answer.groupId, groupId),
+  );
+  const from = await tx
+    .selectDistinct({ id: answer.groupId })
+    .from(answer)
+    .where(moving);
+  const sourceIds = from.map((g) => g.id!);
+  if (sourceIds.length === 0) return { groupId, moved: 0 };
+  if (!targetId)
+    await tx
+      .insert(answerGroup)
+      .values({ id: groupId, questionId, origin: "host" });
+  const moved = await tx
+    .update(answer)
+    .set({ groupId })
+    .where(moving)
+    .returning({ id: answer.id });
+  await tx
+    .delete(answerGroup)
+    .where(
+      and(
+        inArray(answerGroup.id, sourceIds),
+        notExists(
+          tx
+            .select({ id: answer.id })
+            .from(answer)
+            .where(eq(answer.groupId, answerGroup.id)),
+        ),
+      ),
+    );
+  await tx
+    .update(answerGroup)
+    .set({ editCount: sql`${answerGroup.editCount} + 1` })
+    .where(inArray(answerGroup.id, [groupId, ...sourceIds]));
+  return { groupId, moved: moved.length };
+}
+
+// Review's rename (FR-20). The caller holds the Game lock and resolved the Group.
+export async function renameGroup(
+  tx: Tx,
+  { groupId, label }: { groupId: string; label: string },
+): Promise<void> {
+  await tx
+    .update(answerGroup)
+    .set({ customLabel: label, editCount: sql`${answerGroup.editCount} + 1` })
+    .where(eq(answerGroup.id, groupId));
 }
 
 // A Game deleted or already past grouping: the run stops without a trace (AD-12).

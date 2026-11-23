@@ -14,7 +14,11 @@ import {
   it,
   vi,
 } from "vitest";
-import { mergeGroups } from "@/app/spill/[id]/actions";
+import {
+  mergeGroups,
+  moveAnswers,
+  renameGroup,
+} from "@/app/spill/[id]/actions";
 import ReviewPage from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
 import { DomainError } from "@/lib/errors";
@@ -200,11 +204,16 @@ describe("review.load", () => {
             label: "kari",
             count: 3,
             chips: [
-              { text: "Kari", n: 3 },
-              { text: "Ola", n: 2 },
+              { text: "Kari", n: 3, ids: expect.any(Array) },
+              { text: "Ola", n: 2, ids: expect.any(Array) },
             ],
           },
-          { id: per, label: "per", count: 2, chips: [{ text: "Per", n: 2 }] },
+          {
+            id: per,
+            label: "per",
+            count: 2,
+            chips: [{ text: "Per", n: 2, ids: expect.any(Array) }],
+          },
         ],
         below: [],
         discarded: [],
@@ -237,6 +246,18 @@ describe("review.load", () => {
         ),
       ),
     ).toEqual(perGroup(answers.map((a) => [a.groupId!, a.normalizedText, 1])));
+    // Each chip carries exactly its own Answers' IDs (FR-20).
+    expect(
+      [...board, ...below, ...discarded]
+        .flatMap((g) =>
+          g.chips.flatMap((c) =>
+            c.ids.map((id) => [id, g.id, normalize(c.text)].join()),
+          ),
+        )
+        .sort(),
+    ).toEqual(
+      answers.map((a) => [a.id, a.groupId, a.normalizedText].join()).sort(),
+    );
     // Keys, not values: an Answer such as "Frank" must not trip the check.
     const keys: string[] = [];
     const json = JSON.stringify(data, (key, value: unknown) => {
@@ -281,7 +302,9 @@ describe("review.load", () => {
   it("FR-19, FR-13 (AC3): two written forms once each (Kari, kari) give the chip in SQL order, Kari", async () => {
     const { gameId } = await reviewGame([[Q1, [["Kari"], ["kari"], ["Ola"]]]]);
     const { current } = await review.load(hostId, gameId);
-    expect(current.board[0].chips).toEqual([{ text: "Kari", n: 2 }]);
+    expect(current.board[0].chips).toEqual([
+      { text: "Kari", n: 2, ids: expect.any(Array) },
+    ]);
   });
 
   it.each(["draft", "collecting", "grouping", "ready", "playing", "played"])(
@@ -578,48 +601,48 @@ describe("Game page in review", () => {
   });
 });
 
+// Everything a Review edit may write: Answers, Groups, the reviewed marks and the counters.
+async function snapshot(gameId: string, questionIds: string[]) {
+  const db = await getDb();
+  const rows = [];
+  for (const id of questionIds)
+    rows.push({
+      answers: await db
+        .select({ id: answer.id, groupId: answer.groupId })
+        .from(answer)
+        .where(eq(answer.questionId, id))
+        .orderBy(asc(answer.id)),
+      groups: await db
+        .select()
+        .from(answerGroup)
+        .where(eq(answerGroup.questionId, id))
+        .orderBy(asc(answerGroup.id)),
+      reviewed: (
+        await db
+          .select({ reviewed: question.reviewed })
+          .from(question)
+          .where(eq(question.id, id))
+      )[0].reviewed,
+    });
+  return { rows, counters: await games.counters(gameId) };
+}
+
+const groupRow = async (id: string) =>
+  (
+    await (
+      await getDb()
+    )
+      .select()
+      .from(answerGroup)
+      .where(eq(answerGroup.id, id))
+  )[0];
+
 describe("review.merge", () => {
   // Kari: three keys (1, 2, 3). Ola: two keys (1, 4), one shared with Kari.
   const SHARED: Spec = [
     [Q1, [["Kari", "Ola"], ["Kari"], ["kari"], ["Ola"]]],
     [Q2, [["a"], ["b"], ["c"], ["d"]]],
   ];
-
-  // Everything a merge may write: Answers, Groups, the reviewed marks and the counters.
-  async function snapshot(gameId: string, questionIds: string[]) {
-    const db = await getDb();
-    const rows = [];
-    for (const id of questionIds)
-      rows.push({
-        answers: await db
-          .select({ id: answer.id, groupId: answer.groupId })
-          .from(answer)
-          .where(eq(answer.questionId, id))
-          .orderBy(asc(answer.id)),
-        groups: await db
-          .select()
-          .from(answerGroup)
-          .where(eq(answerGroup.questionId, id))
-          .orderBy(asc(answerGroup.id)),
-        reviewed: (
-          await db
-            .select({ reviewed: question.reviewed })
-            .from(question)
-            .where(eq(question.id, id))
-        )[0].reviewed,
-      });
-    return { rows, counters: await games.counters(gameId) };
-  }
-
-  const groupRow = async (id: string) =>
-    (
-      await (
-        await getDb()
-      )
-        .select()
-        .from(answerGroup)
-        .where(eq(answerGroup.id, id))
-    )[0];
 
   it("FR-20, AD-11, AD-15 (AC1): a shared Contributor key gives a Count below the sum; the highest-ranked source keeps its ID and frozen label, every Answer moves to it, the other is deleted, reviewed is cleared, edit_count and groups_merged go up by one", async () => {
     const { gameId, ids } = await reviewGame(SHARED);
@@ -662,8 +685,8 @@ describe("review.merge", () => {
         label: "kari",
         count: 4,
         chips: [
-          { text: "Kari", n: 3 },
-          { text: "Ola", n: 2 },
+          { text: "Kari", n: 3, ids: expect.any(Array) },
+          { text: "Ola", n: 2, ids: expect.any(Array) },
         ],
       },
     ]);
@@ -873,5 +896,349 @@ describe("review.merge", () => {
     expect(forkastet).not.toContain('type="checkbox"');
     // No selection yet, so no SelectionBar.
     expect(html).not.toContain("valgt");
+  });
+});
+
+// Q1: A = {kari, ola} (keys 1, 2, 5), B = {anne, per} (keys 2, 3), C = {dina} (key 4).
+// Q2: four singletons.
+const MOVE: Spec = [
+  [Q1, [["Kari", "Ola"], ["Ola", "Per"], ["Anne", "Per"], ["Dina"], ["Ola"]]],
+  [Q2, [["a"], ["b"], ["c"], ["d"]]],
+];
+// Sorted items anne, dina, kari, ola, per.
+const MOVE_JUDGE = { [Q1]: [1, 2, 0, 0, 1] };
+
+async function answerIdsOf(questionId: string, normalizedText: string) {
+  const rows = await (
+    await getDb()
+  )
+    .select({ id: answer.id })
+    .from(answer)
+    .where(
+      sql`${answer.questionId} = ${questionId} and ${answer.normalizedText} = ${normalizedText}`,
+    );
+  return rows.map((r) => r.id);
+}
+
+async function moveGame() {
+  const { gameId, ids } = await reviewGame(MOVE, mock(MOVE_JUDGE));
+  const db = await getDb();
+  await db
+    .update(question)
+    .set({ reviewed: true })
+    .where(eq(question.gameId, gameId));
+  return {
+    gameId,
+    ids,
+    A: await groupIdOf(ids[0], "kari"),
+    B: await groupIdOf(ids[0], "per"),
+    C: await groupIdOf(ids[0], "dina"),
+    ola: await answerIdsOf(ids[0], "ola"),
+    per: await answerIdsOf(ids[0], "per"),
+    anne: await answerIdsOf(ids[0], "anne"),
+  };
+}
+
+const codeOf = (promise: Promise<unknown>) =>
+  promise.then(
+    () => "ok",
+    (e: unknown) => (e as DomainError).code,
+  );
+
+describe("review.moveAnswers", () => {
+  it("FR-20, AD-15 (AC1): chips from two Groups move to a third; Counts are distinct keys, the target and the surviving sources get edit_count + 1, answers_moved counts Answers, reviewed is cleared and the target label is not frozen", async () => {
+    const { gameId, ids, A, B, C, ola, per } = await moveGame();
+    const result = await review.moveAnswers(hostId, {
+      gameId,
+      answerIds: [...ola, ...per],
+      groupId: C,
+    });
+    // C now holds keys 1, 2, 3, 4, 5: Count 5 from six Answers.
+    expect(result).toEqual({
+      groupId: C,
+      label: "ola",
+      count: 5,
+      position: 1,
+      moved: 5,
+      created: false,
+    });
+    const { current } = await review.load(hostId, gameId, 1);
+    expect(current.board.map((g) => [g.id, g.count])).toEqual(
+      expect.arrayContaining([
+        [C, 5],
+        [A, 1],
+        [B, 1],
+      ]),
+    );
+    const { rows, counters } = await snapshot(gameId, [ids[0]]);
+    expect(
+      Object.fromEntries(
+        rows[0].groups.map((g) => [g.id, [g.editCount, g.customLabel]]),
+      ),
+    ).toEqual({ [A]: [1, null], [B]: [1, null], [C]: [1, null] });
+    expect(rows[0].answers).toHaveLength(8);
+    expect(rows[0].reviewed).toBe(false);
+    expect(counters).toMatchObject({ answersMoved: 5, groupsCreated: 0 });
+    // The other Question keeps its mark.
+    expect((await snapshot(gameId, [ids[1]])).rows[0].reviewed).toBe(true);
+  });
+
+  it("FR-20, FR-19 (AC1): moving all of a Group's Answers deletes it and keeps every Answer, under the target", async () => {
+    const { gameId, ids, B, C, per, anne } = await moveGame();
+    const before = (await snapshot(gameId, [ids[0]])).rows[0].answers;
+    await review.moveAnswers(hostId, {
+      gameId,
+      answerIds: [...anne, ...per],
+      groupId: C,
+    });
+    expect(await groupRow(B)).toBeUndefined();
+    const after = (await snapshot(gameId, [ids[0]])).rows[0].answers;
+    expect(after.map((a) => a.id)).toEqual(before.map((a) => a.id));
+    for (const id of [...anne, ...per])
+      expect(after.find((a) => a.id === id)?.groupId).toBe(C);
+  });
+
+  it("FR-20, FR-16, FR-18 (AC2): no target makes a new Group with origin host, no custom label, the FR-16 default label and edit_count 1; groups_created and answers_moved go up, judge_groups_proposed does not", async () => {
+    const { gameId, ids, A, ola } = await moveGame();
+    const proposed = (await games.counters(gameId)).judgeGroupsProposed;
+    nextCache.revalidatePath.mockClear();
+    const result = await moveAnswers({ gameId, answerIds: ola });
+    expect(result.ok).toBe(true);
+    const data = (result as { data: review.MoveResult }).data;
+    expect(data).toMatchObject({
+      label: "ola",
+      count: 3,
+      moved: 3,
+      created: true,
+    });
+    expect(data.groupId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(await groupRow(data.groupId)).toEqual({
+      id: data.groupId,
+      questionId: ids[0],
+      origin: "host",
+      editCount: 1,
+      customLabel: null,
+      discarded: false,
+    });
+    expect((await groupRow(A)).editCount).toBe(1);
+    const { current } = await review.load(hostId, gameId, 1);
+    const kept = [...current.board, ...current.below];
+    expect(kept.findIndex((g) => g.id === data.groupId) + 1).toBe(
+      data.position,
+    );
+    expect(await games.counters(gameId)).toMatchObject({
+      judgeGroupsProposed: proposed,
+      groupsCreated: 1,
+      answersMoved: 3,
+    });
+    expect(nextCache.revalidatePath.mock.calls).toEqual([
+      [`/spill/${gameId}`],
+      [`/spill/${gameId}/gjennomgang`],
+    ]);
+  });
+
+  it("FR-20 (AC1): Answers already in the target write nothing, keep the reviewed mark and give moved 0", async () => {
+    const { gameId, ids, A } = await moveGame();
+    const before = await snapshot(gameId, ids);
+    const result = await review.moveAnswers(hostId, {
+      gameId,
+      answerIds: await answerIdsOf(ids[0], "kari"),
+      groupId: A,
+    });
+    expect(result).toMatchObject({ groupId: A, moved: 0, created: false });
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20, AD-5 (AC3): Answers of two Questions, a target in another Question, a discarded target or source, a random UUID or a malformed Answer, Group or Game ID are NOT_FOUND, and nothing changes", async () => {
+    const { gameId, ids, A, B, C, ola, per } = await moveGame();
+    const a = await answerIdsOf(ids[1], "a");
+    const groupA = await groupIdOf(ids[1], "a");
+    const discarded = await groupIdOf(ids[1], "b");
+    await (
+      await getDb()
+    )
+      .update(answerGroup)
+      .set({ discarded: true })
+      .where(eq(answerGroup.id, discarded));
+    const before = await snapshot(gameId, ids);
+    const cases = [
+      { answerIds: [...ola, ...a], groupId: C },
+      { answerIds: [...ola, ...a] },
+      { answerIds: ola, groupId: groupA },
+      { answerIds: a, groupId: discarded },
+      { answerIds: await answerIdsOf(ids[1], "b"), groupId: groupA },
+      { answerIds: [...ola, randomUUID()], groupId: C },
+      { answerIds: ola, groupId: randomUUID() },
+      { answerIds: [...per, "abc"], groupId: A },
+      { answerIds: per, groupId: "abc" },
+      { answerIds: per, groupId: B, gameId: "abc" },
+      { answerIds: per, groupId: C, gameId: randomUUID() },
+    ];
+    for (const input of cases)
+      expect(
+        await codeOf(review.moveAnswers(hostId, { gameId, ...input })),
+        JSON.stringify(input),
+      ).toBe("NOT_FOUND");
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20 (AC1): no Answers, a duplicate Answer or no list is INVALID_INPUT, and nothing changes", async () => {
+    const { gameId, ids, C, ola } = await moveGame();
+    const before = await snapshot(gameId, ids);
+    for (const answerIds of [[], [ola[0], ola[0]], undefined])
+      expect(
+        await codeOf(
+          review.moveAnswers(hostId, { gameId, answerIds, groupId: C }),
+        ),
+        String(answerIds),
+      ).toBe("INVALID_INPUT");
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20, AD-4 (AC1): a Game in ready is WRONG_STATE for a move and a new Group, and nothing changes", async () => {
+    const { gameId, ids, C, ola } = await moveGame();
+    await (
+      await getDb()
+    )
+      .update(game)
+      .set({ state: "ready" })
+      .where(eq(game.id, gameId));
+    const before = await snapshot(gameId, ids);
+    for (const groupId of [C, undefined])
+      expect(
+        await codeOf(
+          review.moveAnswers(hostId, { gameId, answerIds: ola, groupId }),
+        ),
+      ).toBe("WRONG_STATE");
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20, AD-15 (AC2): a counter write failing after the move rolls everything back, the new Group included", async () => {
+    const { gameId, ids, ola } = await moveGame();
+    const before = await snapshot(gameId, ids);
+    vi.mocked(games.bumpCounters).mockRejectedValueOnce(new Error("disk full"));
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    expect(
+      await codeOf(review.moveAnswers(hostId, { gameId, answerIds: ola })),
+    ).toBe("INTERNAL");
+    expect(games.bumpCounters).toHaveBeenCalled();
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20, UX-DR11 (AC4): the page renders a chip checkbox on every Board and Ikke på brettet multi-chip card, none on compact rows and none under Forkastet", async () => {
+    // Nine sets: kari/ola together (Board), per/anne together (rank 9, below), geir discarded.
+    const { gameId, ids } = await reviewGame(
+      [
+        [
+          Q1,
+          [
+            ["Kari", "Ola"],
+            ["Kari", "Ola"],
+            ["Bjørn"],
+            ["Cato"],
+            ["Dina"],
+            ["Erik"],
+            ["Frida"],
+            ["Hege"],
+            ["Ivar"],
+            ["Per", "Anne"],
+            ["Geir", "Jon"],
+          ],
+        ],
+      ],
+      // Sorted: anne bjørn cato dina erik frida geir hege ivar jon kari ola per.
+      mock({ [Q1]: [0, 1, 2, 3, 4, 5, 6, 7, 8, 6, 9, 9, 0] }),
+    );
+    await (
+      await getDb()
+    )
+      .update(answerGroup)
+      .set({ discarded: true })
+      .where(eq(answerGroup.id, await groupIdOf(ids[0], "geir")));
+    const { current } = await review.load(hostId, gameId);
+    expect(current.board[0].label).toBe("ola");
+    expect(current.below.map((g) => g.chips.length)).toEqual([2]);
+    const html = await render(gameId);
+    const chipBoxes = html.match(/id="velg-svar-/g) ?? [];
+    // Kari, Ola on the Board; Anne, Per below.
+    expect(chipBoxes).toHaveLength(4);
+    expect(text(html)).toContain("Kari · 2 svar");
+    const forkastet = html.slice(html.indexOf(">Forkastet"));
+    expect(forkastet).not.toContain('type="checkbox"');
+  });
+});
+
+describe("review.rename", () => {
+  it("FR-20, FR-18 (AC4): a label is saved trimmed with edit_count + 1, groups_renamed + 1 and the reviewed mark cleared; 40 characters are accepted", async () => {
+    const { gameId, ids, A } = await moveGame();
+    nextCache.revalidatePath.mockClear();
+    expect(await renameGroup({ gameId, groupId: A, label: "  Ny  " })).toEqual({
+      ok: true,
+      data: { groupId: A, label: "Ny" },
+    });
+    expect(await groupRow(A)).toMatchObject({
+      customLabel: "Ny",
+      editCount: 1,
+    });
+    const { rows, counters } = await snapshot(gameId, [ids[0]]);
+    expect(rows[0].reviewed).toBe(false);
+    expect(counters.groupsRenamed).toBe(1);
+    expect(nextCache.revalidatePath.mock.calls).toEqual([
+      [`/spill/${gameId}`],
+      [`/spill/${gameId}/gjennomgang`],
+    ]);
+    const forty = "x".repeat(40);
+    await review.rename(hostId, { gameId, groupId: A, label: forty });
+    expect(await groupRow(A)).toMatchObject({
+      customLabel: forty,
+      editCount: 2,
+    });
+  });
+
+  it("FR-20 (AC4): an empty or 41-character label is INVALID_INPUT with the field message, and nothing changes", async () => {
+    const { gameId, ids, A } = await moveGame();
+    const before = await snapshot(gameId, ids);
+    expect(await renameGroup({ gameId, groupId: A, label: "  " })).toEqual({
+      ok: false,
+      code: "INVALID_INPUT",
+      message: "Sjekk feltene som er merket, og prøv igjen.",
+      fieldErrors: { label: "Skriv et navn." },
+    });
+    expect(
+      await renameGroup({ gameId, groupId: A, label: "x".repeat(41) }),
+    ).toMatchObject({ fieldErrors: { label: "Navnet kan ha maks 40 tegn." } });
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-20, AD-5, AD-4: a discarded, random or malformed Group, a malformed Game is NOT_FOUND, a Game in ready WRONG_STATE, and nothing changes", async () => {
+    const { gameId, ids, A } = await moveGame();
+    const discarded = await groupIdOf(ids[1], "b");
+    const db = await getDb();
+    await db
+      .update(answerGroup)
+      .set({ discarded: true })
+      .where(eq(answerGroup.id, discarded));
+    const before = await snapshot(gameId, ids);
+    for (const input of [
+      { gameId, groupId: discarded },
+      { gameId, groupId: randomUUID() },
+      { gameId, groupId: "abc" },
+      { gameId: "abc", groupId: A },
+    ])
+      expect(
+        await codeOf(review.rename(hostId, { ...input, label: "X" })),
+        JSON.stringify(input),
+      ).toBe("NOT_FOUND");
+    await db.update(game).set({ state: "ready" }).where(eq(game.id, gameId));
+    expect(
+      await codeOf(review.rename(hostId, { gameId, groupId: A, label: "X" })),
+    ).toBe("WRONG_STATE");
+    await db
+      .update(game)
+      .set({ state: "in_review" })
+      .where(eq(game.id, gameId));
+    expect(await snapshot(gameId, ids)).toEqual(before);
   });
 });

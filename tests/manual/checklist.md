@@ -13,6 +13,7 @@ What the automated tests cannot prove (SM-1). Each row is copied from the Access
 
 Measured by hand on the sizing Game (30 Answer sets, 15 Questions, up to 5 Answers each) in Review, on a laptop against `npm run start`. Note the date, machine and the slowest of five tries.
 
-| #   | Check                                                                                               | Covers       |
-| --- | --------------------------------------------------------------------------------------------------- | ------------ |
-| T1  | Merge two Groups: from the click on "Slå sammen 2 grupper" to the re-sorted list, within one second | NFR-5, FR-20 |
+| #   | Check                                                                                                                  | Covers       |
+| --- | ---------------------------------------------------------------------------------------------------------------------- | ------------ |
+| T1  | Merge two Groups: from the click on "Slå sammen 2 grupper" to the re-sorted list, within one second                    | NFR-5, FR-20 |
+| T2  | Move Answers: from the click on "Flytt" (and on "Ny gruppe") to the refreshed list with focus moved, within one second | NFR-5, FR-20 |

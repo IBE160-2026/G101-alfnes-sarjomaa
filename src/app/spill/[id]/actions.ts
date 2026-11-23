@@ -105,3 +105,15 @@ export async function mergeGroups(
 ): Promise<ActionResult<review.MergeResult>> {
   return hostAction(review.merge, input, "gjennomgang");
 }
+
+export async function moveAnswers(
+  input: unknown,
+): Promise<ActionResult<review.MoveResult>> {
+  return hostAction(review.moveAnswers, input, "gjennomgang");
+}
+
+export async function renameGroup(
+  input: unknown,
+): Promise<ActionResult<review.RenameResult>> {
+  return hostAction(review.rename, input, "gjennomgang");
+}

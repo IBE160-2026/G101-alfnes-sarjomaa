@@ -1,6 +1,7 @@
+import type { ReactNode } from "react";
 import { people } from "@/lib/format";
 
-type Chip = { text: string; n: number };
+type Chip = { text: string; n: number; ids: string[] };
 
 const LOOKS = {
   board: "border border-line bg-surface",
@@ -12,8 +13,13 @@ const LOOKS = {
 const SELECTED =
   "border border-solid border-primary bg-primary-soft inset-ring inset-ring-primary";
 
-// Presentational (FR-19). With onToggle it gets the selection checkbox (FR-20); no menu
-// or rename until Story 5.4. Answers stay in the order given, which is alphabetical (FR-13).
+// answer-chip-selected: an inset ring, so the 2 px edge never moves the layout.
+const CHIP_SELECTED = "bg-primary-soft inset-ring-2 inset-ring-primary";
+
+// Presentational (FR-19). With onToggle it gets the selection checkbox, with onToggleChip
+// a checkbox per chip (FR-20, UX-DR11); `rename` replaces the heading and `notice` sits at
+// the card's top. No menu until Story 5.4. Answers stay in the order given, which is
+// alphabetical (FR-13).
 export function GroupCard({
   id,
   rank,
@@ -24,6 +30,10 @@ export function GroupCard({
   selected = false,
   busy = false,
   onToggle,
+  chipSelected,
+  onToggleChip,
+  rename,
+  notice,
 }: {
   id: string;
   rank?: number;
@@ -34,6 +44,10 @@ export function GroupCard({
   selected?: boolean;
   busy?: boolean;
   onToggle?: () => void;
+  chipSelected?: (chip: Chip) => boolean;
+  onToggleChip?: (chip: Chip) => void;
+  rename?: ReactNode;
+  notice?: ReactNode;
 }) {
   const compact = look !== "discarded" && chips.length === 1;
   const header = (
@@ -54,12 +68,14 @@ export function GroupCard({
       {rank !== undefined && (
         <span className="w-7 shrink-0 text-title tabular-nums">{rank}.</span>
       )}
-      <h4
-        id={`gruppe-${id}`}
-        className={`min-w-0 text-title break-words ${look === "discarded" ? "line-through" : ""}`}
-      >
-        {label}
-      </h4>
+      {rename ?? (
+        <h4
+          id={`gruppe-${id}`}
+          className={`min-w-0 text-title break-words ${look === "discarded" ? "line-through" : ""}`}
+        >
+          {label}
+        </h4>
+      )}
       {/* Raw strings on purpose: the default label is normalised, and the Host must see the written form (FR-19). */}
       {compact && (chips[0].text !== label || chips[0].n > 1) && (
         <span className="min-w-0 text-body-sm break-words text-ink-muted">
@@ -78,9 +94,10 @@ export function GroupCard({
     return (
       <li
         aria-busy={busy || undefined}
-        className={`flex min-h-13 items-center gap-3 px-4 py-2 ${box}`}
+        className={`flex min-h-13 flex-col justify-center px-4 py-2 ${box}`}
       >
-        {header}
+        {notice}
+        <div className="flex items-center gap-3">{header}</div>
       </li>
     );
 
@@ -88,6 +105,7 @@ export function GroupCard({
   const indent = rank === undefined ? "" : onToggle ? "pl-21" : "pl-10";
   return (
     <li aria-busy={busy || undefined} className={`px-4 py-3 ${box}`}>
+      {notice}
       <div className="flex items-baseline gap-3">{header}</div>
       {look === "discarded" ? (
         <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-ink-muted">
@@ -100,19 +118,43 @@ export function GroupCard({
         </ul>
       ) : (
         <ul className={`mt-2 flex flex-wrap gap-2 ${indent}`}>
-          {chips.map((chip) => (
-            <li
-              key={chip.text}
-              className={`inline-flex min-h-11 max-w-full items-center rounded-sm px-3 py-2 break-words ${look === "below" ? "bg-surface" : "bg-surface-sunken"}`}
-            >
+          {chips.map((chip) => {
+            const text = (
               <span className="min-w-0">
                 {chip.text}
                 {chip.n > 1 && (
                   <span className="text-ink-muted"> · {chip.n} svar</span>
                 )}
               </span>
-            </li>
-          ))}
+            );
+            const fill = look === "below" ? "bg-surface" : "bg-surface-sunken";
+            const chipBox =
+              "inline-flex min-h-11 max-w-full items-center rounded-sm px-3 py-2 break-words";
+            if (!onToggleChip)
+              return (
+                <li key={chip.text} className={`${chipBox} ${fill}`}>
+                  {text}
+                </li>
+              );
+            const on = chipSelected?.(chip) ?? false;
+            // The whole chip is the checkbox's label: its name is the text plus "· N svar".
+            return (
+              <li key={chip.text} className="max-w-full">
+                <label
+                  className={`${chipBox} cursor-pointer gap-2 ${on ? CHIP_SELECTED : fill}`}
+                >
+                  <input
+                    type="checkbox"
+                    id={`velg-svar-${chip.ids[0]}`}
+                    checked={on}
+                    onChange={() => onToggleChip(chip)}
+                    className="size-5 shrink-0 cursor-pointer accent-primary"
+                  />
+                  {text}
+                </label>
+              </li>
+            );
+          })}
         </ul>
       )}
     </li>

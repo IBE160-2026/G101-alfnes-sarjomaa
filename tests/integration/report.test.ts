@@ -38,6 +38,7 @@ import {
   type MockRuling,
 } from "@/server/judge/providers/mock";
 import { createReplayJudge } from "@/server/judge/providers/replay";
+import * as review from "@/server/review";
 import { cookieJar, RedirectError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
@@ -412,6 +413,43 @@ describe("GET /api/spill/[gameId]/rapport", () => {
       "ERROR",
     ];
     for (const value of forbidden) expect(text).not.toContain(value);
+  });
+
+  it("FR-18, FR-20 (Story 5.3): a split with Ny gruppe reports the new Group as origin host with edit_count 1, and judge_groups_proposed is unchanged", async () => {
+    const { gameId, ids } = await reviewed(
+      [[Q1, [["Hund"], ["katt"], ["Ørn"]]]],
+      {
+        [Q1]: [0, 0, 1],
+      },
+    );
+    const before = (await (await get(gameId)).json()).counters;
+    const katt = await (
+      await getDb()
+    )
+      .select({ id: answer.id })
+      .from(answer)
+      .where(
+        and(eq(answer.questionId, ids[0]), eq(answer.normalizedText, "katt")),
+      );
+    await review.moveAnswers(hostId, {
+      gameId,
+      answerIds: katt.map((a) => a.id),
+    });
+    const body = await (await get(gameId)).json();
+    expect(body.counters).toEqual({
+      ...before,
+      groupsCreated: 1,
+      answersMoved: 1,
+    });
+    expect(body.counters.judgeGroupsProposed).toBe(2);
+    expect(body.questions[0].groups).toEqual(
+      expect.arrayContaining([{ origin: "host", editCount: 1 }]),
+    );
+    expect(
+      body.questions[0].groups.filter(
+        (g: { origin: string }) => g.origin === "judge",
+      ),
+    ).toHaveLength(2);
   });
 
   it("FR-18 (AC2): the Groups of a Question come in their random id order", async () => {

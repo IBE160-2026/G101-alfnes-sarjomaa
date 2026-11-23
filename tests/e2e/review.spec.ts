@@ -23,10 +23,15 @@ const SETS = [
   ["Dina", "Erik", "Frida", "Kari"],
 ];
 
+// Answer sets for a second Question: three distinct Answers.
+const SETS_Q2 = [["Rød"], ["Blå"], ["Grønn"]];
+
+// Set i answers Question q with sets[q][i].
 async function submitSets(
   browser: Browser,
   baseURL: string | undefined,
   links: string[],
+  sets: string[][][] = [SETS],
 ) {
   const context = await browser.newContext({ baseURL });
   await localOnly(context);
@@ -35,12 +40,15 @@ async function submitSets(
     // Links share a path, so a bare hash change would not reload the form.
     await page.goto("/");
     await page.goto(link);
-    const [first, ...rest] = SETS[i];
-    await page.getByLabel("Svar 1", { exact: true }).fill(first);
-    for (const [j, text] of rest.entries()) {
-      if (j > 0)
-        await page.getByRole("button", { name: "Legg til svar" }).click();
-      await page.getByLabel(`Svar ${j + 2} (valgfritt)`).fill(text);
+    for (const [q, questionSets] of sets.entries()) {
+      const fieldset = page.locator("fieldset").nth(q);
+      const [first, ...rest] = questionSets[i];
+      await fieldset.getByLabel("Svar 1", { exact: true }).fill(first);
+      for (const [j, text] of rest.entries()) {
+        if (j > 0)
+          await fieldset.getByRole("button", { name: "Legg til svar" }).click();
+        await fieldset.getByLabel(`Svar ${j + 2} (valgfritt)`).fill(text);
+      }
     }
     await page.getByRole("button", { name: "Send inn svar" }).click();
     await expect(
@@ -50,18 +58,24 @@ async function submitSets(
   await context.close();
 }
 
-// A new Host's collecting Game with one Question and three links; returns the Game path.
-async function collectingGame(page: Page) {
+// A new Host's collecting Game with the given Questions and three links; returns the Game path.
+async function collectingGame(page: Page, questions = [QUESTION]) {
   await registerHost(page);
   await page.getByLabel("Navn på spillet").fill("Hyttetur");
   await page.getByRole("button", { name: "Lag spill" }).click();
   await expect(page.locator("h1")).toHaveText("Hyttetur");
-  await page.getByRole("button", { name: "Legg til spørsmål" }).click();
-  await page.getByLabel("Spørsmål 1", { exact: true }).fill(QUESTION);
-  await page.keyboard.press("Tab");
-  await expect(
-    page.getByRole("region", { name: "Spørsmål" }).getByRole("status"),
-  ).toHaveText("Lagret");
+  for (const [i, text] of questions.entries()) {
+    await page.getByRole("button", { name: "Legg til spørsmål" }).click();
+    await page.getByLabel(`Spørsmål ${i + 1}`, { exact: true }).fill(text);
+    await page.keyboard.press("Tab");
+    await expect(
+      page
+        .getByRole("region", { name: "Spørsmål" })
+        .getByRole("listitem")
+        .nth(i)
+        .getByRole("status"),
+    ).toHaveText("Lagret");
+  }
   await page.getByLabel("Antall lenker").fill("3");
   await page.getByRole("button", { name: "Lag lenker" }).click();
   await page
@@ -424,4 +438,158 @@ test("FR-20 (AC3), UX-DR12, UX-DR18, NFR-6: ticking one Group shows the hint, tw
   ).toHaveCount(0);
   await expect(card("dina").getByRole("listitem")).toHaveText(["Dina", "Erik"]);
   await expect(card("ola")).toBeVisible();
+});
+
+test("FR-20 (AC4), FR-16, UX-DR11, UX-DR12, UX-DR18, NFR-6: ticking a chip clears the Group selection and shows N svar valgt; the select lists the ranked Groups as label (N) with the white focus ring; Esc and a Question change clear; a failed move keeps the selection with the message in the bar; Flytt focuses the target and announces; Ny gruppe opens the focused rename field, Enter keeps the label, typing renames it; axe is clean with the bar and with the field open", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { gamePath, links } = await collectingGame(page, [
+    QUESTION,
+    "Hva sier verten?",
+  ]);
+  await submitSets(browser, baseURL, links, [SETS, SETS_Q2]);
+  await closeAndOpenReview(page, gamePath);
+
+  const bar = page.locator("[data-selection-bar]");
+  const live = page.locator('p[aria-live="polite"]');
+  const box = (label: string) =>
+    page.getByRole("checkbox", { name: `Velg «${label}»` });
+  const chip = (text: string) =>
+    page.getByRole("checkbox", { name: text, exact: true });
+  const heading = (label: string) =>
+    page.getByRole("heading", { level: 4, name: label, exact: true });
+  const merge = async (a: string, b: string) => {
+    await box(a).check();
+    await box(b).check();
+    await bar.getByRole("button", { name: "Slå sammen 2 grupper" }).click();
+    await expect(bar).toHaveCount(0);
+  };
+  const outline = () =>
+    page.evaluate(() => {
+      const s = getComputedStyle(document.activeElement!);
+      return `${s.outlineWidth} ${s.outlineStyle} ${s.outlineColor}`;
+    });
+
+  // Every Group starts as a compact row: merging gives two multi-chip cards,
+  // anne (Anne, Bjørn: one set, Count 1) and dina (Cato, Dina: Count 2).
+  await expect(page.getByRole("checkbox", { name: /^[A-ZÆØÅ]/ })).toHaveCount(
+    0,
+  );
+  await merge("anne", "bjørn");
+  await merge("cato", "dina");
+
+  // A chip clears the Group selection; the bar counts Answers.
+  await box("kari").check();
+  await expect(bar).toContainText("1 gruppe valgt");
+  await chip("Bjørn").check();
+  await expect(box("kari")).not.toBeChecked();
+  await expect(bar).toContainText("1 svar valgt");
+  await chip("Dina").check();
+  await expect(bar).toContainText("2 svar valgt");
+  // And a Group clears the chips.
+  await box("ola").check();
+  await expect(chip("Bjørn")).not.toBeChecked();
+  await expect(chip("Dina")).not.toBeChecked();
+  await expect(bar).toContainText("1 gruppe valgt");
+  await box("ola").uncheck();
+  await chip("Bjørn").check();
+
+  // The select: every kept Group in ranked order, as label (N).
+  const select = bar.getByLabel("Flytt til gruppe");
+  const ranked = await page
+    .locator(
+      "section[aria-labelledby=pa-brettet] h4, section[aria-labelledby=ikke-pa-brettet] h4",
+    )
+    .allTextContents();
+  const options = await select.locator("option").allTextContents();
+  expect(options.map((o) => o.replace(/ \(\d+\)$/, ""))).toEqual(ranked);
+  expect(options.slice(0, 2)).toEqual(["kari (3)", "dina (2)"]);
+  await expect(bar.getByRole("button", { name: "Ny gruppe" })).toBeVisible();
+
+  // Keyboard: the select rings white on the dark bar; axe is clean with it open.
+  await select.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect(select).toBeFocused();
+  expect(await outline()).toBe(FOCUS_RING_INVERSE);
+  for (const button of await bar.getByRole("button").all())
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await chip("Bjørn").locator("..").boundingBox())!.height).toBe(44);
+  await expect(page).toHaveTitle("Gjennomgang – Hyttetur – Toppsvar");
+  expect(await seriousViolations(page)).toEqual([]);
+
+  // Esc clears.
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+  await expect(chip("Bjørn")).not.toBeChecked();
+
+  // A Question change clears.
+  await chip("Bjørn").check();
+  const rail = page.getByRole("navigation", { name: "Spørsmål" });
+  await rail.getByRole("link", { name: /^2 / }).click();
+  await expect(
+    page.getByRole("heading", { level: 4, name: "rød" }),
+  ).toBeVisible();
+  await expect(bar).toHaveCount(0);
+  await rail.getByRole("link", { name: /^1 / }).click();
+  await expect(heading("anne")).toBeVisible();
+  await expect(bar).toHaveCount(0);
+  await expect(chip("Bjørn")).not.toBeChecked();
+
+  // A failed request: the message inside the bar, the selection stays.
+  await chip("Bjørn").check();
+  const isAction = (url: URL) =>
+    url.pathname.startsWith(`${gamePath}/gjennomgang`);
+  await page.route(isAction, (route) =>
+    route.request().method() === "POST" ? route.abort() : route.fallback(),
+  );
+  await bar.getByRole("button", { name: "Flytt", exact: true }).click();
+  await expect(bar.getByRole("alert")).toHaveText(
+    "Endringen ble ikke lagret. Prøv igjen.",
+  );
+  await expect(chip("Bjørn")).toBeChecked();
+  await page.unroute(isAction);
+
+  // Flytt: Bjørn to kari; focus on its heading and the announcement.
+  await select.selectOption({ label: "kari (3)" });
+  await bar.getByRole("button", { name: "Flytt", exact: true }).click();
+  await expect(bar).toHaveCount(0);
+  await expect(heading("kari")).toBeFocused();
+  await expect(live).toHaveText("1 svar flyttet til «kari».");
+  await expect(
+    page
+      .getByRole("listitem")
+      .filter({ has: heading("kari") })
+      .getByRole("checkbox", { name: "Bjørn" }),
+  ).toBeVisible();
+
+  // Ny gruppe: the rename field has focus, prefilled; Enter keeps the label.
+  await chip("Cato").check();
+  await bar.getByRole("button", { name: "Ny gruppe" }).click();
+  const field = page.getByLabel("Navn på gruppen");
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("cato");
+  await expect(page.getByText("4/40", { exact: true })).toBeVisible();
+  await expect(live).toHaveText(
+    "Ny gruppe «cato» laget. Skriv et nytt navn eller trykk Enter.",
+  );
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.keyboard.press("Enter");
+  await expect(field).toHaveCount(0);
+  await expect(heading("cato")).toBeFocused();
+
+  // A second split, renamed by typing over the selected default label.
+  await chip("Bjørn").check();
+  await bar.getByRole("button", { name: "Ny gruppe" }).click();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("bjørn");
+  await page.keyboard.type("Sover over seg");
+  await expect(page.getByText("14/40", { exact: true })).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(heading("Sover over seg")).toBeFocused();
+  await expect(live).toHaveText("Navnet er endret.");
+  await expect(field).toHaveCount(0);
 });

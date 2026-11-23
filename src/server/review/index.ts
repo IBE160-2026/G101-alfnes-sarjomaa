@@ -11,7 +11,12 @@ import {
 import { DomainError, validate } from "@/lib/errors";
 import { PERMITTED } from "@/lib/game-state";
 import { boardCut, rankGroups } from "@/lib/ranking";
-import { collapseChips, mergeGroupsSchema } from "@/lib/review";
+import {
+  collapseChips,
+  mergeGroupsSchema,
+  moveAnswersSchema,
+  renameGroupSchema,
+} from "@/lib/review";
 import { withBoundary } from "@/server/boundary";
 import { getDb, type Db, type Tx } from "@/server/db/client";
 import {
@@ -28,7 +33,8 @@ export type ReviewGroup = {
   id: string;
   label: string;
   count: number;
-  chips: { text: string; n: number }[];
+  // ids: the chip's Answer IDs (random v4, no order signal), for moving them (FR-20).
+  chips: { text: string; n: number; ids: string[] }[];
 };
 
 // One Question's Groups in Board order (AD-11), discarded ones included. Every query
@@ -72,6 +78,7 @@ async function groupsOf(questionId: string) {
   const ranked = await rankedGroups(db, questionId);
   const answers = await db
     .select({
+      id: answer.id,
       groupId: answer.groupId,
       text: answer.text,
       normalizedText: answer.normalizedText,
@@ -179,16 +186,128 @@ export function merge(hostId: string, input: unknown): Promise<MergeResult> {
       await games.bumpCounters(tx, gameId, { groupsMerged: sources.length });
       await questions.setReviewed(tx, questionId, false);
 
-      const kept = (await rankedGroups(tx, questionId)).filter(
-        (g) => !g.discarded,
-      );
-      const i = kept.findIndex((g) => g.groupId === target.groupId);
-      return {
-        groupId: target.groupId,
-        label: target.label,
-        count: kept[i].count,
-        position: i + 1,
-      };
+      return placeOf(tx, questionId, target.groupId);
+    });
+  });
+}
+
+// A Group after an edit: effective label, Count (SQL) and 1-based place among the
+// non-discarded ranked Groups, the rank its card shows.
+async function placeOf(
+  tx: Tx,
+  questionId: string,
+  groupId: string,
+): Promise<MergeResult> {
+  const kept = (await rankedGroups(tx, questionId)).filter((g) => !g.discarded);
+  const i = kept.findIndex((g) => g.groupId === groupId);
+  return {
+    groupId,
+    label: kept[i].label,
+    count: kept[i].count,
+    position: i + 1,
+  };
+}
+
+// A non-discarded Group of the owned Game, else NOT_FOUND (AD-5).
+async function ownedGroup(tx: Tx, gameId: string, groupId: string) {
+  if (!UUID.test(groupId)) throw new DomainError("NOT_FOUND");
+  const [found] = await tx
+    .select({ questionId: answerGroup.questionId })
+    .from(answerGroup)
+    .innerJoin(question, eq(question.id, answerGroup.questionId))
+    .where(
+      and(
+        eq(question.gameId, gameId),
+        eq(answerGroup.id, groupId),
+        eq(answerGroup.discarded, false),
+      ),
+    );
+  if (!found) throw new DomainError("NOT_FOUND");
+  return found.questionId;
+}
+
+export type MoveResult = MergeResult & { moved: number; created: boolean };
+
+// FR-20: moves Answers of one Question into another non-discarded Group of it, or into a
+// new Group (no groupId) with origin host and the FR-16 default label, in one transaction
+// (AD-15). Every ID must resolve inside the owned Game, else NOT_FOUND before any write.
+// A move never freezes the target's label; only merge does (AD-11).
+export function moveAnswers(
+  hostId: string,
+  input: unknown,
+): Promise<MoveResult> {
+  return withBoundary("review", "moveAnswers", async () => {
+    const { gameId, answerIds, groupId } = validate(moveAnswersSchema, input);
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.editReview,
+      });
+      if (!answerIds.every((id) => UUID.test(id)))
+        throw new DomainError("NOT_FOUND");
+      const found = await tx
+        .select({ questionId: answerGroup.questionId })
+        .from(answer)
+        .innerJoin(answerGroup, eq(answerGroup.id, answer.groupId))
+        .innerJoin(question, eq(question.id, answerGroup.questionId))
+        .where(
+          and(
+            eq(question.gameId, gameId),
+            inArray(answer.id, answerIds),
+            eq(answerGroup.discarded, false),
+          ),
+        );
+      const questionId = found[0]?.questionId;
+      if (
+        found.length !== answerIds.length ||
+        found.some((a) => a.questionId !== questionId)
+      )
+        throw new DomainError("NOT_FOUND");
+      if (
+        groupId !== undefined &&
+        (await ownedGroup(tx, gameId, groupId)) !== questionId
+      )
+        throw new DomainError("NOT_FOUND");
+
+      const created = groupId === undefined;
+      const { groupId: target, moved } = await grouping.moveAnswers(tx, {
+        questionId,
+        answerIds,
+        targetId: groupId,
+      });
+      if (moved > 0) {
+        await games.bumpCounters(tx, gameId, {
+          ...(created && { groupsCreated: 1 }),
+          answersMoved: moved,
+        });
+        await questions.setReviewed(tx, questionId, false);
+      }
+      return { ...(await placeOf(tx, questionId, target)), moved, created };
+    });
+  });
+}
+
+export type RenameResult = { groupId: string; label: string };
+
+// FR-20: sets a non-discarded Group's label (1 to 40 characters, trimmed), in one
+// transaction with its edit_count, groups_renamed and the cleared reviewed mark (AD-15).
+export function rename(hostId: string, input: unknown): Promise<RenameResult> {
+  return withBoundary("review", "rename", async () => {
+    const { gameId, groupId, label } = validate(renameGroupSchema, input);
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.editReview,
+      });
+      const questionId = await ownedGroup(tx, gameId, groupId);
+      await grouping.renameGroup(tx, { groupId, label });
+      await games.bumpCounters(tx, gameId, { groupsRenamed: 1 });
+      await questions.setReviewed(tx, questionId, false);
+      return { groupId, label };
     });
   });
 }

@@ -8,8 +8,10 @@ import {
   createInviteLinks,
   deleteGame,
   mergeGroups,
+  moveAnswers,
   moveQuestion,
   removeQuestion,
+  renameGroup,
   revokeInviteLink,
   saveQuestion,
 } from "@/app/spill/[id]/actions";
@@ -308,6 +310,79 @@ describe("Host B against Host A's Game", () => {
     }
     expect(await groupsOfA()).toEqual(before);
     expect((await games.counters(reviewOfA)).groupsMerged).toBe(0);
+  });
+
+  it("FR-20, AD-5 (AC3): B's review.moveAnswers, review.rename and their actions on A's Answers and Groups, with A's Game, B's own in review Game, a random UUID or a malformed Game ID, give NOT_FOUND, and A stays as it was", async () => {
+    const db = await getDb();
+    const [{ id: reviewOfA }, { id: reviewOfB }] = await db
+      .insert(game)
+      .values([
+        { hostId: hosts.A, title: "As svar", state: "in_review" },
+        { hostId: hosts.B, title: "Bs svar", state: "in_review" },
+      ])
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: reviewOfA, position: 1, text: "?" });
+    const groupIds = [randomUUID(), randomUUID()];
+    await db
+      .insert(answerGroup)
+      .values(
+        groupIds.map((id) => ({ id, questionId, origin: "fallback" as const })),
+      );
+    const answerIds = (
+      await db
+        .insert(answer)
+        .values(
+          groupIds.map((groupId, i) => ({
+            questionId,
+            contributorKey: randomUUID(),
+            rank: 1,
+            text: `svar ${i}`,
+            normalizedText: `svar ${i}`,
+            groupId,
+          })),
+        )
+        .returning({ id: answer.id })
+    ).map((a) => a.id);
+    const stateOfA = async () => ({
+      groups: await db
+        .select()
+        .from(answerGroup)
+        .where(eq(answerGroup.questionId, questionId))
+        .orderBy(asc(answerGroup.id)),
+      answers: await db
+        .select({ id: answer.id, groupId: answer.groupId })
+        .from(answer)
+        .where(eq(answer.questionId, questionId))
+        .orderBy(asc(answer.id)),
+      counters: await games.counters(reviewOfA),
+    });
+    const before = await stateOfA();
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [reviewOfA, reviewOfB, randomUUID(), "abc"]) {
+      const move = { gameId, answerIds: [answerIds[0]], groupId: groupIds[1] };
+      const split = { gameId, answerIds: [answerIds[0]] };
+      const name = { gameId, groupId: groupIds[0], label: "Ny" };
+      for (const call of [
+        review.moveAnswers(hosts.B, move),
+        review.moveAnswers(hosts.B, split),
+        review.rename(hosts.B, name),
+      ])
+        expect(((await rejection(call)) as DomainError).code, gameId).toBe(
+          "NOT_FOUND",
+        );
+      expect(await moveAnswers(move), gameId).toEqual(notFound);
+      expect(await moveAnswers(split), gameId).toEqual(notFound);
+      expect(await renameGroup(name), gameId).toEqual(notFound);
+    }
+    expect(await stateOfA()).toEqual(before);
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {

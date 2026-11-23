@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ANSWERS_PER_QUESTION_MAX, INVITE_LINKS_MAX } from "@/lib/limits";
-import { collapseChips, fallbackNotice, mergeGroupsSchema } from "@/lib/review";
+import {
+  collapseChips,
+  fallbackNotice,
+  mergeGroupsSchema,
+  moveAnswersSchema,
+  renameGroupSchema,
+} from "@/lib/review";
 
 const KEY =
   "Ingen KI-nøkkel er satt opp, så alle spørsmålene starter med én gruppe per ulikt svar.";
@@ -11,40 +17,49 @@ const q = (
   reviewed = false,
 ) => ({ position, fallbackReason, reviewed });
 
+// Answers in SQL order, with ids a1, a2, … in that order.
+const answers = (...rows: [string, string][]) =>
+  rows.map(([text, normalizedText], i) => ({
+    id: `a${i + 1}`,
+    text,
+    normalizedText,
+  }));
+
 describe("collapseChips", () => {
   it("FR-19 (AC3): equal normalised texts become one chip in the most common written form, with n Answers", () => {
     expect(
-      collapseChips([
-        { text: "Kari", normalizedText: "kari" },
-        { text: "kari", normalizedText: "kari" },
-        { text: "kari!", normalizedText: "kari" },
-        { text: "kari", normalizedText: "kari" },
-      ]),
-    ).toEqual([{ text: "kari", n: 4 }]);
+      collapseChips(
+        answers(
+          ["Kari", "kari"],
+          ["kari", "kari"],
+          ["kari!", "kari"],
+          ["kari", "kari"],
+        ),
+      ),
+    ).toEqual([{ text: "kari", n: 4, ids: ["a1", "a2", "a3", "a4"] }]);
   });
 
   it("FR-19 (AC3): a tie keeps the first written form in SQL order", () => {
-    expect(
-      collapseChips([
-        { text: "Kari", normalizedText: "kari" },
-        { text: "kari", normalizedText: "kari" },
-      ]),
-    ).toEqual([{ text: "Kari", n: 2 }]);
+    expect(collapseChips(answers(["Kari", "kari"], ["kari", "kari"]))).toEqual([
+      { text: "Kari", n: 2, ids: ["a1", "a2"] },
+    ]);
   });
 
-  it("FR-13, FR-19 (AC3): chips keep the given (alphabetical) order", () => {
+  it("FR-13, FR-19, FR-20 (AC3): chips keep the given (alphabetical) order, each with its own Answers' ids", () => {
     expect(
-      collapseChips([
-        { text: "Anne", normalizedText: "anne" },
-        { text: "bjørn", normalizedText: "bjørn" },
-        { text: "Bjørn", normalizedText: "bjørn" },
-        { text: "Bjørn", normalizedText: "bjørn" },
-        { text: "ola", normalizedText: "ola" },
-      ]),
+      collapseChips(
+        answers(
+          ["Anne", "anne"],
+          ["bjørn", "bjørn"],
+          ["Bjørn", "bjørn"],
+          ["Bjørn", "bjørn"],
+          ["ola", "ola"],
+        ),
+      ),
     ).toEqual([
-      { text: "Anne", n: 1 },
-      { text: "Bjørn", n: 3 },
-      { text: "ola", n: 1 },
+      { text: "Anne", n: 1, ids: ["a1"] },
+      { text: "Bjørn", n: 3, ids: ["a2", "a3", "a4"] },
+      { text: "ola", n: 1, ids: ["a5"] },
     ]);
   });
 });
@@ -137,5 +152,42 @@ describe("mergeGroupsSchema", () => {
     expect(ok(["a", "a"])).toBe(false);
     expect(ok(["a", 1])).toBe(false);
     expect(ok("a,b")).toBe(false);
+  });
+});
+
+describe("moveAnswersSchema", () => {
+  const ok = (input: object) =>
+    moveAnswersSchema.safeParse({ gameId: "g", ...input }).success;
+  const ids = (n: number) => Array.from({ length: n }, (_, i) => `id-${i}`);
+  const MAX = INVITE_LINKS_MAX * ANSWERS_PER_QUESTION_MAX;
+
+  it("FR-20 (AC1): takes 1 to every possible Answer, all distinct, with or without a target", () => {
+    expect(ok({ answerIds: ids(1) })).toBe(true);
+    expect(ok({ answerIds: ids(MAX), groupId: "t" })).toBe(true);
+  });
+
+  it("FR-20 (AC2): refuses none, more than the cap, duplicates and non-strings", () => {
+    expect(ok({ answerIds: [] })).toBe(false);
+    expect(ok({ answerIds: ids(MAX + 1) })).toBe(false);
+    expect(ok({ answerIds: ["a", "a"] })).toBe(false);
+    expect(ok({ answerIds: ["a", 1] })).toBe(false);
+    expect(ok({ answerIds: ["a"], groupId: 1 })).toBe(false);
+  });
+});
+
+describe("renameGroupSchema", () => {
+  const parse = (label: unknown) =>
+    renameGroupSchema.safeParse({ gameId: "g", groupId: "x", label });
+
+  it("FR-20 (AC4): trims and takes 1 to 40 characters", () => {
+    expect(parse("  Ny  ").data?.label).toBe("Ny");
+    expect(parse("x".repeat(40)).success).toBe(true);
+  });
+
+  it("FR-20 (AC4): empty and over 40 characters give the field messages", () => {
+    expect(parse("   ").error?.issues[0].message).toBe("Skriv et navn.");
+    expect(parse("x".repeat(41)).error?.issues[0].message).toBe(
+      "Navnet kan ha maks 40 tegn.",
+    );
   });
 });
