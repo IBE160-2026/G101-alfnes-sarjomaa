@@ -36,3 +36,11 @@ Verdict: Ship. Findings 1 and 2 are cheap cleanups worth doing before the PR. Fi
 Lean: -80 lines possible (about 30 of timeout lines, 50 of repeated tests).
 
 Not checked: the full Vitest and Playwright runs (other reviewers share this working copy), the drizzle snapshots, and whether the integration page-render tests in `review.test.ts` overlap with `tests/e2e/review.spec.ts` beyond what the titles show.
+
+## Epic 5 review fixes (2026-11-23)
+
+**1. Per-file Vitest timeouts: fixed in `bcc4e72`.** The `vi.setConfig` line is gone from the 13 integration files that repeated the global 30 s test and 60 s hook limits, and so are the `describe` option in `password.test.ts` and the four trailing `30_000` arguments in `judge-cli.test.ts`. The `spawnSync` process timeout stays. `host-view.test.ts` keeps its 60 s with a one-line comment: one test renders every Host read and action at five Answer-set stages.
+
+**2. The same WRONG_STATE refusal tested five times: fixed in `48db61d`.** The merge `it.each(["ready", "draft"])` and the move "Game in ready" test are deleted, and the *ready* steps are gone from the rename and the discard/restore tests, whose titles no longer claim them. The real-lock test in Story 5.5 still checks all nine operations, and the `draft` row of `PERMITTED.editReview` is covered by the `PERMITTED` loop in `tests/integration/game-state.test.ts`. The TRACE rows for 5.2, 5.3 and 5.4 now point to the real-lock test. The suite went from 675 to 672 tests in that commit, and back to 675 as later fixes added tests.
+
+**3. Two identical result types: fixed in `2349bee`.** `RenameResult` and `DiscardResult` are one `LabelResult`, used by rename, discard, restore and their three actions.

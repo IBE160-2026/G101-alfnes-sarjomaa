@@ -101,3 +101,21 @@ At 360 px an Answer selection wraps the summary, the label, the `<select>`, "Fly
 3. S2: default label in its most common written form, with an FR-16 and DESIGN sentence and a unit test (or the capitalise shortcut).
 4. S4: the `shortcut:` comment on *ready*.
 5. N1 if the e2e locators are cheap to update. N2 to N4 only if the group wants them. N3 and N4 need a contract amendment and are outside Epic 5.
+
+## Epic 5 review fixes (2026-11-23)
+
+**S1, fixed in `29a3d7d`, without the fixed rem values.** While the SelectionBar is mounted, `ReviewGroups` sets `scroll-padding-bottom` on `<html>` to the bar's height plus its 16 px offset and 16 px of air, and a `ResizeObserver` keeps that value right when the bar wraps on a narrow screen or grows the error Notice. That makes the `shortcut:` comment unnecessary. When the bar appears, the focused element gets `scrollIntoView({ block: "nearest" })` with no smooth behaviour. The new e2e step runs at 1280×800: it ticks Frida (rank 7, whose checkbox ends at 764 px, below the bar's top at 708 px), checks that the checkbox now ends above the bar, then tabs on to Ola's checkbox below the fold and checks the same. With the effect disabled, the first check failed at 764 px.
+
+**S2, fixed in `8db0bdd`.** PRD FR-16 on `main` says "A Group's default label is its most frequent normalised Answer text, ties broken by the shortest text", and FR-17 defines normalised as "compared case-insensitively, with surrounding whitespace trimmed, inner whitespace collapsed and trailing punctuation removed". Normalisation is a comparison rule, so FR-16 decides which text wins, not how it is written. The default label is therefore chosen on the normalised text as before and shown in that text's most common written form, counted by Answers as the chips are. A tie goes to the first form in SQL order (`ORDER BY text`), which is the chips' rule, through the shared helper `mostCommon`, so a label and its chip are always the same form. The compact row then shows only "· N svar" after the label, and the raw form only when the label differs (renamed or merged). Unit tests show that the choice is made on the normalised text while the written form is returned. Integration tests cover "Ullsokker" from Ullsokker ×2, ullsokker and Ullsokker!, and the Kari/kari tie. The integration and e2e tests now expect capitalised labels. The PRD was not edited on this branch. Proposed sentence for FR-16, to make this explicit: "A Group's default label is its most frequent normalised Answer text, ties broken by the shortest text, shown in that text's most common written form." The README screenshots of Review still show lowercase labels and need retaking, together with `svarskjema-mobil.png`.
+
+**S3, fixed in `29a3d7d`.** The `FailureNotice` inside the bar has `[&_a:focus-visible]:outline-focus-ring`, which beats the bar's inverse ring on specificity. The e2e step in the stale-tab part of the lock test moves to "Gå til spillet" with Shift+Tab and expects the 3 px dark ring. Without the class it got the white ring. A10 in the manual checklist is copied from `EXPERIENCE.md` and already says "every SelectionBar control", so it is unchanged.
+
+**S4, fixed in `9a4c308`.** The *ready* panel has `shortcut: no way forward from ready until Epic 6, add the primary "Start spillet" link to /spill/[id]/skjerm here in Story 6.1.`
+
+**N1, fixed in `29a3d7d`.** The Group checkbox is named "Velg gruppen «{label}», N personer", with `people()` giving "1 person" in the singular. The integration test and the e2e locators were updated.
+
+**Side note on pending labels, fixed in `29a3d7d`.** Every `pendingLabel` in the app, plus the two account form pending texts, now has ` ` before "…", so the ellipsis cannot wrap onto its own line.
+
+**N2, skipped.** The contract allows a cramped Review on a phone, and S1's scroll padding follows the bar's real height, so focus stays visible there too.
+
+**N3 and N4, skipped.** Both are outside Epic 5 (`ProgressCount` and `InviteLinkPanel`), and both follow the contract as written: `DESIGN.md` prescribes "færre enn 3" in `display`, and the width lock on loading buttons. Changing either needs a contract amendment first.

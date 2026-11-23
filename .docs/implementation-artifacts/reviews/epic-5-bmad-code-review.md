@@ -164,3 +164,25 @@
 ## Verdict
 
 **Approve with patches.** No high findings. The Review state machine, the owner and state checks, the transactions and the FR-13 clear at Board confirmation are correct and well tested. The stale-tab `LockBoard` code from the 5.5 review does what spec 5.5 asks, but its focus effect fires too broadly (finding 2). The 5.4 Esc change holds for the menu and the rename field, but not for the native lock dialog (finding 3). The one medium finding is missing evidence (NFR-5 timing for five Review actions and a stale TRACE line), not a code defect. Findings 2 to 8 are small, direct corrections. None of them blocks the PR, but findings 1 to 3 should be fixed before it.
+
+## Epic 5 review fixes (2026-11-23)
+
+Every finding was checked against the code before it was acted on, and all eight held.
+
+**Finding 1 (Medium), fixed in `37aae6f`.** `tests/manual/checklist.md` has three new timing rows in the same form as T1 and T2: T3 for rename, "Forkast fra brettet" and "Angre forkasting", T4 for "Marker som gjennomgått" to the next Question with focus on its heading, and T5 for "Lås brettet" in the dialog to the Game page. The NFR-5 section of TRACE points to them and now lists only Epic 6 as pending. The rows have not been timed yet; that is part of the manual run before handing in.
+
+**Finding 2 (Low), fixed in `29a3d7d`.** `LockBoard` sets a `refused` ref when its own confirm comes back `QUESTIONS_UNREVIEWED`, and the focus effect runs only when that ref is set (then clears it). The `shown` ref is gone. A new e2e step listens for `focusin` while the last Question is marked and asserts that "Lås brettet" never received focus on the way to the heading. It failed before the fix. The existing step that expects focus on the disabled trigger after a refused confirm still passes.
+
+**Finding 3 (Low), fixed in `29a3d7d`, with a different fix.** Instead of skipping events inside a `<dialog>` in the selection listener, `ConfirmDialog` now handles Esc in its own `onKeyDown`: it calls `preventDefault()` and closes the dialog itself unless it is busy. That keeps the 5.4 rule that every Esc another control has handled is `defaultPrevented`, so the selection listener needs no special case. A prevented keydown fires no native `cancel` event, so the busy guard no longer depends on Chrome's repeated-Esc behaviour for this path. `onCancel` and the `onClose` re-open stay for other close requests. The e2e test ticks a Group, opens the lock dialog, presses Esc and expects the dialog closed with the selection kept, and a second Esc then clears it. It failed before the fix.
+
+**Finding 4 (Low), fixed in `2349bee`.** The review module's `UUID` regex lost its `i` flag, so an uppercase ID is `NOT_FOUND` before any query. The merge, move, rename and discard/restore `NOT_FOUND` tests each gained an uppercase case. Before the fix, move and discard gave `INTERNAL`, while merge and rename went through: merge with an uppercase source merged nothing but still cleared the reviewed mark. `games.UUID` still accepts uppercase Game IDs, because Postgres compares them correctly and no JavaScript comparison uses them.
+
+**Finding 5 (Low), fixed in `2349bee`, more broadly than suggested.** The hard cut in `defaultLabel` now stops at the last whole grapheme within 40 code units (`Intl.Segmenter`), so neither a surrogate pair nor a letter with a combining mark is split. The unit test covers an emoji at code units 39 and 40, `e` + U+0301 at the same place, and an emoji that fits.
+
+**Finding 6 (Low), fixed in `29a3d7d`.** The *Ikke på brettet* list is `<ol start={BOARD_SIZE + 1}>`, and the nine-Group page test asserts `start="9"`.
+
+**Finding 7 (Low), fixed in `29a3d7d`.** The Group menu trigger has `aria-disabled` while an operation is pending, and the click guard stays. The e2e merge test asserts it on another card's trigger while the merge is held.
+
+**Finding 8 (Low), fixed in `9a4c308`.** The delete-scan test is titled "after a Question, submit, close, Grouping, rename and delete, …".
+
+**Checks.** After every commit, lint, typecheck and `npm run test` passed (675 tests at the end). The full `npm run test:e2e` passed 91 of 91. One earlier full run failed `server-output.spec.ts` once, because `next dev` kept recompiling and reloading `/registrer`. That spec passed on its own and in the next full run, and no change in this round touches it.
