@@ -11,8 +11,9 @@ const STATUS: Partial<Record<string, number>> = {
   WRONG_STATE: 409,
 };
 
-// The usage report (AD-18): counters and per-Question origins only, never Answer content
-// (FR-11..FR-13). Composes like the Game page, since grouping imports games.
+// The usage report (AD-18): counters, per-Question origins and each Group's origin,
+// edit_count and onBoard (SM-5) only, never Answer content (FR-11..FR-13). Composes like
+// the Game page, since grouping imports games.
 export async function GET(
   _request: Request,
   { params }: RouteContext<"/api/spill/[gameId]/rapport">,

@@ -38,6 +38,7 @@ import {
   type MockRuling,
 } from "@/server/judge/providers/mock";
 import { createReplayJudge } from "@/server/judge/providers/replay";
+import * as review from "@/server/review";
 import { cookieJar, RedirectError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
@@ -54,8 +55,6 @@ vi.mock("@/server/judge", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/server/judge")>();
   return { ...real, getJudge: () => current.judge ?? real.getJudge() };
 });
-
-vi.setConfig({ testTimeout: 30_000 });
 
 const COOKIE = "toppsvar_session";
 const TITLE = "Hyttetur";
@@ -370,8 +369,8 @@ describe("GET /api/spill/[gameId]/rapport", () => {
           source: "judge",
           fellBack: false,
           groups: [
-            { origin: "judge", editCount: 0 },
-            { origin: "judge", editCount: 0 },
+            { origin: "judge", editCount: 0, onBoard: false },
+            { origin: "judge", editCount: 0, onBoard: false },
           ],
         },
         {
@@ -379,15 +378,19 @@ describe("GET /api/spill/[gameId]/rapport", () => {
           source: "fallback",
           fellBack: true,
           groups: [
-            { origin: "fallback", editCount: 0 },
-            { origin: "fallback", editCount: 0 },
+            { origin: "fallback", editCount: 0, onBoard: false },
+            { origin: "fallback", editCount: 0, onBoard: false },
           ],
         },
         {
           position: 3,
           source: "judge",
           fellBack: false,
-          groups: Array(3).fill({ origin: "judge", editCount: 0 }),
+          groups: Array(3).fill({
+            origin: "judge",
+            editCount: 0,
+            onBoard: false,
+          }),
         },
       ],
     });
@@ -414,6 +417,45 @@ describe("GET /api/spill/[gameId]/rapport", () => {
     for (const value of forbidden) expect(text).not.toContain(value);
   });
 
+  it("FR-18, FR-20 (Story 5.3): a split with Ny gruppe reports the new Group as origin host with edit_count 1, and judge_groups_proposed is unchanged", async () => {
+    const { gameId, ids } = await reviewed(
+      [[Q1, [["Hund"], ["katt"], ["Ørn"]]]],
+      {
+        [Q1]: [0, 0, 1],
+      },
+    );
+    const before = (await (await get(gameId)).json()).counters;
+    const katt = await (
+      await getDb()
+    )
+      .select({ id: answer.id })
+      .from(answer)
+      .where(
+        and(eq(answer.questionId, ids[0]), eq(answer.normalizedText, "katt")),
+      );
+    await review.moveAnswers(hostId, {
+      gameId,
+      answerIds: katt.map((a) => a.id),
+    });
+    const body = await (await get(gameId)).json();
+    expect(body.counters).toEqual({
+      ...before,
+      groupsCreated: 1,
+      answersMoved: 1,
+    });
+    expect(body.counters.judgeGroupsProposed).toBe(2);
+    expect(body.questions[0].groups).toEqual(
+      expect.arrayContaining([
+        { origin: "host", editCount: 1, onBoard: false },
+      ]),
+    );
+    expect(
+      body.questions[0].groups.filter(
+        (g: { origin: string }) => g.origin === "judge",
+      ),
+    ).toHaveLength(2);
+  });
+
   it("FR-18 (AC2): the Groups of a Question come in their random id order", async () => {
     const { gameId, ids } = await reviewed([[Q1, [["a"], ["b"], ["c"]]]]);
     const db = await getDb();
@@ -427,7 +469,97 @@ describe("GET /api/spill/[gameId]/rapport", () => {
       .where(eq(answerGroup.questionId, ids[0]))
       .orderBy(answerGroup.id);
     const body = await (await get(gameId)).json();
-    expect(body.questions[0].groups).toEqual(expected);
+    expect(body.questions[0].groups).toEqual(
+      expected.map((g) => ({ ...g, onBoard: false })),
+    );
+  });
+
+  it("FR-18, FR-21, SM-5, FR-12 (Story 5.5): after a real lock every Group carries onBoard: an unchanged Judge Group on the Board is true, a cut or discarded one false; the report still holds no Answer, label, key, id or rank", async () => {
+    // Q1: ten Judge singletons, so the tenth is cut; one of the Board's is discarded.
+    const names = [
+      "Alfa",
+      "Bravo",
+      "Charlie",
+      "Delta",
+      "Ekko",
+      "Foxtrot",
+      "Golf",
+      "Hotell",
+      "India",
+      "Juliett",
+    ];
+    const { gameId, ids } = await reviewed([
+      [Q1, names.map((n) => [n])],
+      [Q2, [["Rød"], ["blå"], ["grønn"]]],
+    ]);
+    const db = await getDb();
+    const groupOf = async (text: string) =>
+      (
+        await db
+          .select({ id: answer.groupId })
+          .from(answer)
+          .where(
+            and(eq(answer.questionId, ids[0]), eq(answer.normalizedText, text)),
+          )
+      )[0].id!;
+    // Equal Counts and rank-1 counts: label order, so juliett is cut and charlie discarded.
+    const discarded = await groupOf("charlie");
+    await review.discard(hostId, { gameId, groupId: discarded });
+    await db
+      .update(question)
+      .set({ reviewed: true })
+      .where(inArray(question.id, ids));
+    const answersBefore = await db
+      .select()
+      .from(answer)
+      .where(inArray(answer.questionId, ids));
+    await review.confirmBoard(hostId, { gameId });
+
+    const response = await get(gameId);
+    const text = await response.text();
+    const body = JSON.parse(text);
+    const groups = await db
+      .select({
+        id: answerGroup.id,
+        origin: answerGroup.origin,
+        editCount: answerGroup.editCount,
+      })
+      .from(answerGroup)
+      .where(eq(answerGroup.questionId, ids[0]))
+      .orderBy(answerGroup.id);
+    const cut = await groupOf("juliett");
+    expect(body.questions[0].groups).toEqual(
+      groups.map(({ id, origin, editCount }) => ({
+        origin,
+        editCount,
+        onBoard: id !== cut && id !== discarded,
+      })),
+    );
+    expect(
+      body.questions[0].groups.filter(
+        (g: { origin: string; editCount: number; onBoard: boolean }) =>
+          g.origin === "judge" && g.editCount === 0 && g.onBoard,
+      ),
+    ).toHaveLength(8);
+    expect(body.questions[1].groups).toEqual(
+      Array(3).fill({ origin: "judge", editCount: 0, onBoard: true }),
+    );
+    const forbidden = [
+      TITLE,
+      Q1,
+      Q2,
+      gameId,
+      ...ids,
+      ...answersBefore.flatMap((a) => [
+        a.id,
+        a.text,
+        a.normalizedText,
+        a.contributorKey!,
+      ]),
+      ...groups.map((g) => g.id),
+    ];
+    for (const value of forbidden) expect(text).not.toContain(value);
+    expect(text).not.toMatch(/"(rank|label|contributorKey|count)"/);
   });
 
   it.each(["ready", "playing", "played"] as const)(

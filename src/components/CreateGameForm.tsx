@@ -61,7 +61,7 @@ export function CreateGameForm({
           type="submit"
           variant="primary"
           pending={pending}
-          pendingLabel="Lager spill …"
+          pendingLabel={"Lager spill\u00a0…"}
           className="self-start sm:mt-6 sm:min-h-12"
         >
           Lag spill

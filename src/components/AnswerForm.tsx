@@ -38,7 +38,7 @@ type Fields = Record<string, string[]>;
 export const NETWORK_SUBMIT =
   "Fikk ikke sendt svarene. Sjekk nettet og prøv igjen. Utkastet ditt ligger fortsatt på denne enheten.";
 const NOTICE =
-  "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet.";
+  "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet, og svarene kan bli sendt til en ekstern KI-tjeneste for gruppering.";
 const CLOSED =
   "Innsamlingen ble stengt før svarene dine kom fram, så de ble ikke lagret.";
 const RETURNING =
@@ -486,7 +486,7 @@ export function AnswerForm({
           type="submit"
           variant="primary"
           pending={pending}
-          pendingLabel="Sender …"
+          pendingLabel={"Sender\u00a0…"}
           className="mt-4 w-full"
         >
           {submitted ? "Lagre endringer" : "Send inn svar"}

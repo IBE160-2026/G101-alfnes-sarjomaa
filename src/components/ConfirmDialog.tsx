@@ -49,6 +49,14 @@ export function ConfirmDialog({
         ref={dialogRef}
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-body`}
+        // Esc is handled here, not by the native cancel, so a listener on document (the
+        // Review selection) sees it as defaultPrevented. A prevented keydown fires no
+        // cancel event, so the dialog closes itself; the close event returns focus.
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          if (!busy) dialogRef.current?.close();
+        }}
         onCancel={(event) => {
           if (busy) event.preventDefault();
         }}

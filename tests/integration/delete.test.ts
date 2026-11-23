@@ -1,15 +1,23 @@
+import { randomUUID } from "node:crypto";
 import { eq, sql, type SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteGame } from "@/app/spill/[id]/actions";
+import {
+  closeCollection,
+  createInviteLinks,
+  deleteGame,
+} from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
 import GamesPage from "@/app/spill/page";
+import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import { GAME_STATES, type GameState } from "@/lib/game-state";
+import { newToken } from "@/lib/token";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
-import { game } from "@/server/db/schema";
-import { cookieJar, run } from "./next-mocks";
+import { answerGroup, game, question } from "@/server/db/schema";
+import * as review from "@/server/review";
+import { cookieJar, run, runAfterTasks } from "./next-mocks";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -18,8 +26,6 @@ vi.mock("next/navigation", () =>
   import("./next-mocks").then((m) => m.nextNavigation()),
 );
 vi.mock("next/cache", () => import("./next-mocks").then((m) => m.nextCache));
-
-vi.setConfig({ testTimeout: 30_000 });
 
 const COOKIE = "toppsvar_session";
 const T0 = new Date("2026-11-01T12:00:00Z");
@@ -201,9 +207,20 @@ describe("VACUUM after delete", () => {
 });
 
 describe("cascade", () => {
-  it("FR-3, AD-4: every foreign key under game, direct or through another table, is ON DELETE CASCADE", async () => {
-    for (const fk of await foreignKeysUnder("game"))
-      expect(fk.confdeltype, `${fk.tbl}.${fk.col}`).toBe("c");
+  it("FR-3, AD-4: every foreign key under game, direct or through another table, is ON DELETE CASCADE, except board_slot.group_id (SET NULL), whose row cascades through question_id", async () => {
+    const fks = await foreignKeysUnder("game");
+    for (const fk of fks)
+      expect(fk.confdeltype, `${fk.tbl}.${fk.col}`).toBe(
+        fk.tbl === "board_slot" && fk.col === "group_id" ? "n" : "c",
+      );
+    // The exception still goes with the Game: its row hangs off question too.
+    expect(fks).toContainEqual(
+      expect.objectContaining({
+        tbl: "board_slot",
+        col: "question_id",
+        confdeltype: "c",
+      }),
+    );
   });
 
   it("FR-3: the same catalog query finds session and game referencing host, both cascading", async () => {
@@ -230,6 +247,74 @@ describe("cascade", () => {
     } finally {
       await db.execute(sql`drop table fk_grandchild, fk_child`);
     }
+  });
+});
+
+// Every column in a user schema whose value, cast to text, holds `marker`, as schema.table.column.
+async function columnsHolding(marker: string): Promise<string[]> {
+  const db = await getDb();
+  const columns = (
+    (await db.execute(sql`
+      select table_schema as s, table_name as t, column_name as c
+      from information_schema.columns
+      where table_schema not in ('pg_catalog', 'information_schema')`)) as unknown as {
+      rows: { s: string; t: string; c: string }[];
+    }
+  ).rows;
+  const hits: string[] = [];
+  for (const { s, t, c } of columns) {
+    const result = await db.execute(
+      sql`select count(*)::int as n from ${sql.identifier(s)}.${sql.identifier(t)} where position(${marker} in ${sql.identifier(c)}::text) > 0`,
+    );
+    if ((result as unknown as { rows: { n: number }[] }).rows[0].n > 0)
+      hits.push(`${s}.${t}.${c}`);
+  }
+  return hits;
+}
+
+describe("text scan", () => {
+  it("FR-3 (4.4): after a Question, submit, close, Grouping, rename and delete, no column holds the Game's text", async () => {
+    const marker = `zq-${randomUUID()}`;
+    const id = await insertGame("draft");
+    const db = await getDb();
+    const questionId = randomUUID();
+    await db.insert(question).values({
+      id: questionId,
+      gameId: id,
+      position: 1,
+      text: `Spørsmål ${marker}`,
+    });
+    as("A");
+    const created = await createInviteLinks({ gameId: id, count: 3 });
+    if (!created.ok) throw new Error(created.code);
+    for (const [k, link] of created.data.links.entries()) {
+      const result = await submitAnswerSet(id, link.split("#")[1], {
+        answers: { [questionId]: [`svar ${k} ${marker}`] },
+        editSecret: newToken(),
+      });
+      if (!result.ok) throw new Error(result.code);
+    }
+    expect(await closeCollection({ gameId: id })).toEqual({ ok: true });
+    await runAfterTasks();
+    expect((await gameRow(id)).state).toBe("in_review");
+    const [{ groupId }] = await db
+      .select({ groupId: answerGroup.id })
+      .from(answerGroup)
+      .where(eq(answerGroup.questionId, questionId))
+      .limit(1);
+    await review.rename(hosts.A, { gameId: id, groupId, label: marker });
+    // The scan must see the marker before the delete, or an empty result proves nothing.
+    expect(await columnsHolding(marker)).toEqual(
+      expect.arrayContaining([
+        "public.question.text",
+        "public.answer.text",
+        "public.answer_group.custom_label",
+      ]),
+    );
+    expect(await run(deleteGame, { gameId: id })).toEqual({
+      redirect: "/spill",
+    });
+    expect(await columnsHolding(marker)).toEqual([]);
   });
 });
 

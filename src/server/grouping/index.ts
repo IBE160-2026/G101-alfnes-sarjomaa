@@ -7,6 +7,8 @@ import {
   eq,
   inArray,
   isNotNull,
+  ne,
+  notExists,
   sql,
 } from "drizzle-orm";
 import { DomainError } from "@/lib/errors";
@@ -18,6 +20,7 @@ import { getDb, type Tx } from "@/server/db/client";
 import {
   answer,
   answerGroup,
+  boardSlot,
   groupingResult,
   question,
 } from "@/server/db/schema";
@@ -38,6 +41,122 @@ export type AnswerRow = Omit<typeof answer.$inferInsert, "id">;
 export async function insertAnswers(tx: Tx, rows: AnswerRow[]): Promise<void> {
   if (rows.length === 0) return;
   await tx.insert(answer).values(rows);
+}
+
+// Review's merge (FR-20, AD-11). The caller holds the Game lock and resolved every ID in
+// one Question. Answers move before the delete, since deleting a Group cascades to its Answers.
+export async function mergeGroups(
+  tx: Tx,
+  {
+    targetId,
+    sourceIds,
+    label,
+  }: { targetId: string; sourceIds: string[]; label: string },
+): Promise<void> {
+  await tx
+    .update(answer)
+    .set({ groupId: targetId })
+    .where(inArray(answer.groupId, sourceIds));
+  await tx.delete(answerGroup).where(inArray(answerGroup.id, sourceIds));
+  await tx
+    .update(answerGroup)
+    .set({ customLabel: label, editCount: sql`${answerGroup.editCount} + 1` })
+    .where(eq(answerGroup.id, targetId));
+}
+
+// Review's move and split (FR-20). The caller holds the Game lock and resolved every ID in
+// one non-discarded part of the Question. No targetId makes a new Group with origin host
+// (AD-12, never judge). Answers already in the target stay, so moved can be 0: then
+// nothing is written. Emptied sources are deleted only after the move (the delete cascades).
+export async function moveAnswers(
+  tx: Tx,
+  {
+    questionId,
+    answerIds,
+    targetId,
+  }: { questionId: string; answerIds: string[]; targetId?: string },
+): Promise<{ groupId: string; moved: number }> {
+  const groupId = targetId ?? randomUUID();
+  const moving = and(
+    inArray(answer.id, answerIds),
+    ne(answer.groupId, groupId),
+  );
+  const from = await tx
+    .selectDistinct({ id: answer.groupId })
+    .from(answer)
+    .where(moving);
+  const sourceIds = from.map((g) => g.id!);
+  if (sourceIds.length === 0) return { groupId, moved: 0 };
+  if (!targetId)
+    await tx
+      .insert(answerGroup)
+      .values({ id: groupId, questionId, origin: "host" });
+  const moved = await tx
+    .update(answer)
+    .set({ groupId })
+    .where(moving)
+    .returning({ id: answer.id });
+  await tx
+    .delete(answerGroup)
+    .where(
+      and(
+        inArray(answerGroup.id, sourceIds),
+        notExists(
+          tx
+            .select({ id: answer.id })
+            .from(answer)
+            .where(eq(answer.groupId, answerGroup.id)),
+        ),
+      ),
+    );
+  await tx
+    .update(answerGroup)
+    .set({ editCount: sql`${answerGroup.editCount} + 1` })
+    .where(inArray(answerGroup.id, [groupId, ...sourceIds]));
+  return { groupId, moved: moved.length };
+}
+
+// Review's rename (FR-20). The caller holds the Game lock and resolved the Group.
+export async function setCustomLabel(
+  tx: Tx,
+  { groupId, label }: { groupId: string; label: string },
+): Promise<void> {
+  await tx
+    .update(answerGroup)
+    .set({ customLabel: label, editCount: sql`${answerGroup.editCount} + 1` })
+    .where(eq(answerGroup.id, groupId));
+}
+
+// Review's discard and restore (FR-20). The caller holds the Game lock and resolved the
+// Group. Only the flag changes: no Group or Answer is deleted.
+export async function setDiscarded(
+  tx: Tx,
+  { groupId, discarded }: { groupId: string; discarded: boolean },
+): Promise<void> {
+  await tx
+    .update(answerGroup)
+    .set({ discarded, editCount: sql`${answerGroup.editCount} + 1` })
+    .where(eq(answerGroup.id, groupId));
+}
+
+// Review's lock (FR-13, AD-10): every Contributor key and rank of the Game goes. The
+// caller holds the Game lock and has already read the Counts it freezes.
+export async function clearContributorData(
+  tx: Tx,
+  gameId: string,
+): Promise<void> {
+  await tx
+    .update(answer)
+    .set({ contributorKey: null, rank: null })
+    .where(
+      inArray(
+        answer.questionId,
+        tx
+          .select({ id: question.id })
+          .from(question)
+          .where(eq(question.gameId, gameId)),
+      ),
+    );
 }
 
 // A Game deleted or already past grouping: the run stops without a trace (AD-12).
@@ -261,6 +380,7 @@ export function summary(
 }
 
 // The usage report's per-Question part (AD-18): no text, label, id, key or rank.
+// onBoard: a locked Board slot points at the Group (SM-5).
 // No owner check: the caller has already resolved the owned Game.
 export function usage(gameId: string) {
   return withBoundary("grouping", "usage", async () => {
@@ -281,16 +401,22 @@ export function usage(gameId: string) {
         questionId: answerGroup.questionId,
         origin: answerGroup.origin,
         editCount: answerGroup.editCount,
+        onBoard: sql<boolean>`${boardSlot.id} is not null`,
       })
       .from(answerGroup)
       .innerJoin(question, eq(question.id, answerGroup.questionId))
+      .leftJoin(boardSlot, eq(boardSlot.groupId, answerGroup.id))
       .where(eq(question.gameId, gameId))
       .orderBy(answerGroup.id);
     return results.map(({ id, ...q }) => ({
       ...q,
       groups: groups
         .filter((g) => g.questionId === id)
-        .map(({ origin, editCount }) => ({ origin, editCount })),
+        .map(({ origin, editCount, onBoard }) => ({
+          origin,
+          editCount,
+          onBoard,
+        })),
     }));
   });
 }

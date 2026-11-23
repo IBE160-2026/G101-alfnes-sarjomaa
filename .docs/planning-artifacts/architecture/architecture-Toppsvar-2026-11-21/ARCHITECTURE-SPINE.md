@@ -7,7 +7,7 @@ paradigm: 'modular monolith, layered (routes -> server modules -> db) in one Nex
 scope: 'Toppsvar Stage 1, the whole system in one deployable Next.js app, with Stage 2 (FR-22, FR-28, FR-29, FR-33) kept possible'
 status: final
 created: '2026-11-21'
-updated: '2026-11-22'
+updated: '2026-11-23'
 binds: [FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, FR-7, FR-8, FR-9, FR-10, FR-11, FR-12, FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-23, FR-24, FR-25, FR-26, FR-27, FR-30, FR-31, FR-32, NFR-1, NFR-2, NFR-3, NFR-4, NFR-5, NFR-6, NFR-7, NFR-8]
 sources:
   - .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md
@@ -69,7 +69,7 @@ flowchart TD
 | `auth` | `host`, `session` | `requireHost` (read) | FR-1 |
 | `games` | `game`, `game_counter`; retention purge | `lockForMutation`, `transition`, `reserveInviteLinks`, `acquireGroupingLease`, `bumpCounters`, `find` (read, no owner check, for `/svar`) | FR-2, FR-3, FR-18 |
 | `questions` | `question` | `setReviewed`, `count` (read), `ofGame` (read) | FR-4 |
-| `grouping` | `answer`, `answer_group`, `grouping_result` | `insertAnswers`, `createGroup`, `moveAnswers`, `mergeGroups`, `setCustomLabel`, `setDiscarded`, `deleteIfEmpty`, `clearContributorData` | FR-13, FR-15 to FR-17, FR-20 |
+| `grouping` | `answer`, `answer_group`, `grouping_result` | `insertAnswers`, `moveAnswers`, `mergeGroups`, `setCustomLabel`, `setDiscarded`, `clearContributorData`. *Amended in Story 5.3:* no `createGroup` or `deleteIfEmpty`; `moveAnswers` creates the `host` Group and deletes emptied sources | FR-13, FR-15 to FR-17, FR-20 |
 | `collection` | `invite_link`, `submission`; close | — | FR-5 to FR-11 |
 | `review` | `board_slot` | `getBoard` (read) | FR-19 to FR-21 |
 | `play` | `team`, `play_state`, `reveal` | — | FR-23 to FR-27 |
@@ -227,14 +227,14 @@ stateDiagram-v2
   - **Items.** A Question's items are its distinct normalised texts, sorted by code-unit order.
   - **Judge call.** There is one `judge.partition` call per Question, under a 30 s `AbortSignal`. At most 5 Questions run at once. The Judge is never called inside a transaction.
   - **Fallback.** A `JudgeError` (or any other throw, which counts as `ERROR`) gives the Question one Group per item, with `fell_back = true` and `fallback_reason` ∈ `NO_KEY | NO_STORED_RULING | TIMEOUT | ERROR | REFUSAL | INVALID_OUTPUT`. Review presents `NO_KEY` and `NO_STORED_RULING` as the normal group-by-hand state. It lists the other reasons as Judge failures (FR-17).
-  - **Writing results.** In one transaction per Question: `lockForMutation(grouping)`; insert the Groups (`origin` is `judge`, or `fallback` for fallback Groups and Groups made only of uncovered replay items); set `answer.group_id`; insert `grouping_result` (unique per `question_id`); call `bumpCounters`. A Question that already has a result is skipped.
+  - **Writing results.** In one transaction per Question: `lockForMutation(grouping)`; insert the Groups (`origin` is `judge`, or `fallback` for fallback Groups and Groups made only of uncovered replay items); set `answer.group_id`; insert `grouping_result` (unique per `question_id`); call `bumpCounters`. A Question that already has a result is skipped. *Amended in Story 5.3:* Review's "Ny gruppe" inserts its Group with `origin = host` (a third `group_origin` value) and a `randomUUID()` id, through `grouping.moveAnswers`; it is never `judge` or `fallback`.
   - **Running and resuming.**
     - The close action calls `after(() => grouping.run(gameId))`, which runs once. Module functions never call `after()`.
     - A Host page load in `grouping` calls `grouping.resumeIfStale(gameId)`. That function takes the lease with `acquireGroupingLease` (compare-and-set on `grouping_lease_until < now()`) and runs only if it won the lease. The runner extends the lease after each Question.
     - Both paths end in `finishIfComplete`, which locks, counts results and moves the Game to `in_review`.
     - If the Game has been deleted, the run stops quietly.
   - **Progress.** `grouping.progress(gameId)` returns Questions done out of the total, for the UX Grouping panel.
-  - **Cost.** For the sizing Game: 15 calls, about USD 0.004, at most 90 s. For the largest Game: 20 calls, about USD 0.008, at most 120 s. The arithmetic is in `delivery-notes.md`. No pair is judged twice.
+  - **Cost.** Without retries, for the sizing Game: 15 calls, about USD 0.004, at most 90 s. For the largest Game: 20 calls, about USD 0.008, at most 120 s. The arithmetic is in `delivery-notes.md`. Identical normalised Answers are one item, so none is judged twice. At most two requests per Question (one retry), so at most 40 per Game (PRD FR-15).
 - *Amended in Story 4.2:*
   - **Timer.** The runner owns the 30 s bound: it aborts its own `AbortController` after `JUDGE_TIMEOUT_MS` and races the call against that abort, so a provider that ignores the signal still falls back with `TIMEOUT`. Any other throw is `ERROR`.
   - **Result columns.** `source` is `judge` for a `live` result, `replay` for a `stored` one and `fallback` on fallback. `prompt_version` and `model_id` come from `judge.info`. On fallback `judge_calls` and `uncovered_items` are 0, since `JudgeError` carries no call count (a `shortcut:` in `grouping` until the live provider of Story 4.4 can fail after spending calls).
@@ -279,7 +279,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   Only the Question text and the items are sent.
 - **mock** is deterministic. It uses a map the test supplies, or one cluster per item. It is used only by Vitest.
 - **Prompt.** The prompt and `PROMPT_VERSION` live only in `src/server/judge/prompt.ts`, with no real-person text. Any change to the prompt bumps the version.
-- **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. If it falls short, change `JUDGE_MODEL` (any OpenRouter model with `structured_outputs` whose `reasoning.mandatory` is not `true`, since such a model rejects `effort: "none"` with a 400, which is `ERROR` on every Question) and re-record.
+- **Quality bar.** SM-2 is B-cubed F1 of at least 0.70 on `judge:eval`. Until the Stage 1 freeze (1 December), a shortfall may be addressed by changing the prompt (bumping `PROMPT_VERSION`), the effort or `JUDGE_MODEL` (any OpenRouter model with `structured_outputs` whose `reasoning.mandatory` is not `true`, since such a model rejects `effort: "none"` with a 400, which is `ERROR` on every Question) and re-recording; each version tried is listed in the README. After the freeze the figure is final and reported unchanged (PRD SM-2 decision rule).
 - **Imports.** Nothing outside `src/server/judge` imports a provider or calls the model endpoint.
 - *Amended in Story 4.1:*
   - `JudgeError`, `FallbackReason`, the `Judge` type and `canonicalise` live in `src/server/judge/core.ts`, which `index.ts` re-exports, so providers share them without an import cycle through `index.ts`.
@@ -311,9 +311,9 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Binds:** FR-19 to FR-21, FR-23 to FR-27, FR-33 (Stage 2)
 - **Prevents:** play reading Review data that is still changing; a Question reaching play with no Groups; a separate play path for Question-set Games.
 - **Rule:**
-  - **Review writes.** Review edits Groups only through `grouping`'s writers (AD-1). Every edit increments the affected Groups' `edit_count`, bumps counters and calls `questions.setReviewed(tx, id, false)`. That is the only `question` write allowed outside `draft`.
+  - **Review writes.** Review edits Groups only through `grouping`'s writers (AD-1). Every edit increments the affected Groups' `edit_count`, bumps counters and calls `questions.setReviewed(tx, id, false)`. That is the only `question` write allowed outside `draft`. *Amended in Story 5.4:* discard and restore only flip `answer_group.discarded` through `grouping.setDiscarded`; no Group or Answer is deleted. A discarded Group is frozen: it is never a merge, move or rename source or target (`NOT_FOUND`), and must be restored first. `boardCut` keeps it off the Board and out of the ninth-Group promotion, so `confirmBoard` never puts it in play.
   - **Marking reviewed** is refused with `NO_GROUPS_ON_BOARD` while a Question has no non-discarded Group.
-  - **`review.confirmBoard`** requires every Question to be reviewed. It writes `board_slot(id, question_id, position 1..8, label, count, group_id nullable)` from `boardCut(rankGroups(...))`, calls `grouping.clearContributorData`, and moves the Game to `ready`.
+  - **`review.confirmBoard`** requires every Question to be reviewed. It writes `board_slot(id, question_id, position 1..8, label, count, group_id nullable)` from `boardCut(rankGroups(...))`, calls `grouping.clearContributorData`, and moves the Game to `ready`. *Amended in Story 5.5:* a Question left unreviewed is refused with the new code `QUESTIONS_UNREVIEWED` ("Gjennomgå alle spørsmålene først."), since neither `WRONG_STATE` nor `NOT_FOUND` describes a Board that another tab un-reviewed. A Question whose Board would be empty is refused with `NO_GROUPS_ON_BOARD`, as marking is. The Counts are read before `clearContributorData`, because they are computed from the Contributor keys it clears. `review.setReviewed` marks and unmarks (AD-4) with no counter or `edit_count` change; the UI only marks.
   - **Play** reads only `board_slot`, through `review.getBoard`.
 
 ### AD-16 — Play state is saved as a reveal log
@@ -355,11 +355,12 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **SM-5** is the share of `origin = judge` Groups that reach the Board with `edit_count = 0`, plus the median `edit_count` of the changed ones.
 - *Amended in Story 4.3:*
   - **Lazy row.** `game_counter` is keyed by `game_id` (`ON DELETE CASCADE`) and has only the nine integer counters, each `not null default 0`. `bumpCounters` is one upsert that inserts the row with the delta or adds the delta to it, so `games.create` makes no row and `games.counters(gameId)` returns zeros for a Game that never bumped.
-  - **Grouping's bump.** In the Question's transaction, after the already-done skip: `judgeGroupsProposed` is that Question's `origin = judge` Groups, `judgeCalls` the stored `judge_calls`, which since Story 4.4 counts every request sent, also on fallback (`JudgeError.calls`), `questionsFellBack` 1 or 0. A failed bump rolls back the Question's Groups, `group_id`s and result. Host-made Groups (Story 5.3) must not use `origin = judge`, or they would count as proposed.
-  - **`edit_count`.** `answer_group.edit_count integer not null default 0`; Review increments it.
+  - **Grouping's bump.** In the Question's transaction, after the already-done skip: `judgeGroupsProposed` is that Question's `origin = judge` Groups, `judgeCalls` the stored `judge_calls`, which since Story 4.4 counts every request sent, also on fallback (`JudgeError.calls`), `questionsFellBack` 1 or 0. A failed bump rolls back the Question's Groups, `group_id`s and result. Host-made Groups (Story 5.3) must not use `origin = judge`, or they would count as proposed. *Resolved in Story 5.3:* they use `origin = host`.
+  - **`edit_count`.** `answer_group.edit_count integer not null default 0`; Review increments it. *Amended in Story 5.3:* `answers_moved` counts Answers, a "Ny gruppe" move to a new Group included (which also bumps `groups_created` by 1); a move adds `edit_count + 1` to the target and to every surviving source, so the new `host` Group ends at 1.
   - **States.** `REPORT_STATES` (`in_review`, `ready`, `playing`, `played`) in `src/lib/game-state.ts`, outside `PERMITTED`, which is the mutation table.
   - **Route.** `GET /api/spill/[gameId]/rapport` composes `auth.requireHost`, `games.getOwned`, the state check, `games.counters` and `grouping.usage` like the Game page does, since `grouping` imports `games`. Body: `{ counters: { judgeGroupsProposed, groupsMerged, answersMoved, groupsCreated, groupsRenamed, groupsDiscarded, groupsRestored, judgeCalls, questionsFellBack }, questions: [{ position, source, fellBack, groups: [{ origin, editCount }] }] }`, Questions by `position`, Groups by id, as an attachment `toppsvar-bruksrapport.json` with `Cache-Control: no-store`. Failures are `{ code, message }`: `NOT_FOUND` 404 (missing, foreign and malformed alike), `WRONG_STATE` 409, anything else 500 `INTERNAL`; logged out redirects to `/logg-inn`. The Game page links to it as a `button-secondary`-styled `<a>` without `download`.
   - **SM-5's "reach the Board" is not in the report yet.** No `board_slot` exists in 4.3, so the report cannot tell a Group on the Board from a discarded or cut one. The story that writes `board_slot` (5.5, `confirmBoard`) adds an on-Board flag per Group to the report, from `board_slot.group_id`, so a discarded or cut `origin = judge` Group with `edit_count = 0` is not read as accepted.
+- *Amended in Story 5.5:* each Group in `questions[].groups` is now `{ origin, editCount, onBoard }`. `onBoard` is true when a `board_slot` row has the Group's `group_id` (a read-only left join), so it is false for every Group before the lock and for cut or discarded ones after it. Nothing else is added to the report.
 
 ### AD-19 — Demo mode: invented fixtures, replay, one cross-platform command
 
@@ -404,7 +405,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 | `JUDGE_PROVIDER` | derived (AD-13) | `openrouter`, `replay` or `mock` |
 | `JUDGE_MODEL` | `deepseek/deepseek-v4.1-flash` | OpenRouter model ID for the live provider |
 | `DEMO_MODE` | empty | `1` shows the demo login hint and band, from the `src/lib` demo credentials constant (AD-19) |
-| `REGISTRATION_CODE` | empty | if set, registration requires it (pilot) |
+| `REGISTRATION_CODE` | empty | if set, registration requires it. *Amended 2026-11-23:* not set on the pilot, whose registration is open (AD-24) |
 | `CRON_SECRET` | empty | if set, enables `/api/purge` (pilot) |
 
 ### AD-22 — Test layout, guards and CI [ADOPTED]
@@ -421,7 +422,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
     - `authz.test.ts`: a foreign child ID for every Host action
     - `game-state.test.ts`
     - `demo-replay.test.ts`: `source = replay`, `uncovered_items = 0`, no fallback
-    - `judge-eval.test.ts`: replayed F1 at least 0.70
+    - `judge-eval.test.ts`: the replayed run is offline and prints precision, recall, F1, calls per Question, prompt version and model; the figures equal the pinned values for the committed rulings (re-pinned whenever they are re-recorded before the freeze); it reports whether 0.70 is met and never fails on a figure below it
     - `env.test.ts`
   - **`tests/e2e/`** runs Playwright against `next build && next start`, with a fresh temporary PGlite directory and `JUDGE_PROVIDER=replay`. A second server, `next dev` on its own port (3101) and PGlite directory, serves only `server-output.spec.ts`, since only development mode prints Server Function arguments and forwards browser console output. Both servers' stdout and stderr are redirected to files, and the global teardown fails the run if either file is missing or empty, or holds a Token, edit secret or Answer that a browser sent or received, or its sha256 (recorded in the shared `localOnly` helper). Each spec registers its own Host, and only `demo.spec.ts` uses the demo Game. Required specs:
     - `no-key.spec.ts` (FR-30)
@@ -469,9 +470,16 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 | Local dev (`npm run dev`) | `pglite://.data/local` | automatic (PGlite only) | if a key is in `.env.local` |
 | Demo (`npm run demo`) | `pglite://.data/demo`, recreated | automatic | never (`replay`) |
 | Test and CI | `pglite://:memory:`, temp directory, Postgres service | automatic in setup | never |
-| Pilot | Neon free tier, EU region, pooled URL | explicit `npm run db:migrate` deploy step | yes, the key has a console spend limit |
+| Pilot (production) | Neon Postgres, Frankfurt (EU), pooled URL | explicit `npm run db:migrate` deploy step | yes, through a key with a USD 0.10 credit limit |
+| Pilot previews | `pglite:///tmp/toppsvar`, per function instance | automatic (PGlite only) | never (no key) |
 
-The pilot is Vercel Hobby (300 s per function with fluid compute), production from `main` only, with previews disabled. `REGISTRATION_CODE` and `CRON_SECRET` are set there. There are no backups beyond Neon's short history, and the pilot database is deleted when the course ends. Any Node host running `next start` with a Postgres URL is equivalent. The README's local path never mentions a host.
+The pilot is Vercel Hobby (300 s per function with fluid compute), with production from `main` only. *Amended 2026-11-23 (group decision):*
+
+- **Open registration.** `REGISTRATION_CODE` is not set, so anyone with the address can create a Host account. `CRON_SECRET` stays set for the daily purge (AD-23).
+- **Previews on.** Preview deployments set `DATABASE_URL=pglite:///tmp/toppsvar` and no `OPENROUTER_API_KEY`. They never reach the production database or the Judge, and their data lasts only as long as the function instance.
+- **Production.** Neon Postgres in Frankfurt (EU) and an OpenRouter key with a USD 0.10 credit limit, which is the cost cap. When the credit is used up, OpenRouter refuses the request, the Judge reports `ERROR`, and the Question starts with one Group per distinct normalised Answer (FR-17).
+
+There are no backups beyond Neon's short history, and the pilot database is deleted when the course ends. Any Node host running `next start` with a Postgres URL is equivalent. The README's local path never mentions a host.
 
 ## Consistency Conventions
 
@@ -489,7 +497,7 @@ The pilot is Vercel Hobby (300 s per function with fluid compute), production fr
 | Assets | Fonts come from npm packages or `next/font/local`, never `next/font/google` or a CDN, so builds and tests work offline. Nothing names or imitates the TV show (PRD §6.3). |
 | Scripts | `dev`, `demo`, `build`, `start`, `lint`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `judge:eval`, `judge:record`, `judge:smoke`. README, CI and Playwright use these names only. |
 | Style | ESLint flat config (`eslint-config-next`, `typescript-eslint`, `eslint-config-prettier`) and Prettier defaults, over `src`, `tests` and the root config files. Ignored: `_bmad .claude wiki .docs prompting scripts drizzle .idea .next .data .logs`. No commented-out code. |
-| Delivery | The README states the anonymity limits that AD-7 to AD-10, AD-13 and AD-24 name. One PR per epic. A departure from this spine amends it in the same PR. Details are in `delivery-notes.md`. |
+| Delivery | The README states the anonymity limits that AD-7 to AD-10, AD-13 and AD-24 name, and the outcome of the PRD §6.5 slip list. One PR per epic. A departure from this spine amends it in the same PR. Details are in `delivery-notes.md`. |
 
 ## Stack
 
@@ -514,7 +522,7 @@ Do not keep the Next starter's `@types/node ^20` (vitest 5 rejects it), its `nex
 | `prettier` / `eslint-config-prettier` | 3.10.1 / 10.1.8 |
 | `tsx` / `server-only` | 4.23.15 / 0.0.1 |
 | `@fontsource-variable/bricolage-grotesque` (self-hosted display font) | 5.3.0 |
-| Pilot hosting | Vercel Hobby (Node runtime) + Neon free tier (EU) |
+| Pilot hosting | Vercel Hobby (Node runtime) + Neon Postgres, Frankfurt (EU) |
 
 ## Structural Seed
 
@@ -546,7 +554,7 @@ flowchart LR
     N --> FX["data/rulings/*.json (replay)"]
   end
   subgraph Pilot["Pilot (optional, main only)"]
-    V["Vercel function, Node runtime"] --> HP["Neon Postgres, EU, pooled"]
+    V["Vercel function, Node runtime"] --> HP["Neon Postgres, Frankfurt (EU), pooled"]
     V --> FX2["data/rulings (traced into bundle)"]
     C["Vercel Cron daily"] --> V
     V -. "only if OPENROUTER_API_KEY" .-> A["OpenRouter chat completions, deepseek/deepseek-v4.1-flash"]
@@ -614,7 +622,7 @@ flowchart LR
 
 - **Cross-device editing of an Answer set** (FR-7 narrowed by AD-8). Confirmed by the group 2026-11-21: the PRD's FR-7 is amended to the submitting device, so AD-8 binds without reservation.
 - **Visual system, Review interaction, near-threshold display and unsent drafts.** These were decided in `DESIGN.md` and `EXPERIENCE.md`. Architecture constraints: no per-Group confidence signal in Stage 1, single-Answer Groups are ordinary Groups, and drafts stay in `localStorage`, under the one per-link key `toppsvar:<gameId>:<first 16 chars of token>` (no hashing in the browser), and are never sent before submit.
-- **Judge prompt wording and the measured token and latency figures.** Tuned in the Judge story against `judge:eval`. The format, versions and the 0.70 bar are fixed in AD-13 and AD-14.
+- **Judge prompt wording and the measured token and latency figures.** Tuned in the Judge story against `judge:eval` until the Stage 1 freeze. The format, versions and the 0.70 bar are fixed in AD-13 and AD-14.
 - **Account recovery and email verification.** Not required by the PRD. Registration reveals whether an email is already taken, and that is accepted.
 - **Stage 2 data.** The Question-set import format and `game.kind` (FR-33), a manual Group order column on `answer_group` (FR-22), typed Guess storage and its deletion (FR-28), and strike and steal state (FR-29). These are decided when Stage 2 starts, inside AD-4, AD-13, AD-15 and AD-16.
 - **Several Hosts per Game** (PRD §1.2). The schema uses `game.host_id`, and Stage 1 adds no other single-Host assumption.

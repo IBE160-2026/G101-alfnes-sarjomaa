@@ -25,8 +25,6 @@ vi.mock("next/server", async (importOriginal) => ({
   },
 }));
 
-vi.setConfig({ testTimeout: 30_000 });
-
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;

@@ -48,7 +48,7 @@ The README covers the sensorveiledning checklist:
 - **Environment:** the variable table from AD-21, which says that the app runs without any key and that `OPENROUTER_API_KEY` switches on the live Judge. `.env.example` is the template.
 - **Tests:** `npm test`, and `npx playwright install chromium` once followed by `npm run test:e2e`. Also `npm run judge:eval`.
 - **Structure and links:** the folder overview, with links to `.docs/` (brief, PRD, UX, this architecture), `wiki/` and `prompting/`.
-- **Stage 2:** what Stage 2 left out and why, and every Stage 1 cut, with the reason.
+- **Stage 2:** what Stage 2 left out and why, every Stage 1 cut, with the reason, the outcome of the PRD §6.5 slip list (what slipped, or that nothing did), and the SM-2 figure with every prompt version and model tried.
 - **Anonymity limits.** Nobody can see who wrote an Answer. Then name who can see what:
   - The Host reads every Answer as written, and writing style is not anonymised.
   - Before close, a DB operator could correlate a link's hash with its Answer set.
@@ -74,10 +74,10 @@ The README covers the sensorveiledning checklist:
 
 ## Stage 1 cut order
 
-If time runs short, cut in this order:
+The binding slip list is PRD §6.5 (amended 2026-11-23). This order mirrors it. If time runs short, cut in this order:
 
 1. The pilot deployment, the CI Postgres job and Vercel Cron.
-2. `judge:record`, and polish of `judge:eval --live`.
+2. `judge:eval --live` (live regeneration of the rulings, FR-32) and SM-4.
 3. End-to-end breadth beyond the required specs.
 
 Never cut AD-4, AD-7 to AD-10, the replay demo, the network-free tests or the README. The README states every cut.

@@ -14,6 +14,7 @@ import * as collection from "@/server/collection";
 import * as games from "@/server/games";
 import * as grouping from "@/server/grouping";
 import * as questions from "@/server/questions";
+import * as review from "@/server/review";
 
 export async function deleteGame(
   _prev: unknown,
@@ -35,16 +36,19 @@ export async function deleteGame(
 }
 
 // Every object-input Host action: session, the module call (which validates the input),
-// a refresh of the Game page, and any error as a Failure.
+// a refresh of the Game page (and `subPath` under it), and any error as a Failure.
 async function hostAction<T>(
   op: (hostId: string, input: unknown) => Promise<T>,
   input: unknown,
+  subPath?: string,
 ): Promise<ActionResult<T>> {
   try {
     const { hostId } = await auth.requireHost();
     const data = await op(hostId, input);
     // op validated the input, so gameId is a string here.
-    revalidatePath(`/spill/${(input as { gameId: string }).gameId}`);
+    const page = `/spill/${(input as { gameId: string }).gameId}`;
+    revalidatePath(page);
+    if (subPath) revalidatePath(`${page}/${subPath}`);
     return { ok: true, data };
   } catch (error) {
     unstable_rethrow(error); // the login redirect from requireHost
@@ -94,4 +98,46 @@ export async function closeCollection(
     after(() => grouping.run(gameId).catch(() => {}));
   }
   return result;
+}
+
+export async function mergeGroups(
+  input: unknown,
+): Promise<ActionResult<review.MergeResult>> {
+  return hostAction(review.merge, input, "gjennomgang");
+}
+
+export async function moveAnswers(
+  input: unknown,
+): Promise<ActionResult<review.MoveResult>> {
+  return hostAction(review.moveAnswers, input, "gjennomgang");
+}
+
+export async function renameGroup(
+  input: unknown,
+): Promise<ActionResult<review.LabelResult>> {
+  return hostAction(review.rename, input, "gjennomgang");
+}
+
+export async function discardGroup(
+  input: unknown,
+): Promise<ActionResult<review.LabelResult>> {
+  return hostAction(review.discard, input, "gjennomgang");
+}
+
+export async function restoreGroup(
+  input: unknown,
+): Promise<ActionResult<review.LabelResult>> {
+  return hostAction(review.restore, input, "gjennomgang");
+}
+
+export async function markReviewed(
+  input: unknown,
+): Promise<ActionResult<review.MarkResult>> {
+  return hostAction(review.setReviewed, input, "gjennomgang");
+}
+
+export async function confirmBoard(
+  input: unknown,
+): Promise<ActionResult<{ questions: number }>> {
+  return hostAction(review.confirmBoard, input, "gjennomgang");
 }

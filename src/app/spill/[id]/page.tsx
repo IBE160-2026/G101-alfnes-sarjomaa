@@ -172,7 +172,6 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
     const result = await grouping.summary(game.id);
     // Numbers only, no key sentence: it must read right for every fallback reason and in
     // Demo mode. The reason-specific Notice belongs to Review (Epic 5).
-    // shortcut: no way forward from in review until Epic 5, add the primary "Gå til gjennomgangen" link here in Story 5.1.
     const rows: [string, number][] = [
       ["Spørsmål i alt", result.questions],
       ["Grupper foreslått", result.groupsProposed],
@@ -194,6 +193,26 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
             </div>
           ))}
         </dl>
+        <Link
+          href={`/spill/${game.id}/gjennomgang`}
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover"
+        >
+          Gå til gjennomgangen
+        </Link>
+      </section>,
+    ];
+  } else if (game.state === "ready") {
+    const { hostId } = await auth.requireHost();
+    const n = (await questions.list(hostId, game.id)).length;
+    // shortcut: no way forward from ready until Epic 6, add the primary "Start spillet" link to /spill/[id]/skjerm here in Story 6.1.
+    panel = [
+      <section key="ready" aria-labelledby="brettet" className="mt-10">
+        <h2 id="brettet" className="text-heading">
+          Brettet er låst
+        </h2>
+        <p className="mt-4">
+          {n === 1 ? "1 spørsmål er klart." : `${n} spørsmål er klare.`}
+        </p>
       </section>,
     ];
   }

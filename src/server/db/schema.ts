@@ -13,7 +13,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { GAME_STATES } from "@/lib/game-state";
-import { ANSWERS_PER_QUESTION_MAX } from "@/lib/limits";
+import { ANSWERS_PER_QUESTION_MAX, BOARD_SIZE } from "@/lib/limits";
 
 const utc = { withTimezone: true, mode: "date" } as const;
 
@@ -82,6 +82,8 @@ export const question = pgTable(
       .references(() => game.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
     text: text("text").notNull(),
+    // Set by "Marker som gjennomgått", cleared by any edit of the Question's Groups (FR-20, FR-21).
+    reviewed: boolean("reviewed").notNull().default(false),
   },
   (t) => [uniqueIndex("question_game_position_key").on(t.gameId, t.position)],
 );
@@ -104,7 +106,11 @@ export const submission = pgTable("submission", {
   editSecretHash: text("edit_secret_hash").notNull(),
 });
 
-export const groupOrigin = pgEnum("group_origin", ["judge", "fallback"]);
+export const groupOrigin = pgEnum("group_origin", [
+  "judge",
+  "fallback",
+  "host",
+]);
 export const groupingSource = pgEnum("grouping_source", [
   "judge",
   "replay",
@@ -130,6 +136,9 @@ export const answerGroup = pgTable("answer_group", {
   origin: groupOrigin("origin").notNull(),
   // Review edits of this Group (Epic 5); the usage report reads it (AD-18).
   editCount: integer("edit_count").notNull().default(0),
+  // The Host's rename; null means the default label (AD-11).
+  customLabel: text("custom_label"),
+  discarded: boolean("discarded").notNull().default(false),
 });
 
 // One per Question once the Judge or the fallback has grouped it (AD-12, AD-14).
@@ -170,6 +179,36 @@ export const answer = pgTable(
     check(
       "answer_rank_range",
       sql`${t.rank} between 1 and ${sql.raw(String(ANSWERS_PER_QUESTION_MAX))}`,
+    ),
+  ],
+);
+
+// The locked Board, written once by review.confirmBoard; play reads only this (AD-15).
+// Label and Count are frozen; group_id only tells the usage report which Groups made it.
+export const boardSlot = pgTable(
+  "board_slot",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => question.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    label: text("label").notNull(),
+    count: integer("count").notNull(),
+    groupId: uuid("group_id").references(() => answerGroup.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [
+    uniqueIndex("board_slot_question_position_key").on(
+      t.questionId,
+      t.position,
+    ),
+    // A Group is on at most one slot; the index serves SET NULL and the report's join.
+    uniqueIndex("board_slot_group_id_key").on(t.groupId),
+    check(
+      "board_slot_position_range",
+      sql`${t.position} between 1 and ${sql.raw(String(BOARD_SIZE))}`,
     ),
   ],
 );

@@ -31,8 +31,6 @@ afterAll(() => {
   vi.unstubAllEnvs();
 });
 
-vi.setConfig({ testTimeout: 30_000 });
-
 const PASSWORD = "riktig-passord-123";
 const WRONG_CODE = {
   ok: false,

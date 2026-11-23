@@ -2,13 +2,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { z } from "zod";
 import { env } from "@/server/env";
+import { getLiveJudge, JudgeError } from "@/server/judge";
 import {
   assertRecordTarget,
-  getLiveJudge,
-  JudgeError,
   record,
   recordInputSchema,
-} from "@/server/judge";
+} from "@/server/judge/record";
 
 function fail(message: string): never {
   console.error(message);

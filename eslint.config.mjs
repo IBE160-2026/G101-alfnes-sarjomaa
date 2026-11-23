@@ -24,6 +24,11 @@ const PROVIDERS = ban(
   "@/server/judge/providers",
   "Judge providers are private to src/server/judge.",
 );
+// AD-13: only the Judge and the CLI write Stored rulings, so Grouping never does.
+const JUDGE_PRIVATE = ban(
+  "@/server/judge/(providers|record)",
+  "Judge providers and record are private to src/server/judge (record also to src/cli).",
+);
 const NO_DB = ban(
   "@/server/(db|judge)",
   "Routes and UI call module entry points, never the DB or the Judge.",
@@ -82,22 +87,22 @@ export default defineConfig([
     ["src/lib/**"],
     ban("@/(server|app|components|cli)", "src/lib is pure."),
   ),
-  zone(["src/server/**"], NO_UI, PROVIDERS),
+  zone(["src/server/**"], NO_UI, JUDGE_PRIVATE),
   ...MODULES.map((name, i) => {
     const later = MODULES.slice(i + 1);
     return later.length
       ? zone(
           [`src/server/${name}/**`],
           NO_UI,
-          PROVIDERS,
+          JUDGE_PRIVATE,
           ban(anyOf(later), `${name} may call only earlier modules.`),
         )
-      : zone([`src/server/${name}/**`], NO_UI, PROVIDERS);
+      : zone([`src/server/${name}/**`], NO_UI, JUDGE_PRIVATE);
   }),
   zone(
     ["src/server/db/**"],
     NO_UI,
-    PROVIDERS,
+    JUDGE_PRIVATE,
     ban(anyOf(MODULES), "The DB layer never imports a module."),
   ),
   zone(

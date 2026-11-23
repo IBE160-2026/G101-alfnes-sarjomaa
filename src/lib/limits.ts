@@ -44,3 +44,7 @@ export const ANSWER_FIELDS_DEFAULT = 2;
 export const RETENTION_PLAYED_MS = 30 * DAY_MS;
 export const RETENTION_IDLE_MS = 90 * DAY_MS;
 export const PURGE_INTERVAL_MS = HOUR_MS;
+
+// AD-11: the Board is the top eight non-discarded Groups; labels are at most 40 characters.
+export const BOARD_SIZE = 8;
+export const LABEL_MAX = 40;

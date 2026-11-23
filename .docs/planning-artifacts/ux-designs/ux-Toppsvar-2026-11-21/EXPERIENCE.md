@@ -129,7 +129,7 @@ All operations are scoped to the current Question and confirmed by the server be
 |---|---|---|---|
 | **Merge** | Tick two or more Group checkboxes → SelectionBar "Slå sammen N grupper" | One Group, label of the highest-Count source (ties by rank), Count recomputed as distinct Contributor keys; list re-sorts; focus moves to the merged Group's heading | "Slått sammen til «Jeg kjenner eieren», nå 6 personer, plass 1." |
 | **Move to another Group** | Tick Answer chips (from one or several Groups) → "Flytt til gruppe" → choose from a list of the Question's non-discarded Groups, sorted by Count, each shown as "label (N)" | Chips move; both Groups recount; empty source Groups disappear; focus moves to the target Group | "3 svar flyttet til «Jeg står på gjestelista»." |
-| **Move to a new Group** (split) | Tick chips → "Ny gruppe" | New Group with the FR-16 default label; its rename field opens with focus | "Ny gruppe «står på lista» laget. Skriv et nytt navn eller trykk Enter." |
+| **Move to a new Group** | Tick chips → "Ny gruppe" | New Group with the FR-16 default label; its rename field opens with focus | "Ny gruppe «står på lista» laget. Skriv et nytt navn eller trykk Enter." |
 | **Rename** | Group menu → "Gi nytt navn", or click the label | Inline TextField, counter "N/40"; Enter saves, Esc cancels | "Navnet er endret." |
 | **Discard** | Group menu → "Forkast fra brettet" | Card moves to *Forkastet*; the next Group below the limit (if any) moves up onto the Board | "«Noe om eksen» er forkastet og vises ikke i spillet." |
 | **Undo discard** | "Angre forkasting" on a discarded card | Group returns to its ranked place | "«Noe om eksen» er tilbake." |
@@ -162,24 +162,27 @@ Phone first, 360 px wide, `{spacing.gutter-mobile}` gutters, content max `{spaci
 │ │ heller ikke verten.      │ │   │ └──────────────────────────┘ │
 │ │ Verten leser likevel     │ │   │  (focus lands here; each     │
 │ │ alle svarene slik de er  │ │   │   line links to its fieldset)│
-│ │ skrevet.                 │ │   │ …                            │
-│ └──────────────────────────┘ │   │ ┌ Spørsmål 4 av 9 (danger) ┐ │
-│ Gi 1–5 svar per spørsmål.    │   │ │ Feil: Skriv minst ett    │ │
-│ Skriv det første du kommer…  │   │ │ svar.                    │ │
-│ ┌ Spørsmål 1 av 9 ─────────┐ │   │ │ Hva finner Siri i lomma  │ │
-│ │ Hva gjør Maren når hun   │ │   │ │ dagen derpå?             │ │
-│ │ har forsovet seg?        │ │   │ │ Svar 1                   │ │
-│ │ Svar 1                   │ │   │ │ [______________________] │ │
-│ │ [______________________] │ │   │ │ Svar 2 (valgfritt)       │ │
-│ │ Svar 2 (valgfritt)       │ │   │ │ [______________________] │ │
-│ │ [______________________] │ │   │ │ + Legg til svar          │ │
-│ │ + Legg til svar          │ │   │ └──────────────────────────┘ │
-│ └──────────────────────────┘ │   │ …                            │
-│ … Spørsmål 2–9 …             │   │ 7 av 9 spørsmål har svar     │
-│ 0 av 9 spørsmål har svar     │   │ [       Send inn svar      ] │
-│ [       Send inn svar      ] │   │ Utkastet lagres bare på      │
-│ Utkastet lagres bare på      │   │ denne enheten. Sender du inn │
-│ denne enheten. Sender du inn │   │ fra en annen enhet …         │
+│ │ skrevet, og svarene kan  │ │   │ …                            │
+│ │ bli sendt til en ekstern │ │   │ ┌ Spørsmål 4 av 9 (danger) ┐ │
+│ │ KI-tjeneste for          │ │   │ │ Feil: Skriv minst ett    │ │
+│ │ gruppering.              │ │   │ │ svar.                    │ │
+│ └──────────────────────────┘ │   │ │ Hva finner Siri i lomma  │ │
+│ Gi 1–5 svar per spørsmål.    │   │ │ dagen derpå?             │ │
+│ Skriv det første du kommer…  │   │ │ Svar 1                   │ │
+│ ┌ Spørsmål 1 av 9 ─────────┐ │   │ │ [______________________] │ │
+│ │ Hva gjør Maren når hun   │ │   │ │ Svar 2 (valgfritt)       │ │
+│ │ har forsovet seg?        │ │   │ │ [______________________] │ │
+│ │ Svar 1                   │ │   │ │ + Legg til svar          │ │
+│ │ [______________________] │ │   │ └──────────────────────────┘ │
+│ │ Svar 2 (valgfritt)       │ │   │ …                            │
+│ │ [______________________] │ │   │ 7 av 9 spørsmål har svar     │
+│ │ + Legg til svar          │ │   │ [       Send inn svar      ] │
+│ └──────────────────────────┘ │   │ Utkastet lagres bare på      │
+│ … Spørsmål 2–9 …             │   │ denne enheten. Sender du inn │
+│ 0 av 9 spørsmål har svar     │   │ fra en annen enhet …         │
+│ [       Send inn svar      ] │   │                              │
+│ Utkastet lagres bare på      │   │                              │
+│ denne enheten. Sender du inn │   │                              │
 │ fra en annen enhet …         │   └──────────────────────────────┘
 └──────────────────────────────┘
 ```
@@ -190,7 +193,7 @@ The wireframe abbreviates the instruction and helper lines (marked "…"); the l
 
 - **Instruction line**, under the anonymity notice: "Gi 1–5 svar per spørsmål. Skriv det første du kommer på i Svar 1." Rank 1 only breaks ties (FR-16), so the line does not ask for "the most important".
 - **Header:** wordmark "Toppsvar" and the Game title. No name, email, avatar, account indicator or login link anywhere (FR-1, FR-6, FR-11). Page `<title>`: the server shell is generic ("Toppsvar", AD-7); the client sets "{Game title} – Toppsvar" after `openInviteLink` returns.
-- **Anonymity notice** (FR-14), above the first Question, `notice-info`, exactly: *"Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet."*
+- **Anonymity notice** (FR-14), above the first Question, `notice-info`, exactly: *"Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet, og svarene kan bli sendt til en ekstern KI-tjeneste for gruppering."* It has no condition: it does not depend on which Judge provider is configured (sprint change proposal 2026-11-23, D1).
 - **One AnswerFieldset per Question**, all on one scrolling page (8 to 15 Questions is a short scroll; paging would add states). Two fields shown: "Svar 1" and "Svar 2 (valgfritt)". "Legg til svar" adds a field up to five (FR-6), then disappears. Added fields 3 to 5 have a "Fjern" button (`aria-label="Fjern svar 3"`). Rank is field order; there is no reorder control in Stage 1.
 - **Inputs:** `maxlength="80"`, `autocomplete="off"`, `autocapitalize="sentences"`, `enterkeyhint="next"`. A counter "N/80" appears from 60 characters. A server refusal of an over-long Answer shows "Svaret kan ha maks 80 tegn." under the field.
 - **Progress line** above the submit button: "N av M spørsmål har svar". Not sticky, so it never covers a field when the phone keyboard is open.

@@ -11,7 +11,7 @@ import type { Failure } from "@/lib/errors";
 const COPY = {
   register: {
     button: "Opprett konto",
-    pending: "Oppretter konto …",
+    pending: "Oppretter konto\u00a0…",
     password: "new-password",
     other: {
       text: "Har du allerede konto?",
@@ -21,7 +21,7 @@ const COPY = {
   },
   login: {
     button: "Logg inn",
-    pending: "Logger inn …",
+    pending: "Logger inn\u00a0…",
     password: "current-password",
     other: {
       text: "Har du ikke konto?",

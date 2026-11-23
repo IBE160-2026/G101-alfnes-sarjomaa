@@ -71,6 +71,7 @@ export const test = base.extend({
 export { expect };
 
 export const FOCUS_RING = "3px solid rgb(30, 26, 34)";
+export const FOCUS_RING_INVERSE = "3px solid rgb(255, 255, 255)";
 export const PASSWORD = "riktig-passord-123";
 
 // Each spec registers its own Host on a reserved domain.
@@ -84,7 +85,8 @@ export async function registerHost(page: Page): Promise<string> {
   await page.getByLabel("E-post").fill(email);
   await page.getByLabel("Passord").fill(PASSWORD);
   await page.getByRole("button", { name: "Opprett konto" }).click();
-  await expect(page).toHaveURL("/spill");
+  // scrypt at N=2^17 can take several seconds under CPU load (a full e2e run with two servers).
+  await expect(page).toHaveURL("/spill", { timeout: 15_000 });
   return email;
 }
 
@@ -109,7 +111,13 @@ export async function tabThrough(page: Page) {
   return stops;
 }
 
+// Next 16 streams a dynamic page's metadata after its body, and a router.refresh() streams it
+// again, so <title> is missing for a few hundred ms. Axe must not run in that gap; a page that
+// never gets a title still fails here.
 export async function seriousViolations(page: Page) {
+  await expect
+    .poll(() => page.title(), { message: "the page never got a <title>" })
+    .not.toBe("");
   const { violations } = await new AxeBuilder({ page }).analyze();
   return violations
     .filter((v) => v.impact === "serious" || v.impact === "critical")

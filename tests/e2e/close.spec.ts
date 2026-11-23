@@ -215,7 +215,7 @@ test("FR-10, FR-15 (AC6), FR-18 (AC4), UX-DR8, UX-DR16: at 360 px Steng innsamli
         position: 1,
         source: "fallback",
         fellBack: true,
-        groups: [{ origin: "fallback", editCount: 0 }],
+        groups: [{ origin: "fallback", editCount: 0, onBoard: false }],
       },
     ],
   });

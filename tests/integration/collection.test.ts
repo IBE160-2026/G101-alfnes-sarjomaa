@@ -103,8 +103,6 @@ vi.mock("@/lib/shuffle", async (importOriginal) => {
   return { shuffle: vi.fn(real.shuffle) };
 });
 
-vi.setConfig({ testTimeout: 30_000 });
-
 const COOKIE = "toppsvar_session";
 const TEXTS = [
   "Hva gjør Jonas?",

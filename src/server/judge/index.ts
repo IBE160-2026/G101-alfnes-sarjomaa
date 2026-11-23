@@ -11,11 +11,6 @@ export type {
   Judge,
   PartitionResult,
 } from "@/server/judge/core";
-export {
-  assertRecordTarget,
-  record,
-  recordInputSchema,
-} from "@/server/judge/record";
 
 export function getJudge(): Judge {
   switch (env.JUDGE_PROVIDER) {

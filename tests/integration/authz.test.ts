@@ -1,17 +1,27 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GET as reportRoute } from "@/app/api/spill/[gameId]/rapport/route";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeCollection,
+  confirmBoard,
   createInviteLinks,
   deleteGame,
+  discardGroup,
+  markReviewed,
+  mergeGroups,
+  moveAnswers,
   moveQuestion,
   removeQuestion,
+  renameGroup,
+  restoreGroup,
   revokeInviteLink,
   saveQuestion,
 } from "@/app/spill/[id]/actions";
+import ReviewPage, {
+  generateMetadata as reviewMetadata,
+} from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
 import { createGame } from "@/app/spill/actions";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
@@ -23,12 +33,15 @@ import * as collection from "@/server/collection";
 import { getDb } from "@/server/db/client";
 import {
   answer,
+  answerGroup,
+  boardSlot,
   game,
   inviteLink,
   question,
   submission,
 } from "@/server/db/schema";
 import * as games from "@/server/games";
+import * as review from "@/server/review";
 import { afterTasks, cookieJar, NotFoundError, run } from "./next-mocks";
 
 vi.mock("next/headers", () =>
@@ -38,8 +51,6 @@ vi.mock("next/navigation", () =>
   import("./next-mocks").then((m) => m.nextNavigation()),
 );
 vi.mock("next/cache", () => import("./next-mocks").then((m) => m.nextCache));
-
-vi.setConfig({ testTimeout: 30_000 });
 
 const COOKIE = "toppsvar_session";
 const T0 = new Date("2026-11-01T12:00:00Z");
@@ -216,6 +227,254 @@ describe("Host B against Host A's Game", () => {
         message: "Vi finner ikke dette spillet.",
       });
     }
+  });
+
+  it("FR-19, AD-5 (AC2): B's review.load, Review page and its title on A's in review Game, a random UUID and a malformed ID give one identical NOT_FOUND, notFound() and the not-found title", async () => {
+    const db = await getDb();
+    const [{ id: reviewOfA }] = await db
+      .insert(game)
+      .values({ hostId: hosts.A, title: "As brett", state: "in_review" })
+      .returning({ id: game.id });
+    await db
+      .insert(question)
+      .values({ id: randomUUID(), gameId: reviewOfA, position: 1, text: "?" });
+    as("A");
+    expect((await review.load(hosts.A, reviewOfA)).title).toBe("As brett");
+    as("B");
+    for (const id of [reviewOfA, randomUUID(), "abc"]) {
+      const error = await rejection(review.load(hosts.B, id));
+      expect((error as DomainError).code, id).toBe("NOT_FOUND");
+      expect(
+        await rejection(
+          ReviewPage({
+            params: Promise.resolve({ id }),
+            searchParams: Promise.resolve({}),
+          }),
+        ),
+        id,
+      ).toBeInstanceOf(NotFoundError);
+      expect(
+        await reviewMetadata({
+          params: Promise.resolve({ id }),
+          searchParams: Promise.resolve({}),
+        }),
+        id,
+      ).toEqual({ title: "Vi finner ikke dette spillet" });
+    }
+  });
+
+  it("FR-20, AD-5 (AC2): B's review.merge and mergeGroups action on A's Groups, with A's Game, B's own in review Game, a random UUID or a malformed Game ID, give NOT_FOUND, and A's Groups stay as they were", async () => {
+    const db = await getDb();
+    const [{ id: reviewOfA }, { id: reviewOfB }] = await db
+      .insert(game)
+      .values([
+        { hostId: hosts.A, title: "As grupper", state: "in_review" },
+        { hostId: hosts.B, title: "Bs grupper", state: "in_review" },
+      ])
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: reviewOfA, position: 1, text: "?" });
+    const groupIds = [randomUUID(), randomUUID()];
+    await db
+      .insert(answerGroup)
+      .values(
+        groupIds.map((id) => ({ id, questionId, origin: "fallback" as const })),
+      );
+    await db.insert(answer).values(
+      groupIds.map((groupId, i) => ({
+        questionId,
+        contributorKey: randomUUID(),
+        rank: 1,
+        text: `svar ${i}`,
+        normalizedText: `svar ${i}`,
+        groupId,
+      })),
+    );
+    const groupsOfA = () =>
+      db
+        .select()
+        .from(answerGroup)
+        .where(inArray(answerGroup.id, groupIds))
+        .orderBy(asc(answerGroup.id));
+    const before = await groupsOfA();
+    as("B");
+    for (const gameId of [reviewOfA, reviewOfB, randomUUID(), "abc"]) {
+      const error = await rejection(
+        review.merge(hosts.B, { gameId, groupIds }),
+      );
+      expect((error as DomainError).code, gameId).toBe("NOT_FOUND");
+      expect(await mergeGroups({ gameId, groupIds }), gameId).toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Vi finner ikke dette spillet.",
+      });
+    }
+    expect(await groupsOfA()).toEqual(before);
+    expect((await games.counters(reviewOfA)).groupsMerged).toBe(0);
+  });
+
+  it("FR-20, AD-5 (AC3): B's review.moveAnswers, review.rename, review.discard, review.restore and their actions on A's Answers and Groups, with A's Game, B's own in review Game, a random UUID or a malformed Game ID, give NOT_FOUND, and A stays as it was", async () => {
+    const db = await getDb();
+    const [{ id: reviewOfA }, { id: reviewOfB }] = await db
+      .insert(game)
+      .values([
+        { hostId: hosts.A, title: "As svar", state: "in_review" },
+        { hostId: hosts.B, title: "Bs svar", state: "in_review" },
+      ])
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: reviewOfA, position: 1, text: "?" });
+    const groupIds = [randomUUID(), randomUUID()];
+    // A's discarded Group, the target of B's restore.
+    const gone = randomUUID();
+    await db.insert(answerGroup).values([
+      ...groupIds.map((id) => ({
+        id,
+        questionId,
+        origin: "fallback" as const,
+      })),
+      { id: gone, questionId, origin: "fallback" as const, discarded: true },
+    ]);
+    const answerIds = (
+      await db
+        .insert(answer)
+        .values(
+          groupIds.map((groupId, i) => ({
+            questionId,
+            contributorKey: randomUUID(),
+            rank: 1,
+            text: `svar ${i}`,
+            normalizedText: `svar ${i}`,
+            groupId,
+          })),
+        )
+        .returning({ id: answer.id })
+    ).map((a) => a.id);
+    const stateOfA = async () => ({
+      groups: await db
+        .select()
+        .from(answerGroup)
+        .where(eq(answerGroup.questionId, questionId))
+        .orderBy(asc(answerGroup.id)),
+      answers: await db
+        .select({ id: answer.id, groupId: answer.groupId })
+        .from(answer)
+        .where(eq(answer.questionId, questionId))
+        .orderBy(asc(answer.id)),
+      counters: await games.counters(reviewOfA),
+    });
+    const before = await stateOfA();
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [reviewOfA, reviewOfB, randomUUID(), "abc"]) {
+      const move = { gameId, answerIds: [answerIds[0]], groupId: groupIds[1] };
+      const split = { gameId, answerIds: [answerIds[0]] };
+      const name = { gameId, groupId: groupIds[0], label: "Ny" };
+      const kept = { gameId, groupId: groupIds[0] };
+      const discarded = { gameId, groupId: gone };
+      for (const call of [
+        review.moveAnswers(hosts.B, move),
+        review.moveAnswers(hosts.B, split),
+        review.rename(hosts.B, name),
+        review.discard(hosts.B, kept),
+        review.restore(hosts.B, discarded),
+      ])
+        expect(((await rejection(call)) as DomainError).code, gameId).toBe(
+          "NOT_FOUND",
+        );
+      expect(await moveAnswers(move), gameId).toEqual(notFound);
+      expect(await moveAnswers(split), gameId).toEqual(notFound);
+      expect(await renameGroup(name), gameId).toEqual(notFound);
+      expect(await discardGroup(kept), gameId).toEqual(notFound);
+      expect(await restoreGroup(discarded), gameId).toEqual(notFound);
+    }
+    expect(await stateOfA()).toEqual(before);
+  });
+
+  it("FR-21, AD-5: B's review.setReviewed and markReviewed on A's Question (with A's Game, B's own in review Game, a random UUID or a malformed Game ID) and B's review.confirmBoard and confirmBoard on A's, a random or a malformed Game give NOT_FOUND, and A stays in review with its mark and no Board", async () => {
+    const db = await getDb();
+    const [{ id: reviewOfA }, { id: reviewOfB }] = await db
+      .insert(game)
+      .values([
+        { hostId: hosts.A, title: "As brett", state: "in_review" },
+        { hostId: hosts.B, title: "Bs brett", state: "in_review" },
+      ])
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: reviewOfA, position: 1, text: "?" });
+    const groupId = randomUUID();
+    await db
+      .insert(answerGroup)
+      .values({ id: groupId, questionId, origin: "fallback" });
+    await db.insert(answer).values({
+      questionId,
+      contributorKey: randomUUID(),
+      rank: 1,
+      text: "svar",
+      normalizedText: "svar",
+      groupId,
+    });
+    // A's Question is reviewed, so only the owner check can refuse B's confirm.
+    await db
+      .update(question)
+      .set({ reviewed: true })
+      .where(eq(question.id, questionId));
+    const stateOfA = async () => ({
+      game: (await gameRow(reviewOfA)).state,
+      question: await db
+        .select()
+        .from(question)
+        .where(eq(question.id, questionId)),
+      answers: await db
+        .select()
+        .from(answer)
+        .where(eq(answer.questionId, questionId)),
+      slots: await db
+        .select()
+        .from(boardSlot)
+        .where(eq(boardSlot.questionId, questionId)),
+    });
+    const before = await stateOfA();
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [reviewOfA, reviewOfB, randomUUID(), "abc"]) {
+      for (const reviewed of [true, false]) {
+        const mark = { gameId, questionId, reviewed };
+        expect(
+          ((await rejection(review.setReviewed(hosts.B, mark))) as DomainError)
+            .code,
+          gameId,
+        ).toBe("NOT_FOUND");
+        expect(await markReviewed(mark), gameId).toEqual(notFound);
+      }
+      // B's own Game is B's to lock; the matrix's foreign confirm is A's, random and malformed.
+      if (gameId === reviewOfB) continue;
+      expect(
+        (
+          (await rejection(
+            review.confirmBoard(hosts.B, { gameId }),
+          )) as DomainError
+        ).code,
+        gameId,
+      ).toBe("NOT_FOUND");
+      expect(await confirmBoard({ gameId }), gameId).toEqual(notFound);
+    }
+    expect(await stateOfA()).toEqual(before);
+    expect(before.slots).toEqual([]);
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {

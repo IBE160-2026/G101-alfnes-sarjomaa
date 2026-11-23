@@ -11,7 +11,7 @@ import {
 const Q1 = "Hva gjør Jonas når han har forsovet seg?";
 const Q2 = "Hvem synger høyest på hytta?";
 const NOTICE =
-  "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet.";
+  "Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Verten leser likevel alle svarene slik de er skrevet, og svarene kan bli sendt til en ekstern KI-tjeneste for gruppering.";
 const INSTRUCTION =
   "Gi 1–5 svar per spørsmål. Skriv det første du kommer på i Svar 1.";
 const HELPER =

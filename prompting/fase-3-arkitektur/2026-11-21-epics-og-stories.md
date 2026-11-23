@@ -19,7 +19,7 @@ choose the option that best fits the PRD and architecture, continue without stop
 record each such choice in the epics document's frontmatter or a short "Decisions made during
 breakdown" section. Never invent scope.
 
-Project root: /Users/sondrealfnes/Documents/Molde/G101-alfnes-sarjomaa
+Project root: <prosjektrot>
 Inputs (all final):
 - PRD: .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md (FR-7 amended 2026-11-21)
 - Architecture: .docs/planning-artifacts/architecture/architecture-Toppsvar-2026-11-21/ARCHITECTURE-SPINE.md

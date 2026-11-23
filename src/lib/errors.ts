@@ -14,6 +14,8 @@ export type ErrorCode =
   | "LINK_UNKNOWN"
   | "COLLECTION_CLOSED"
   | "TOO_FEW_ANSWER_SETS"
+  | "NO_GROUPS_ON_BOARD"
+  | "QUESTIONS_UNREVIEWED"
   | "INTERNAL";
 
 export const MESSAGES: Record<ErrorCode, string> = {
@@ -30,6 +32,9 @@ export const MESSAGES: Record<ErrorCode, string> = {
   COLLECTION_CLOSED: "Innsamlingen er stengt.",
   // Says "minst 3", never the exact count below it (FR-8).
   TOO_FEW_ANSWER_SETS: `Du trenger minst ${SUBMISSIONS_MIN} innsendte svar før du kan stenge. Det beskytter anonymiteten. Lag flere lenker, vent litt, eller slett spillet.`,
+  NO_GROUPS_ON_BOARD:
+    "Minst én gruppe må være på brettet før du kan markere spørsmålet.",
+  QUESTIONS_UNREVIEWED: "Gjennomgå alle spørsmålene først.",
   INTERNAL: "Noe gikk galt hos oss. Prøv igjen om litt.",
 };
 

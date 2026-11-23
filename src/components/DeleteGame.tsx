@@ -30,7 +30,7 @@ export function DeleteGame({
             type="submit"
             variant="danger"
             pending={pending}
-            pendingLabel="Sletter …"
+            pendingLabel={"Sletter\u00a0…"}
           >
             Slett for godt
           </Button>

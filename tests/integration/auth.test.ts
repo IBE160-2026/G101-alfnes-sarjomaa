@@ -21,8 +21,6 @@ vi.mock("node:crypto", async (importOriginal) => {
   return { ...real, scrypt: vi.fn(real.scrypt) };
 });
 
-vi.setConfig({ testTimeout: 30_000 });
-
 const PASSWORD = "riktig-passord-123";
 const COOKIE = "toppsvar_session";
 const DAY = 24 * 60 * 60 * 1000;

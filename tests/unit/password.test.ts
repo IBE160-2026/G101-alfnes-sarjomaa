@@ -34,7 +34,7 @@ const FORMAT =
   /^scrypt\$131072\$8\$1\$([A-Za-z0-9+/]+={0,2})\$([A-Za-z0-9+/]+={0,2})$/;
 const PASSWORD = "korrekt hest batteri";
 
-describe("password hashing", { timeout: 30_000 }, () => {
+describe("password hashing", () => {
   it("FR-1: stores N=2^17, r=8, p=1, a 16-byte salt and a 32-byte key, never the password", async () => {
     const stored = await hashPassword(PASSWORD);
     const [, salt, key] = FORMAT.exec(stored) ?? [];
