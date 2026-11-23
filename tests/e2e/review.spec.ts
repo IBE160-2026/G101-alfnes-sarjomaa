@@ -167,7 +167,7 @@ test("FR-17 (AC4), FR-19 (AC3), UX-DR10, UX-DR11, UX-DR17 (AC5), NFR-4, NFR-6: a
   });
   await expect(header).toContainText(QUESTION);
   const mark = page.getByRole("button", { name: "Marker som gjennomgått" });
-  await expect(mark).toHaveAttribute("aria-disabled", "true");
+  await expect(mark).not.toHaveAttribute("aria-disabled");
   const headerBox = (await header.boundingBox())!;
   const markBox = (await mark.boundingBox())!;
   expect(markBox.x).toBeGreaterThan(headerBox.x + headerBox.width - 1);
@@ -845,4 +845,204 @@ test("FR-20, FR-21 (AC3), UX-DR10, UX-DR18, NFR-6: the Group menu opens and clos
       .getByRole("heading", { level: 4 }),
   ).toHaveText(["cato"]);
   await expect(page.getByText(RETRY)).toHaveCount(0);
+});
+
+test("FR-21 (AC2, AC3, AC5), FR-13, UX-DR8, UX-DR17, UX-DR18, NFR-6: a Question with every Group discarded cannot be marked until one is restored; an aborted mark shows the retry sentence; marking moves to the next unreviewed Question, announces it and focuses its heading; Lås brettet opens a dialog that Esc cancels; a confirm after another tab cleared a mark gives way to the disabled trigger; the lock lands on the Game page and another tab's open dialog then says the Board is locked; a stale tab's mark, merge and discard then say the Board is locked, and Review redirects; axe is clean with the dialog open and on the ready page", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const { gamePath, links } = await collectingGame(page, [
+    QUESTION,
+    "Hva sier verten?",
+  ]);
+  await submitSets(browser, baseURL, links, [SETS, SETS_Q2]);
+  await closeAndOpenReview(page, gamePath);
+
+  // A second tab, opened before the lock and never refreshed.
+  const stale = await page.context().newPage();
+  await stale.goto(page.url());
+
+  const rail = page.getByRole("navigation", { name: "Spørsmål" });
+  const heading = page.locator("#sporsmal-overskrift");
+  const header = heading.locator("..");
+  const mark = header.getByRole("button", { name: "Marker som gjennomgått" });
+  const announced = header.locator('[aria-live="polite"]');
+  const pickFrom = async (label: string, item: string) => {
+    await page
+      .getByRole("button", { name: `Mer for «${label}»`, exact: true })
+      .click();
+    await page.getByRole("button", { name: item, exact: true }).click();
+  };
+
+  // Q2 with all three Groups discarded: the refusal shows under the button.
+  await rail.getByRole("link", { name: /^2 / }).click();
+  await expect(heading).toContainText("Spørsmål 2 av 2");
+  for (const [i, label] of ["blå", "grønn", "rød"].entries()) {
+    await pickFrom(label, "Forkast fra brettet");
+    await expect(
+      page
+        .getByRole("region", { name: /^Forkastet/ })
+        .getByRole("heading", { level: 4 }),
+    ).toHaveCount(i + 1);
+  }
+  await mark.click();
+  const refusal = header.getByRole("alert");
+  await expect(refusal).toHaveText(
+    "Minst én gruppe må være på brettet før du kan markere spørsmålet.",
+  );
+  expect((await refusal.boundingBox())!.y).toBeGreaterThan(
+    (await mark.boundingBox())!.y,
+  );
+  await page.getByRole("button", { name: "Angre forkasting av «rød»" }).click();
+  await expect(
+    page.getByRole("region", { name: "På brettet (1 gruppe)" }),
+  ).toBeVisible();
+  // A Group is back on the Board, so the refusal no longer holds.
+  await expect(refusal).toHaveCount(0);
+
+  // Mark Q1: Review moves to Q2, the only unreviewed one, and says so.
+  await rail.getByRole("link", { name: /^1 / }).click();
+  await expect(heading).toContainText("Spørsmål 1 av 2");
+  await expect(refusal).toHaveCount(0);
+  // An aborted mark: the retry sentence under the button, Q1 still unreviewed.
+  const isAction = (url: URL) => url.pathname === `${gamePath}/gjennomgang`;
+  await page.route(isAction, (route) =>
+    route.request().method() === "POST" ? route.abort() : route.fallback(),
+  );
+  await mark.click();
+  await expect(refusal).toHaveText("Endringen ble ikke lagret. Prøv igjen.");
+  expect((await refusal.boundingBox())!.y).toBeGreaterThan(
+    (await mark.boundingBox())!.y,
+  );
+  await expect(rail.getByRole("heading", { level: 2 })).toHaveText(
+    "0 av 2 gjennomgått",
+  );
+  await page.unroute(isAction);
+  await mark.click();
+  await expect(page).toHaveURL(`${gamePath}/gjennomgang?q=2`);
+  await expect(heading).toContainText("Spørsmål 2 av 2");
+  await expect(heading).toBeFocused();
+  await expect(announced).toHaveText(
+    "Spørsmål 1 er gjennomgått. Viser spørsmål 2.",
+  );
+  await expect(rail.getByRole("heading", { level: 2 })).toHaveText(
+    "1 av 2 gjennomgått",
+  );
+
+  // Mark Q2, the last: it stays, now marked.
+  await mark.click();
+  await expect(
+    header.getByText("✓ Gjennomgått", { exact: true }),
+  ).toBeVisible();
+  await expect(mark).toHaveCount(0);
+  await expect(heading).toBeFocused();
+  await expect(announced).toHaveText(
+    "Spørsmål 2 er gjennomgått. Alle spørsmålene er gjennomgått.",
+  );
+  await expect(rail.getByRole("heading", { level: 2 })).toHaveText(
+    "2 av 2 gjennomgått",
+  );
+  await rail.getByRole("link", { name: /^1 / }).click();
+  await expect(heading).toContainText("Spørsmål 1 av 2");
+  await expect(header).toContainText("✓ Gjennomgått");
+  await expect(
+    header.getByRole("link", { name: "Neste spørsmål" }),
+  ).toHaveAttribute("href", `${gamePath}/gjennomgang?q=2`);
+
+  // Lås brettet: a dialog with focus on Avbryt; Esc cancels back to the trigger.
+  const lock = rail.locator("..").getByRole("button", { name: "Lås brettet" });
+  await expect(lock).not.toHaveAttribute("aria-disabled");
+  await lock.click();
+  const dialog = page.getByRole("dialog", { name: "Låse brettet?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText(
+    "Dette kan ikke angres. Brettet låses slik det er nå, og gjennomgangen kan ikke endres mer.",
+  );
+  await expect(dialog.getByRole("button", { name: "Avbryt" })).toBeFocused();
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(lock).toBeFocused();
+
+  // A second tab merges two of Q1's Groups, which clears its mark; this tab still offers the lock.
+  const LOCKED = "Brettet er allerede låst. Gå til spillet";
+  const second = await page.context().newPage();
+  await second.goto(`${gamePath}/gjennomgang?q=1`);
+  await second.getByRole("checkbox", { name: "Velg «erik»" }).check();
+  await second.getByRole("checkbox", { name: "Velg «frida»" }).check();
+  await second.getByRole("button", { name: "Slå sammen 2 grupper" }).click();
+  await expect(second.locator("[data-selection-bar]")).toHaveCount(0);
+
+  // Confirming here is refused: the dialog gives way to the disabled trigger, which takes focus.
+  await lock.click();
+  await dialog.getByRole("button", { name: "Lås brettet" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(lock).toHaveAttribute("aria-disabled", "true");
+  await expect(lock).toHaveAccessibleDescription(REASON);
+  await expect(lock).toBeFocused();
+
+  // Marked again, both tabs offer the lock; the second tab opens its dialog first.
+  await mark.click();
+  await expect(announced).toHaveText(
+    "Spørsmål 1 er gjennomgått. Alle spørsmålene er gjennomgått.",
+  );
+  await expect(lock).not.toHaveAttribute("aria-disabled");
+  await second.reload();
+  await second
+    .getByRole("navigation", { name: "Spørsmål" })
+    .locator("..")
+    .getByRole("button", { name: "Lås brettet" })
+    .click();
+  const secondDialog = second.getByRole("dialog", { name: "Låse brettet?" });
+  await expect(secondDialog).toBeVisible();
+
+  // Confirm: the Game page, ready, with the count.
+  await lock.click();
+  await dialog.getByRole("button", { name: "Lås brettet" }).click();
+  await expect(page).toHaveURL(gamePath);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Brettet er låst" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("2 spørsmål er klare.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Klar", { exact: true })).toBeVisible();
+  await expect(page.locator("h1")).toBeFocused();
+  expect(await seriousViolations(page)).toEqual([]);
+
+  // The second tab's open dialog: already locked, with a working way to the Game page.
+  await secondDialog.getByRole("button", { name: "Lås brettet" }).click();
+  await expect(secondDialog.getByRole("alert")).toHaveText(LOCKED);
+  await secondDialog.getByRole("link", { name: "Gå til spillet" }).click();
+  await expect(second).toHaveURL(gamePath);
+  await second.close();
+
+  // The stale tab: mark, a merge in the SelectionBar and a discard each say it is locked.
+  const staleHeader = stale.locator("#sporsmal-overskrift").locator("..");
+  await staleHeader
+    .getByRole("button", { name: "Marker som gjennomgått" })
+    .click();
+  await expect(staleHeader.getByRole("alert")).toHaveText(LOCKED);
+  await stale.getByRole("checkbox", { name: "Velg «ola»" }).check();
+  await stale.getByRole("checkbox", { name: "Velg «per»" }).check();
+  const bar = stale.locator("[data-selection-bar]");
+  await bar.getByRole("button", { name: "Slå sammen 2 grupper" }).click();
+  await expect(bar.getByRole("alert")).toHaveText(LOCKED);
+  await stale.keyboard.press("Escape");
+  await stale.getByRole("button", { name: "Mer for «anne»" }).click();
+  await stale.getByRole("button", { name: "Forkast fra brettet" }).click();
+  const anne = stale.getByRole("listitem").filter({
+    has: stale.getByRole("heading", { level: 4, name: "anne", exact: true }),
+  });
+  await expect(anne.getByRole("alert")).toHaveText(LOCKED);
+  await anne.getByRole("link", { name: "Gå til spillet" }).click();
+  await expect(stale).toHaveURL(gamePath);
+  await expect(
+    stale.getByRole("heading", { level: 2, name: "Brettet er låst" }),
+  ).toBeVisible();
+  await stale.goto(`${gamePath}/gjennomgang`);
+  await expect(stale).toHaveURL(gamePath);
+  await stale.close();
 });

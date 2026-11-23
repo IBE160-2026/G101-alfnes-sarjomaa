@@ -44,7 +44,8 @@ type Renaming = {
 type CardFailure = { groupId: string; failure: Failure };
 type Op = "merge" | "move" | "new" | "discard" | "restore";
 
-function FailureNotice({
+// Also under the mark button and in the lock dialog (Story 5.5).
+export function FailureNotice({
   failure,
   gameId,
   className,

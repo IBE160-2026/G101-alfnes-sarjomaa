@@ -5,9 +5,11 @@ import { GET as reportRoute } from "@/app/api/spill/[gameId]/rapport/route";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeCollection,
+  confirmBoard,
   createInviteLinks,
   deleteGame,
   discardGroup,
+  markReviewed,
   mergeGroups,
   moveAnswers,
   moveQuestion,
@@ -32,6 +34,7 @@ import { getDb } from "@/server/db/client";
 import {
   answer,
   answerGroup,
+  boardSlot,
   game,
   inviteLink,
   question,
@@ -396,6 +399,84 @@ describe("Host B against Host A's Game", () => {
       expect(await restoreGroup(discarded), gameId).toEqual(notFound);
     }
     expect(await stateOfA()).toEqual(before);
+  });
+
+  it("FR-21, AD-5: B's review.setReviewed and markReviewed on A's Question (with A's Game, B's own in review Game, a random UUID or a malformed Game ID) and B's review.confirmBoard and confirmBoard on A's, a random or a malformed Game give NOT_FOUND, and A stays in review with its mark and no Board", async () => {
+    const db = await getDb();
+    const [{ id: reviewOfA }, { id: reviewOfB }] = await db
+      .insert(game)
+      .values([
+        { hostId: hosts.A, title: "As brett", state: "in_review" },
+        { hostId: hosts.B, title: "Bs brett", state: "in_review" },
+      ])
+      .returning({ id: game.id });
+    const questionId = randomUUID();
+    await db
+      .insert(question)
+      .values({ id: questionId, gameId: reviewOfA, position: 1, text: "?" });
+    const groupId = randomUUID();
+    await db
+      .insert(answerGroup)
+      .values({ id: groupId, questionId, origin: "fallback" });
+    await db.insert(answer).values({
+      questionId,
+      contributorKey: randomUUID(),
+      rank: 1,
+      text: "svar",
+      normalizedText: "svar",
+      groupId,
+    });
+    // A's Question is reviewed, so only the owner check can refuse B's confirm.
+    await db
+      .update(question)
+      .set({ reviewed: true })
+      .where(eq(question.id, questionId));
+    const stateOfA = async () => ({
+      game: (await gameRow(reviewOfA)).state,
+      question: await db
+        .select()
+        .from(question)
+        .where(eq(question.id, questionId)),
+      answers: await db
+        .select()
+        .from(answer)
+        .where(eq(answer.questionId, questionId)),
+      slots: await db
+        .select()
+        .from(boardSlot)
+        .where(eq(boardSlot.questionId, questionId)),
+    });
+    const before = await stateOfA();
+    as("B");
+    const notFound = {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Vi finner ikke dette spillet.",
+    };
+    for (const gameId of [reviewOfA, reviewOfB, randomUUID(), "abc"]) {
+      for (const reviewed of [true, false]) {
+        const mark = { gameId, questionId, reviewed };
+        expect(
+          ((await rejection(review.setReviewed(hosts.B, mark))) as DomainError)
+            .code,
+          gameId,
+        ).toBe("NOT_FOUND");
+        expect(await markReviewed(mark), gameId).toEqual(notFound);
+      }
+      // B's own Game is B's to lock; the matrix's foreign confirm is A's, random and malformed.
+      if (gameId === reviewOfB) continue;
+      expect(
+        (
+          (await rejection(
+            review.confirmBoard(hosts.B, { gameId }),
+          )) as DomainError
+        ).code,
+        gameId,
+      ).toBe("NOT_FOUND");
+      expect(await confirmBoard({ gameId }), gameId).toEqual(notFound);
+    }
+    expect(await stateOfA()).toEqual(before);
+    expect(before.slots).toEqual([]);
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {

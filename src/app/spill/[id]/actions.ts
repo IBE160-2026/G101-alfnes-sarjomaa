@@ -129,3 +129,15 @@ export async function restoreGroup(
 ): Promise<ActionResult<review.DiscardResult>> {
   return hostAction(review.restore, input, "gjennomgang");
 }
+
+export async function markReviewed(
+  input: unknown,
+): Promise<ActionResult<review.MarkResult>> {
+  return hostAction(review.setReviewed, input, "gjennomgang");
+}
+
+export async function confirmBoard(
+  input: unknown,
+): Promise<ActionResult<{ questions: number }>> {
+  return hostAction(review.confirmBoard, input, "gjennomgang");
+}

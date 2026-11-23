@@ -20,6 +20,7 @@ import { getDb, type Tx } from "@/server/db/client";
 import {
   answer,
   answerGroup,
+  boardSlot,
   groupingResult,
   question,
 } from "@/server/db/schema";
@@ -136,6 +137,26 @@ export async function setDiscarded(
     .update(answerGroup)
     .set({ discarded, editCount: sql`${answerGroup.editCount} + 1` })
     .where(eq(answerGroup.id, groupId));
+}
+
+// Review's lock (FR-13, AD-10): every Contributor key and rank of the Game goes. The
+// caller holds the Game lock and has already read the Counts it freezes.
+export async function clearContributorData(
+  tx: Tx,
+  gameId: string,
+): Promise<void> {
+  await tx
+    .update(answer)
+    .set({ contributorKey: null, rank: null })
+    .where(
+      inArray(
+        answer.questionId,
+        tx
+          .select({ id: question.id })
+          .from(question)
+          .where(eq(question.gameId, gameId)),
+      ),
+    );
 }
 
 // A Game deleted or already past grouping: the run stops without a trace (AD-12).
@@ -359,6 +380,7 @@ export function summary(
 }
 
 // The usage report's per-Question part (AD-18): no text, label, id, key or rank.
+// onBoard: a locked Board slot points at the Group (SM-5).
 // No owner check: the caller has already resolved the owned Game.
 export function usage(gameId: string) {
   return withBoundary("grouping", "usage", async () => {
@@ -379,16 +401,22 @@ export function usage(gameId: string) {
         questionId: answerGroup.questionId,
         origin: answerGroup.origin,
         editCount: answerGroup.editCount,
+        onBoard: sql<boolean>`${boardSlot.id} is not null`,
       })
       .from(answerGroup)
       .innerJoin(question, eq(question.id, answerGroup.questionId))
+      .leftJoin(boardSlot, eq(boardSlot.groupId, answerGroup.id))
       .where(eq(question.gameId, gameId))
       .orderBy(answerGroup.id);
     return results.map(({ id, ...q }) => ({
       ...q,
       groups: groups
         .filter((g) => g.questionId === id)
-        .map(({ origin, editCount }) => ({ origin, editCount })),
+        .map(({ origin, editCount, onBoard }) => ({
+          origin,
+          editCount,
+          onBoard,
+        })),
     }));
   });
 }

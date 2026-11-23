@@ -78,6 +78,13 @@
       "when": 1795418923932,
       "tag": "0010_loving_black_cat",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795424427250,
+      "tag": "0011_medical_adam_warlock",
+      "breakpoints": true
     }
   ]
 }

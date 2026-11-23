@@ -1,5 +1,5 @@
 // Review's pure helpers and input schemas: Answer chips, the fallback Notice, merge,
-// move, rename, discard and restore (FR-16, FR-17, FR-19, FR-20).
+// move, rename, discard, restore, marking and locking (FR-16, FR-17, FR-19 to FR-21).
 import { z } from "zod";
 import {
   ANSWERS_PER_QUESTION_MAX,
@@ -48,6 +48,15 @@ export const groupRefSchema = z.object({
   gameId: z.string(),
   groupId: z.string(),
 });
+
+// FR-21: marks or unmarks one Question; a malformed questionId is NOT_FOUND in the module.
+export const markReviewedSchema = z.object({
+  gameId: z.string(),
+  questionId: z.string(),
+  reviewed: z.boolean(),
+});
+
+export const confirmBoardSchema = z.object({ gameId: z.string() });
 
 // Answers come in SQL order (normalized_text, then text). Equal normalised texts become
 // one chip in its most common written form (ties: the first), keeping that order.

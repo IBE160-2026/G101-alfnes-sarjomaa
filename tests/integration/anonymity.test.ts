@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type SQL, sql } from "drizzle-orm";
+import { eq, type SQL, sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   closeCollection,
@@ -7,6 +7,8 @@ import {
   revokeInviteLink,
 } from "@/app/spill/[id]/actions";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
+import * as grouping from "@/server/grouping";
+import * as review from "@/server/review";
 import { newToken, sha256 } from "@/lib/token";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
@@ -307,5 +309,63 @@ describe("after close", () => {
     // One transaction (xmin) and one statement in it (cmin): no per-row arrival sequence.
     expect(new Set(answers.map((a) => a.xmin)).size).toBe(1);
     expect(new Set(answers.map((a) => a.cmin)).size).toBe(1);
+  });
+});
+
+// The same Game, grouped (no key: the fallback), every Question marked and the Board locked.
+describe("after confirm", () => {
+  beforeAll(async () => {
+    const { hostId } = await auth.requireHost();
+    await grouping.run(gameId);
+    for (const questionId of questionIds)
+      await review.setReviewed(hostId, { gameId, questionId, reviewed: true });
+    await review.confirmBoard(hostId, { gameId });
+  });
+
+  it("FR-13, FR-21 (AC4): the Game is ready and every contributor_key and rank of its 45 Answers is NULL", async () => {
+    const [{ state }] = await (
+      await getDb()
+    )
+      .select({ state: game.state })
+      .from(game)
+      .where(eq(game.id, gameId));
+    expect(state).toBe("ready");
+    expect(
+      await rows(
+        sql`select count(*)::int as answers, count(contributor_key)::int as keys, count(rank)::int as ranks
+          from answer where question_id in (${sql.join(
+            questionIds.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )})`,
+      ),
+    ).toEqual([{ answers: 45, keys: 0, ranks: 0 }]);
+  });
+
+  it("FR-13, FR-21 (AC4): board_slot holds labels and Counts only: no key, rank, timestamp or text column, and eight slots per Question with their frozen Count 1", async () => {
+    const columns = (await appColumns())
+      .filter((c) => c.table === "board_slot")
+      .map((c) => [c.column, c.type, c.nullable])
+      .sort();
+    expect(columns).toEqual(
+      [
+        ["count", "integer", "NO"],
+        ["group_id", "uuid", "YES"],
+        ["id", "uuid", "NO"],
+        ["label", "text", "NO"],
+        ["position", "integer", "NO"],
+        ["question_id", "uuid", "NO"],
+      ].sort(),
+    );
+    const slots = await rows<{ question: string; n: number; max: number }>(
+      sql`select question_id::text as question, count(*)::int as n, max(count)::int as max
+        from board_slot group by question_id`,
+    );
+    expect(slots).toHaveLength(3);
+    for (const slot of slots) {
+      expect(questionIds).toContain(slot.question);
+      // 15 distinct texts per Question: 15 one-key Groups, of which the top 8 are slots.
+      expect(slot.n).toBe(8);
+      expect(slot.max).toBe(1);
+    }
   });
 });

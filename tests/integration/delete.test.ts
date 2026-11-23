@@ -201,9 +201,20 @@ describe("VACUUM after delete", () => {
 });
 
 describe("cascade", () => {
-  it("FR-3, AD-4: every foreign key under game, direct or through another table, is ON DELETE CASCADE", async () => {
-    for (const fk of await foreignKeysUnder("game"))
-      expect(fk.confdeltype, `${fk.tbl}.${fk.col}`).toBe("c");
+  it("FR-3, AD-4: every foreign key under game, direct or through another table, is ON DELETE CASCADE, except board_slot.group_id (SET NULL), whose row cascades through question_id", async () => {
+    const fks = await foreignKeysUnder("game");
+    for (const fk of fks)
+      expect(fk.confdeltype, `${fk.tbl}.${fk.col}`).toBe(
+        fk.tbl === "board_slot" && fk.col === "group_id" ? "n" : "c",
+      );
+    // The exception still goes with the Game: its row hangs off question too.
+    expect(fks).toContainEqual(
+      expect.objectContaining({
+        tbl: "board_slot",
+        col: "question_id",
+        confdeltype: "c",
+      }),
+    );
   });
 
   it("FR-3: the same catalog query finds session and game referencing host, both cascading", async () => {

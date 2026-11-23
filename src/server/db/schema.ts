@@ -13,7 +13,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { GAME_STATES } from "@/lib/game-state";
-import { ANSWERS_PER_QUESTION_MAX } from "@/lib/limits";
+import { ANSWERS_PER_QUESTION_MAX, BOARD_SIZE } from "@/lib/limits";
 
 const utc = { withTimezone: true, mode: "date" } as const;
 
@@ -179,6 +179,36 @@ export const answer = pgTable(
     check(
       "answer_rank_range",
       sql`${t.rank} between 1 and ${sql.raw(String(ANSWERS_PER_QUESTION_MAX))}`,
+    ),
+  ],
+);
+
+// The locked Board, written once by review.confirmBoard; play reads only this (AD-15).
+// Label and Count are frozen; group_id only tells the usage report which Groups made it.
+export const boardSlot = pgTable(
+  "board_slot",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => question.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    label: text("label").notNull(),
+    count: integer("count").notNull(),
+    groupId: uuid("group_id").references(() => answerGroup.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [
+    uniqueIndex("board_slot_question_position_key").on(
+      t.questionId,
+      t.position,
+    ),
+    // A Group is on at most one slot; the index serves SET NULL and the report's join.
+    uniqueIndex("board_slot_group_id_key").on(t.groupId),
+    check(
+      "board_slot_position_range",
+      sql`${t.position} between 1 and ${sql.raw(String(BOARD_SIZE))}`,
     ),
   ],
 );

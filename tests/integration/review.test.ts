@@ -15,7 +15,9 @@ import {
   vi,
 } from "vitest";
 import {
+  confirmBoard,
   discardGroup,
+  markReviewed,
   mergeGroups,
   moveAnswers,
   renameGroup,
@@ -28,7 +30,13 @@ import type { GameState } from "@/lib/game-state";
 import { normalize } from "@/lib/normalize";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
-import { answer, answerGroup, game, question } from "@/server/db/schema";
+import {
+  answer,
+  answerGroup,
+  boardSlot,
+  game,
+  question,
+} from "@/server/db/schema";
 import { env } from "@/server/env";
 import * as games from "@/server/games";
 import * as grouping from "@/server/grouping";
@@ -461,7 +469,7 @@ describe("Review page", () => {
     expect(screen).not.toContain("Per Per");
   });
 
-  it("FR-21, UX-DR17 (AC5): Lås brettet and Marker som gjennomgått are aria-disabled, the reason tied to the button by aria-describedby", async () => {
+  it("FR-21, UX-DR17 (AC5): with Questions left, Lås brettet is aria-disabled with the reason tied by aria-describedby, and Marker som gjennomgått is an active button", async () => {
     const { gameId } = await reviewGame(
       [Q1, Q2, Q3].map((t) => [t, [["a"], ["b"], ["c"]]]),
     );
@@ -476,9 +484,11 @@ describe("Review page", () => {
         `<p id="${id}" class="mt-2 text-body-sm">Gjennomgå alle spørsmålene først (3 igjen).</p>`,
       );
     }
-    expect(html).toMatch(
-      /<button[^>]*aria-disabled="true"[^>]*>.*?Marker som gjennomgått/,
-    );
+    const mark = html.match(
+      /<button[^>]*>(?:(?!<\/button>).)*Marker som gjennomgått/,
+    )!;
+    expect(mark[0]).not.toContain("aria-disabled=");
+    expect(html).not.toContain("<dialog");
     // The narrow-screen select names each Question's review state; the form only GETs.
     expect(html).toMatch(
       /<form [^>]*action="\/spill\/[^"]+\/gjennomgang" method="get"/,
@@ -1440,5 +1450,382 @@ describe("review.discard and review.restore", () => {
     expect(text(forkastet)).toContain("Angre forkasting av «kari»");
     expect(forkastet).not.toContain('type="checkbox"');
     expect(forkastet).not.toContain("aria-expanded");
+  });
+});
+
+const markAll = async (gameId: string) =>
+  (await getDb())
+    .update(question)
+    .set({ reviewed: true })
+    .where(eq(question.gameId, gameId));
+
+const reviewedOf = async (questionIds: string[]) => {
+  const rows = await (
+    await getDb()
+  )
+    .select({ id: question.id, reviewed: question.reviewed })
+    .from(question);
+  return questionIds.map((id) => rows.find((r) => r.id === id)!.reviewed);
+};
+
+// What a lock writes beyond snapshot(): the Board, the Game state and the Contributor data.
+async function lockState(gameId: string, questionIds: string[]) {
+  const db = await getDb();
+  const slots = [];
+  const keys = [];
+  for (const id of questionIds) {
+    slots.push(
+      await db
+        .select({
+          position: boardSlot.position,
+          label: boardSlot.label,
+          count: boardSlot.count,
+          groupId: boardSlot.groupId,
+        })
+        .from(boardSlot)
+        .where(eq(boardSlot.questionId, id))
+        .orderBy(asc(boardSlot.position)),
+    );
+    keys.push(
+      await db
+        .select({
+          id: answer.id,
+          key: answer.contributorKey,
+          rank: answer.rank,
+        })
+        .from(answer)
+        .where(eq(answer.questionId, id))
+        .orderBy(asc(answer.id)),
+    );
+  }
+  const [{ state }] = await db
+    .select({ state: game.state })
+    .from(game)
+    .where(eq(game.id, gameId));
+  return {
+    ...(await snapshot(gameId, questionIds)),
+    slots,
+    keys,
+    state,
+  };
+}
+
+describe("review.setReviewed", () => {
+  const THREE: Spec = [Q1, Q2, Q3].map((t) => [t, [["a"], ["b"], ["c"]]]);
+
+  it("FR-21 (AC1): marking Q1 of three with Q2 reviewed sets the mark and gives next 3, through the action too; no counter or edit_count changes", async () => {
+    const { gameId, ids } = await reviewGame(THREE);
+    const db = await getDb();
+    await db
+      .update(question)
+      .set({ reviewed: true })
+      .where(eq(question.id, ids[1]));
+    const before = await snapshot(gameId, ids);
+    nextCache.revalidatePath.mockClear();
+    expect(
+      await markReviewed({ gameId, questionId: ids[0], reviewed: true }),
+    ).toEqual({ ok: true, data: { position: 1, next: 3 } });
+    expect(nextCache.revalidatePath.mock.calls).toEqual([
+      [`/spill/${gameId}`],
+      [`/spill/${gameId}/gjennomgang`],
+    ]);
+    const after = await snapshot(gameId, ids);
+    expect(after.rows[0].reviewed).toBe(true);
+    // Only the mark changed: Groups (edit_count), Answers and counters are as before.
+    after.rows[0].reviewed = false;
+    expect(after).toEqual(before);
+  });
+
+  it("FR-21 (AC1): marking the last unreviewed Question gives next null; next wraps to the start; unmarking clears the mark", async () => {
+    const { gameId, ids } = await reviewGame(THREE);
+    const db = await getDb();
+    await db
+      .update(question)
+      .set({ reviewed: true })
+      .where(eq(question.id, ids[0]));
+    expect(
+      await review.setReviewed(hostId, {
+        gameId,
+        questionId: ids[2],
+        reviewed: true,
+      }),
+    ).toEqual({ position: 3, next: 2 });
+    expect(
+      await review.setReviewed(hostId, {
+        gameId,
+        questionId: ids[1],
+        reviewed: true,
+      }),
+    ).toEqual({ position: 2, next: null });
+    expect(await reviewedOf(ids)).toEqual([true, true, true]);
+    expect(
+      await review.setReviewed(hostId, {
+        gameId,
+        questionId: ids[0],
+        reviewed: false,
+      }),
+      // The others are reviewed; the unmarked Question itself is never `next`.
+    ).toEqual({ position: 1, next: null });
+    expect(await reviewedOf(ids)).toEqual([false, true, true]);
+  });
+
+  it("FR-21, AD-15 (AC2): marking a Question whose every Group is discarded is NO_GROUPS_ON_BOARD with the message, and nothing changes", async () => {
+    const { gameId, ids } = await reviewGame(THREE);
+    const db = await getDb();
+    await db
+      .update(answerGroup)
+      .set({ discarded: true })
+      .where(eq(answerGroup.questionId, ids[0]));
+    const before = await snapshot(gameId, ids);
+    expect(
+      await markReviewed({ gameId, questionId: ids[0], reviewed: true }),
+    ).toEqual({
+      ok: false,
+      code: "NO_GROUPS_ON_BOARD",
+      message:
+        "Minst én gruppe må være på brettet før du kan markere spørsmålet.",
+    });
+    expect(await snapshot(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-21, AD-5: a random, malformed or another Game's questionId, or a malformed Game, is NOT_FOUND; a missing or non-boolean reviewed is INVALID_INPUT; nothing changes", async () => {
+    const { gameId, ids } = await reviewGame(THREE);
+    const other = await reviewGame([[Q1, [["x"], ["y"], ["z"]]]]);
+    const before = await snapshot(gameId, ids);
+    for (const questionId of [randomUUID(), "abc", other.ids[0]])
+      expect(
+        await codeOf(
+          review.setReviewed(hostId, { gameId, questionId, reviewed: true }),
+        ),
+        questionId,
+      ).toBe("NOT_FOUND");
+    expect(
+      await codeOf(
+        review.setReviewed(hostId, {
+          gameId: "abc",
+          questionId: ids[0],
+          reviewed: true,
+        }),
+      ),
+    ).toBe("NOT_FOUND");
+    for (const input of [
+      { gameId, questionId: ids[0] },
+      { gameId, questionId: ids[0], reviewed: "true" },
+    ])
+      expect(
+        await codeOf(review.setReviewed(hostId, input)),
+        JSON.stringify(input),
+      ).toBe("INVALID_INPUT");
+    expect(await snapshot(gameId, ids)).toEqual(before);
+    expect(await reviewedOf(other.ids)).toEqual([false]);
+  });
+});
+
+describe("review.confirmBoard", () => {
+  // Ten singleton Groups but kari (two keys): kari, cato, frida, then anne … per.
+  const TEN: Spec = [
+    [
+      Q1,
+      [
+        ["Kari", "Ola", "Per"],
+        ["Kari", "Anne", "Bjørn"],
+        ["Cato", "Dina", "Erik"],
+        ["Frida", "Geir"],
+      ],
+    ],
+    [Q2, [["Rød"], ["Blå"], ["Grønn"]]],
+  ];
+
+  it("FR-21, FR-13, AD-15 (AC2, AC4): with rank 3 of ten discarded, Q1 gets the eight boardCut slots with labels, frozen Counts and group_id and no row for the discarded Group; every key and rank is NULL, another Game's are kept; the Game is ready", async () => {
+    // Another Game in review: the lock must leave its Contributor data alone.
+    const other = await reviewGame([[Q1, [["x"], ["y"], ["z"]]]]);
+    const { gameId, ids } = await reviewGame(TEN);
+    const frida = await groupIdOf(ids[0], "frida");
+    await review.discard(hostId, { gameId, groupId: frida });
+    await markAll(gameId);
+    const expected = [];
+    for (const position of [1, 2]) {
+      const { board } = (await review.load(hostId, gameId, position)).current;
+      expected.push(
+        board.map((g, i) => ({
+          position: i + 1,
+          label: g.label,
+          count: g.count,
+          groupId: g.id,
+        })),
+      );
+    }
+    expect(expected[0].map((s) => s.label)).toEqual([
+      "kari",
+      "cato",
+      "anne",
+      "bjørn",
+      "dina",
+      "erik",
+      "geir",
+      "ola",
+    ]);
+    expect(expected[0][0].count).toBe(2);
+    nextCache.revalidatePath.mockClear();
+
+    expect(await confirmBoard({ gameId })).toEqual({
+      ok: true,
+      data: { questions: 2 },
+    });
+    expect(nextCache.revalidatePath.mock.calls).toEqual([
+      [`/spill/${gameId}`],
+      [`/spill/${gameId}/gjennomgang`],
+    ]);
+    const after = await lockState(gameId, ids);
+    expect(after.slots).toEqual(expected);
+    expect(after.slots[0].map((s) => s.groupId)).not.toContain(frida);
+    expect(after.slots[0].map((s) => s.label)).not.toContain("frida");
+    expect(after.slots[1]).toHaveLength(3);
+    for (const rows of after.keys)
+      for (const row of rows)
+        expect(row).toMatchObject({ key: null, rank: null });
+    expect(after.keys.flat()).toHaveLength(14);
+    expect(after.state).toBe("ready");
+    const untouched = (await lockState(other.gameId, other.ids)).keys.flat();
+    expect(untouched).toHaveLength(3);
+    expect(untouched.every((a) => a.key && a.rank)).toBe(true);
+  });
+
+  it("FR-21, AD-15: with one Question unreviewed it is QUESTIONS_UNREVIEWED with the message, and nothing changes (no slots, keys kept, in review)", async () => {
+    const { gameId, ids } = await reviewGame(TEN);
+    await markAll(gameId);
+    await (
+      await getDb()
+    )
+      .update(question)
+      .set({ reviewed: false })
+      .where(eq(question.id, ids[1]));
+    const before = await lockState(gameId, ids);
+    expect(await confirmBoard({ gameId })).toEqual({
+      ok: false,
+      code: "QUESTIONS_UNREVIEWED",
+      message: "Gjennomgå alle spørsmålene først.",
+    });
+    const after = await lockState(gameId, ids);
+    expect(after).toEqual(before);
+    expect(after.slots.flat()).toEqual([]);
+    expect(after.keys.flat().every((a) => a.key && a.rank)).toBe(true);
+    expect(after.state).toBe("in_review");
+  });
+
+  it("FR-21, AD-15: a reviewed Question whose every Group is discarded is NO_GROUPS_ON_BOARD, and nothing changes", async () => {
+    const { gameId, ids } = await reviewGame(TEN);
+    await markAll(gameId);
+    await (
+      await getDb()
+    )
+      .update(answerGroup)
+      .set({ discarded: true })
+      .where(eq(answerGroup.questionId, ids[1]));
+    const before = await lockState(gameId, ids);
+    expect(await codeOf(review.confirmBoard(hostId, { gameId }))).toBe(
+      "NO_GROUPS_ON_BOARD",
+    );
+    expect(await lockState(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-21, AD-4 (AC3): after a real lock, merge, move, new Group, rename, discard, restore, mark, unmark and confirm are WRONG_STATE, and nothing changes", async () => {
+    const { gameId, ids } = await reviewGame(TEN);
+    const frida = await groupIdOf(ids[0], "frida");
+    await review.discard(hostId, { gameId, groupId: frida });
+    await markAll(gameId);
+    await review.confirmBoard(hostId, { gameId });
+    const before = await lockState(gameId, ids);
+    const ola = await groupIdOf(ids[0], "ola");
+    const per = await groupIdOf(ids[0], "per");
+    const answerIds = before.rows[0].answers
+      .filter((a) => a.groupId === per)
+      .map((a) => a.id);
+    const calls: [string, Promise<unknown>][] = [
+      ["merge", review.merge(hostId, { gameId, groupIds: [ola, per] })],
+      ["move", review.moveAnswers(hostId, { gameId, answerIds, groupId: ola })],
+      ["new", review.moveAnswers(hostId, { gameId, answerIds })],
+      ["rename", review.rename(hostId, { gameId, groupId: ola, label: "x" })],
+      ["discard", review.discard(hostId, { gameId, groupId: ola })],
+      ["restore", review.restore(hostId, { gameId, groupId: frida })],
+      ...[true, false].map((reviewed): [string, Promise<unknown>] => [
+        `mark ${reviewed}`,
+        review.setReviewed(hostId, {
+          gameId,
+          questionId: ids[0],
+          reviewed,
+        }),
+      ]),
+      ["confirm", review.confirmBoard(hostId, { gameId })],
+    ];
+    for (const [name, call] of calls)
+      expect(await codeOf(call), name).toBe("WRONG_STATE");
+    expect(
+      await markReviewed({ gameId, questionId: ids[0], reviewed: true }),
+    ).toMatchObject({ ok: false, code: "WRONG_STATE" });
+    expect(await confirmBoard({ gameId })).toMatchObject({
+      ok: false,
+      code: "WRONG_STATE",
+    });
+    expect(await lockState(gameId, ids)).toEqual(before);
+  });
+
+  it("FR-21: a missing or numeric gameId is INVALID_INPUT, a random or malformed one NOT_FOUND", async () => {
+    for (const input of [{}, { gameId: 7 }])
+      expect(await codeOf(review.confirmBoard(hostId, input))).toBe(
+        "INVALID_INPUT",
+      );
+    for (const gameId of [randomUUID(), "abc"])
+      expect(await codeOf(review.confirmBoard(hostId, { gameId }))).toBe(
+        "NOT_FOUND",
+      );
+  });
+
+  it("FR-21, UX-DR8, UX-DR17 (AC5): with every Question reviewed, both Lås brettet triggers are enabled and open a dialog titled Låse brettet? with the copy and a primary Lås brettet", async () => {
+    const { gameId } = await reviewGame(TEN);
+    await markAll(gameId);
+    const html = await render(gameId);
+    expect(html).not.toContain("Gjennomgå alle spørsmålene først");
+    expect(html).not.toMatch(/aria-disabled="true"[^>]*>.*?Lås brettet/);
+    expect(html.match(/<dialog /g)).toHaveLength(2);
+    const screen = text(html);
+    expect(screen).toContain("Låse brettet?");
+    expect(screen).toContain(
+      "Dette kan ikke angres. Brettet låses slik det er nå, og gjennomgangen kan ikke endres mer.",
+    );
+    expect(screen.match(/Avbryt Lås brettet/g)).toHaveLength(2);
+    expect(screen).toContain("2 av 2 gjennomgått");
+  });
+});
+
+describe("Game page in ready", () => {
+  const gamePage = async (id: string) =>
+    text(
+      renderToStaticMarkup(
+        await GamePage({
+          params: Promise.resolve({ id }),
+          searchParams: Promise.resolve({}),
+        }),
+      ),
+    );
+
+  it("FR-21, UX-DR17 (AC5): shows Brettet er låst with the Question count, 9 spørsmål er klare and 1 spørsmål er klart, and keeps the report link", async () => {
+    for (const [n, sentence] of [
+      [9, "9 spørsmål er klare."],
+      [1, "1 spørsmål er klart."],
+    ] as const) {
+      const { gameId } = await reviewGame(
+        Array.from({ length: n }, (_, i): Spec[number] => [
+          `Spørsmål ${i + 1}?`,
+          [["a"], ["b"], ["c"]],
+        ]),
+      );
+      await markAll(gameId);
+      await review.confirmBoard(hostId, { gameId });
+      const screen = await gamePage(gameId);
+      expect(screen).toContain(`Brettet er låst ${sentence}`);
+      expect(screen).toContain("Last ned bruksrapport");
+      expect(screen).not.toContain("Gå til gjennomgangen");
+    }
   });
 });

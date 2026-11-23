@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { Button } from "@/components/Button";
+import { LockBoard } from "@/components/LockBoard";
+import { MarkReviewed } from "@/components/MarkReviewed";
 import { Notice } from "@/components/Notice";
 import { ReviewGroups } from "@/components/ReviewGroups";
 import { DomainError } from "@/lib/errors";
@@ -36,28 +38,6 @@ export async function generateMetadata({
     if (code === "WRONG_STATE") return {};
     throw error;
   }
-}
-
-function LockBoard({ id, remaining }: { id: string; remaining: number }) {
-  return (
-    <>
-      {/* shortcut: always aria-disabled and never opens the ConfirmDialog, Story 5.5 adds locking (the epic branch merges after it). */}
-      <Button
-        type="button"
-        variant="primary"
-        aria-disabled="true"
-        aria-describedby={remaining > 0 ? id : undefined}
-        className="w-full"
-      >
-        Lås brettet
-      </Button>
-      {remaining > 0 && (
-        <p id={id} className="mt-2 text-body-sm">
-          Gjennomgå alle spørsmålene først ({remaining} igjen).
-        </p>
-      )}
-    </>
-  );
 }
 
 export default async function ReviewPage({
@@ -165,7 +145,7 @@ export default async function ReviewPage({
             </ol>
           </nav>
           <div className="mt-4 border-t border-line pt-4">
-            <LockBoard id="las-grunn-rail" remaining={remaining} />
+            <LockBoard id="las-grunn-rail" gameId={id} remaining={remaining} />
           </div>
         </div>
 
@@ -200,37 +180,24 @@ export default async function ReviewPage({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <h2 className="min-w-0 text-heading break-words">
+            <h2
+              id="sporsmal-overskrift"
+              className="min-w-0 text-heading break-words"
+            >
               <span className="block font-sans text-label">
                 Spørsmål {current.position} av {total}
               </span>{" "}
               {question.text}
             </h2>
-            {question.reviewed ? (
-              <div className="flex shrink-0 items-center gap-4">
-                <span className="font-semibold text-success">
-                  <span aria-hidden="true">✓</span> Gjennomgått
-                </span>
-                {next && (
-                  <Link
-                    href={href(next.position)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-primary hover:bg-surface-sunken"
-                  >
-                    Neste spørsmål
-                  </Link>
-                )}
-              </div>
-            ) : (
-              // shortcut: aria-disabled and inert, Story 5.5 adds marking (the epic branch merges after it).
-              <Button
-                type="button"
-                variant="primary"
-                aria-disabled="true"
-                className="shrink-0"
-              >
-                Marker som gjennomgått
-              </Button>
-            )}
+            <MarkReviewed
+              gameId={id}
+              questionId={question.id}
+              position={current.position}
+              reviewed={question.reviewed}
+              nextHref={next && href(next.position)}
+              headingId="sporsmal-overskrift"
+              hasBoard={current.board.length > 0}
+            />
           </div>
 
           <ReviewGroups
@@ -244,7 +211,7 @@ export default async function ReviewPage({
       </div>
 
       <div className="mt-12 border-t border-line pt-6 lg:hidden">
-        <LockBoard id="las-grunn-fot" remaining={remaining} />
+        <LockBoard id="las-grunn-fot" gameId={id} remaining={remaining} />
       </div>
     </div>
   );

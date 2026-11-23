@@ -13,7 +13,9 @@ import { PERMITTED } from "@/lib/game-state";
 import { boardCut, rankGroups } from "@/lib/ranking";
 import {
   collapseChips,
+  confirmBoardSchema,
   groupRefSchema,
+  markReviewedSchema,
   mergeGroupsSchema,
   moveAnswersSchema,
   renameGroupSchema,
@@ -23,6 +25,7 @@ import { getDb, type Db, type Tx } from "@/server/db/client";
 import {
   answer,
   answerGroup,
+  boardSlot,
   groupingResult,
   question,
 } from "@/server/db/schema";
@@ -361,3 +364,100 @@ export const discard = (hostId: string, input: unknown) =>
 
 export const restore = (hostId: string, input: unknown) =>
   flipDiscarded("restore", hostId, input);
+
+export type MarkResult = { position: number; next: number | null };
+
+// FR-21: marks or unmarks one Question in one transaction (AD-4, AD-15). Marking needs a
+// non-discarded Group. No counter or edit_count changes. `next` is the first unreviewed
+// Question after this one, wrapping to the start, else null.
+export function setReviewed(
+  hostId: string,
+  input: unknown,
+): Promise<MarkResult> {
+  return withBoundary("review", "setReviewed", async () => {
+    const { gameId, questionId, reviewed } = validate(
+      markReviewedSchema,
+      input,
+    );
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.editReview,
+      });
+      // Found in the owned Game's list, so no query ever takes a foreign or malformed id (AD-5).
+      const all = await tx
+        .select({
+          id: question.id,
+          position: question.position,
+          reviewed: question.reviewed,
+        })
+        .from(question)
+        .where(eq(question.gameId, gameId))
+        .orderBy(asc(question.position));
+      const i = all.findIndex((q) => q.id === questionId);
+      if (i < 0) throw new DomainError("NOT_FOUND");
+      if (reviewed) {
+        const [kept] = await tx
+          .select({ id: answerGroup.id })
+          .from(answerGroup)
+          .where(
+            and(
+              eq(answerGroup.questionId, questionId),
+              eq(answerGroup.discarded, false),
+            ),
+          )
+          .limit(1);
+        if (!kept) throw new DomainError("NO_GROUPS_ON_BOARD");
+      }
+      await questions.setReviewed(tx, questionId, reviewed);
+      const next = [...all.slice(i + 1), ...all.slice(0, i)].find(
+        (q) => !q.reviewed,
+      );
+      return { position: all[i].position, next: next?.position ?? null };
+    });
+  });
+}
+
+// FR-21, FR-13: locks the Board in one transaction (AD-15). Every Question must be
+// reviewed. Each gets board_slot rows from boardCut, with the Counts read before
+// clearContributorData empties the keys they come from; then the Game is ready.
+export function confirmBoard(
+  hostId: string,
+  input: unknown,
+): Promise<{ questions: number }> {
+  return withBoundary("review", "confirmBoard", async () => {
+    const { gameId } = validate(confirmBoardSchema, input);
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      await games.lockForMutation(tx, {
+        hostId,
+        gameId,
+        states: PERMITTED.confirmBoard,
+      });
+      const all = await tx
+        .select({ id: question.id, reviewed: question.reviewed })
+        .from(question)
+        .where(eq(question.gameId, gameId));
+      if (all.some((q) => !q.reviewed))
+        throw new DomainError("QUESTIONS_UNREVIEWED");
+      for (const q of all) {
+        const { board } = boardCut(await rankedGroups(tx, q.id));
+        if (board.length === 0) throw new DomainError("NO_GROUPS_ON_BOARD");
+        await tx.insert(boardSlot).values(
+          board.map((g, i) => ({
+            questionId: q.id,
+            position: i + 1,
+            label: g.label,
+            count: g.count,
+            groupId: g.groupId,
+          })),
+        );
+      }
+      await grouping.clearContributorData(tx, gameId);
+      await games.transition(tx, gameId, "in_review", "ready");
+      return { questions: all.length };
+    });
+  });
+}

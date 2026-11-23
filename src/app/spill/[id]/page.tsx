@@ -201,6 +201,19 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         </Link>
       </section>,
     ];
+  } else if (game.state === "ready") {
+    const { hostId } = await auth.requireHost();
+    const n = (await questions.list(hostId, game.id)).length;
+    panel = [
+      <section key="ready" aria-labelledby="brettet" className="mt-10">
+        <h2 id="brettet" className="text-heading">
+          Brettet er låst
+        </h2>
+        <p className="mt-4">
+          {n === 1 ? "1 spørsmål er klart." : `${n} spørsmål er klare.`}
+        </p>
+      </section>,
+    ];
   }
 
   return (
