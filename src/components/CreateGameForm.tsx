@@ -1,20 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
-import { TextField } from "@/components/TextField";
+import { fieldClass, TextField } from "@/components/TextField";
 import { useFormAction } from "@/components/useFormAction";
 import type { Failure } from "@/lib/errors";
 import { GAME_TITLE_COUNTER_FROM, GAME_TITLE_MAX } from "@/lib/limits";
 
 export function CreateGameForm({
   action,
+  questionSets,
 }: {
   action: (prev: unknown, formData: FormData) => Promise<Failure>;
+  // FR-33: only id and name, so the sets' JSON stays on the server.
+  questionSets: { id: string; name: string }[];
 }) {
-  // Controlled, so the typed title survives a failed submit and drives the counter.
+  // Controlled, so the typed title survives a failed submit. The set needs the effect below.
   const [title, setTitle] = useState("");
+  const [questionSet, setQuestionSet] = useState("");
+  const setId = useId();
+  const setRef = useRef<HTMLSelectElement>(null);
   const {
     state,
     submit,
@@ -23,7 +29,13 @@ export function CreateGameForm({
     noticeRef,
     fieldErrors,
     showNotice,
-  } = useFormAction(action, ["title"]);
+  } = useFormAction(action, ["title", "questionSet"]);
+
+  // React 19 resets the form after the action and restores the title, but not the
+  // unchanged select, so put the chosen set back or a retry makes a draft.
+  useEffect(() => {
+    if (setRef.current) setRef.current.value = questionSet;
+  }, [state, questionSet]);
 
   // Trimmed, as the server counts it.
   const length = title.trim().length;
@@ -56,6 +68,39 @@ export function CreateGameForm({
           }
           className="sm:flex-1"
         />
+        {/* The house TextField look; empty value is the FR-2 path, a set the FR-33 one. */}
+        <div className="sm:w-56">
+          <label htmlFor={setId} className="block text-label">
+            Spørsmål
+          </label>
+          <select
+            ref={setRef}
+            id={setId}
+            name="questionSet"
+            value={questionSet}
+            onChange={(event) => setQuestionSet(event.target.value)}
+            aria-invalid={fieldErrors.questionSet ? true : undefined}
+            aria-describedby={
+              fieldErrors.questionSet ? `${setId}-error` : undefined
+            }
+            className={fieldClass(fieldErrors.questionSet)}
+          >
+            <option value="">Jeg skriver egne</option>
+            <optgroup label="Ferdige sett">
+              {questionSets.map((set) => (
+                <option key={set.id} value={set.id}>
+                  {set.name}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+          {fieldErrors.questionSet && (
+            <p id={`${setId}-error`} className="mt-1 text-body-sm text-danger">
+              <span className="sr-only">Feil: </span>
+              {fieldErrors.questionSet}
+            </p>
+          )}
+        </div>
         {/* sm:mt-6 lines the button up with the input under its label. */}
         <Button
           type="submit"

@@ -1,0 +1,1092 @@
+{
+  "source": "data/protoqa/dev.crowdsourced.jsonl",
+  "licence": "CC-BY-4.0",
+  "note": "Translated to Norwegian and adapted from ProtoQA; see data/protoqa/ATTRIBUTION.md.",
+  "sets": [
+    {
+      "id": "hjemme",
+      "name": "Hjemme",
+      "questions": [
+        {
+          "sourceId": "r1q5",
+          "text": "Nevn noe folk pleier å gjøre før de går hjemmefra til jobben.",
+          "groups": [
+            {
+              "cluster": "r1q5.0",
+              "label": "Dusjer og pusser tennene",
+              "count": 43
+            },
+            {
+              "cluster": "r1q5.1",
+              "label": "Spiser frokost",
+              "count": 30
+            },
+            {
+              "cluster": "r1q5.2",
+              "label": "Kler på seg",
+              "count": 7
+            },
+            {
+              "cluster": "r1q5.3",
+              "label": "Tar nøklene og låser døra",
+              "count": 7
+            },
+            {
+              "cluster": "r1q5.4",
+              "label": "Grer håret og ser i speilet",
+              "count": 5
+            },
+            {
+              "cluster": "r1q5.5",
+              "label": "Sier ha det",
+              "count": 4
+            },
+            {
+              "cluster": "r1q5.6",
+              "label": "Jogger",
+              "count": 1
+            },
+            {
+              "cluster": "r1q5.7",
+              "label": "Ber en bønn",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "sourceId": "r1q10",
+          "text": "Nevn noe folk kan gjøre om garasjen til.",
+          "groups": [
+            {
+              "cluster": "r1q10.0",
+              "label": "Allrom eller treningsrom",
+              "count": 29
+            },
+            {
+              "cluster": "r1q10.1",
+              "label": "Butikk eller kontor",
+              "count": 17
+            },
+            {
+              "cluster": "r1q10.2",
+              "label": "Verksted eller studio",
+              "count": 11
+            },
+            {
+              "cluster": "r1q10.3",
+              "label": "Bar eller hjemmekino",
+              "count": 10
+            },
+            {
+              "cluster": "r1q10.4",
+              "label": "Soverom eller mannehule",
+              "count": 8
+            },
+            {
+              "cluster": "r1q10.5",
+              "label": "Lagerrom",
+              "count": 6
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q6",
+          "text": "Nevn noe i huset som ofte må byttes ut.",
+          "groups": [
+            {
+              "cluster": "r2q6.0",
+              "label": "Lyspærer",
+              "count": 23
+            },
+            {
+              "cluster": "r2q6.1",
+              "label": "Dopapir, såpe og tannbørste",
+              "count": 15
+            },
+            {
+              "cluster": "r2q6.2",
+              "label": "Kost og vaskeutstyr",
+              "count": 9
+            },
+            {
+              "cluster": "r2q6.3",
+              "label": "Mat og krydder",
+              "count": 8
+            },
+            {
+              "cluster": "r2q6.4",
+              "label": "Møbler og hvitevarer",
+              "count": 8
+            },
+            {
+              "cluster": "r2q6.5",
+              "label": "Tepper og gardiner",
+              "count": 7
+            },
+            {
+              "cluster": "r2q6.6",
+              "label": "TV og PC",
+              "count": 5
+            },
+            {
+              "cluster": "r2q6.7",
+              "label": "Blomster og planter",
+              "count": 5
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q12",
+          "text": "Nevn noe folk kjøper til et hus, men ikke til en leilighet.",
+          "groups": [
+            {
+              "cluster": "r2q12.0",
+              "label": "Hageutstyr og trær",
+              "count": 19
+            },
+            {
+              "cluster": "r2q12.1",
+              "label": "Basseng eller vanntank",
+              "count": 19
+            },
+            {
+              "cluster": "r2q12.2",
+              "label": "Møbler og peis",
+              "count": 11
+            },
+            {
+              "cluster": "r2q12.3",
+              "label": "Garasje og bil",
+              "count": 11
+            },
+            {
+              "cluster": "r2q12.4",
+              "label": "Hund og hundehus",
+              "count": 11
+            },
+            {
+              "cluster": "r2q12.5",
+              "label": "Trampoline eller huske",
+              "count": 7
+            },
+            {
+              "cluster": "r2q12.6",
+              "label": "Grill",
+              "count": 4
+            },
+            {
+              "cluster": "r2q12.7",
+              "label": "Tomt eller tak",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q38",
+          "text": "Nevn noe folk kjøper som varer lenge.",
+          "groups": [
+            {
+              "cluster": "r2q38.0",
+              "label": "TV, PC eller mobil",
+              "count": 20
+            },
+            {
+              "cluster": "r2q38.1",
+              "label": "Hus",
+              "count": 15
+            },
+            {
+              "cluster": "r2q38.2",
+              "label": "Mat og drikke",
+              "count": 14
+            },
+            {
+              "cluster": "r2q38.3",
+              "label": "Bil",
+              "count": 9
+            },
+            {
+              "cluster": "r2q38.4",
+              "label": "Klær og sko",
+              "count": 9
+            },
+            {
+              "cluster": "r2q38.5",
+              "label": "Kjøleskap eller vaskemaskin",
+              "count": 7
+            },
+            {
+              "cluster": "r2q38.6",
+              "label": "Kjøkken",
+              "count": 6
+            },
+            {
+              "cluster": "r2q38.7",
+              "label": "Såpe og tannkrem",
+              "count": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mat-og-drikke",
+      "name": "Mat og drikke",
+      "questions": [
+        {
+          "sourceId": "r1q6",
+          "text": "Du kjøper melk, egg, sukker og fløte. Nevn noe du trolig skal lage.",
+          "groups": [
+            {
+              "cluster": "r1q6.0",
+              "label": "Kake",
+              "count": 75
+            },
+            {
+              "cluster": "r1q6.1",
+              "label": "Pai",
+              "count": 9
+            },
+            {
+              "cluster": "r1q6.2",
+              "label": "Is eller dessert",
+              "count": 7
+            },
+            {
+              "cluster": "r1q6.3",
+              "label": "Pannekaker eller vafler",
+              "count": 6
+            }
+          ]
+        },
+        {
+          "sourceId": "r1q7",
+          "text": "Nevn en grønnsak som er omtrent like stor som hodet ditt.",
+          "groups": [
+            {
+              "cluster": "r1q7.0",
+              "label": "Gresskar",
+              "count": 54
+            },
+            {
+              "cluster": "r1q7.1",
+              "label": "Kål eller salat",
+              "count": 21
+            },
+            {
+              "cluster": "r1q7.2",
+              "label": "Melon",
+              "count": 17
+            },
+            {
+              "cluster": "r1q7.3",
+              "label": "Agurk eller squash",
+              "count": 4
+            },
+            {
+              "cluster": "r1q7.4",
+              "label": "Blomkål",
+              "count": 1
+            },
+            {
+              "cluster": "r1q7.5",
+              "label": "Potet",
+              "count": 1
+            },
+            {
+              "cluster": "r1q7.6",
+              "label": "Tomat",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q21",
+          "text": "Nevn noe du trenger for å lage pizza.",
+          "groups": [
+            {
+              "cluster": "r2q21.0",
+              "label": "Ost",
+              "count": 47
+            },
+            {
+              "cluster": "r2q21.1",
+              "label": "Mel eller deig",
+              "count": 32
+            },
+            {
+              "cluster": "r2q21.2",
+              "label": "Tomatsaus",
+              "count": 13
+            },
+            {
+              "cluster": "r2q21.3",
+              "label": "Pepperoni",
+              "count": 2
+            },
+            {
+              "cluster": "r2q21.4",
+              "label": "Smør",
+              "count": 1
+            },
+            {
+              "cluster": "r2q21.5",
+              "label": "Skinke",
+              "count": 1
+            },
+            {
+              "cluster": "r2q21.6",
+              "label": "Pasta",
+              "count": 1
+            },
+            {
+              "cluster": "r2q21.7",
+              "label": "Gjær",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "sourceId": "r1q17",
+          "text": "Nevn noe en idrettsutøver ikke ville hatt i kjøleskapet sitt.",
+          "groups": [
+            {
+              "cluster": "r1q17.0",
+              "label": "Usunn mat og godteri",
+              "count": 36
+            },
+            {
+              "cluster": "r1q17.1",
+              "label": "Treningsklær og sko",
+              "count": 24
+            },
+            {
+              "cluster": "r1q17.2",
+              "label": "Brus eller alkohol",
+              "count": 24
+            },
+            {
+              "cluster": "r1q17.3",
+              "label": "Ball eller medaljer",
+              "count": 7
+            }
+          ]
+        },
+        {
+          "sourceId": "r1q20",
+          "text": "Nevn noe butikker deler ut gratis for å lokke til seg kunder.",
+          "groups": [
+            {
+              "cluster": "r1q20.0",
+              "label": "Smaksprøver og godteri",
+              "count": 34
+            },
+            {
+              "cluster": "r1q20.1",
+              "label": "Vareprøver",
+              "count": 26
+            },
+            {
+              "cluster": "r1q20.2",
+              "label": "Rabattkuponger",
+              "count": 14
+            },
+            {
+              "cluster": "r1q20.3",
+              "label": "Kaffe eller saft",
+              "count": 7
+            },
+            {
+              "cluster": "r1q20.4",
+              "label": "Brosjyrer og kalendere",
+              "count": 5
+            },
+            {
+              "cluster": "r1q20.5",
+              "label": "Parfymeprøver",
+              "count": 4
+            },
+            {
+              "cluster": "r1q20.6",
+              "label": "Poser, penner og leker",
+              "count": 4
+            },
+            {
+              "cluster": "r1q20.7",
+              "label": "Mobiltelefon",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "jobb-og-reise",
+      "name": "Jobb og reise",
+      "questions": [
+        {
+          "sourceId": "r1q8",
+          "text": "Nevn en luksus folk må klare seg uten når de er på reise.",
+          "groups": [
+            {
+              "cluster": "r1q8.0",
+              "label": "Egen seng og eget hjem",
+              "count": 23
+            },
+            {
+              "cluster": "r1q8.1",
+              "label": "Egen bil",
+              "count": 15
+            },
+            {
+              "cluster": "r1q8.2",
+              "label": "TV, PC og mobil",
+              "count": 14
+            },
+            {
+              "cluster": "r1q8.3",
+              "label": "Eget bad",
+              "count": 12
+            },
+            {
+              "cluster": "r1q8.4",
+              "label": "Hotell og restaurant",
+              "count": 10
+            },
+            {
+              "cluster": "r1q8.5",
+              "label": "Klær og smykker",
+              "count": 8
+            },
+            {
+              "cluster": "r1q8.6",
+              "label": "Komfort og klimaanlegg",
+              "count": 6
+            },
+            {
+              "cluster": "r1q8.7",
+              "label": "Hjemmelaget mat og vin",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q42",
+          "text": "Nevn en grunn til å endre returbilletten.",
+          "groups": [
+            {
+              "cluster": "r2q42.0",
+              "label": "Dødsfall eller krise i familien",
+              "count": 33
+            },
+            {
+              "cluster": "r2q42.1",
+              "label": "Dårlig vær",
+              "count": 29
+            },
+            {
+              "cluster": "r2q42.2",
+              "label": "Sykdom",
+              "count": 7
+            },
+            {
+              "cluster": "r2q42.3",
+              "label": "Glemte noe viktig",
+              "count": 6
+            },
+            {
+              "cluster": "r2q42.4",
+              "label": "Forsinkelser",
+              "count": 6
+            },
+            {
+              "cluster": "r2q42.5",
+              "label": "Jobb",
+              "count": 6
+            },
+            {
+              "cluster": "r2q42.6",
+              "label": "Penger eller billigere billett",
+              "count": 3
+            },
+            {
+              "cluster": "r2q42.7",
+              "label": "Dårlige nyheter",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q30",
+          "text": "Nevn en grunn til at en bilist må stoppe i veikanten.",
+          "groups": [
+            {
+              "cluster": "r2q30.0",
+              "label": "Motorstopp eller punktering",
+              "count": 28
+            },
+            {
+              "cluster": "r2q30.1",
+              "label": "Telefonsamtale",
+              "count": 15
+            },
+            {
+              "cluster": "r2q30.2",
+              "label": "Ulykke",
+              "count": 12
+            },
+            {
+              "cluster": "r2q30.3",
+              "label": "Må tisse",
+              "count": 10
+            },
+            {
+              "cluster": "r2q30.4",
+              "label": "Stoppet av politiet",
+              "count": 6
+            },
+            {
+              "cluster": "r2q30.5",
+              "label": "Ambulanse eller nødsituasjon",
+              "count": 3
+            },
+            {
+              "cluster": "r2q30.6",
+              "label": "Dyr i veien",
+              "count": 3
+            },
+            {
+              "cluster": "r2q30.7",
+              "label": "Trøtt",
+              "count": 3
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q8",
+          "text": "Nevn en jobb der man må være våken om natten.",
+          "groups": [
+            {
+              "cluster": "r2q8.0",
+              "label": "Vekter",
+              "count": 63
+            },
+            {
+              "cluster": "r2q8.1",
+              "label": "Lege eller sykepleier",
+              "count": 13
+            },
+            {
+              "cluster": "r2q8.2",
+              "label": "Bartender eller DJ",
+              "count": 8
+            },
+            {
+              "cluster": "r2q8.3",
+              "label": "Politi",
+              "count": 6
+            },
+            {
+              "cluster": "r2q8.4",
+              "label": "Baker eller gatekjøkken",
+              "count": 5
+            },
+            {
+              "cluster": "r2q8.5",
+              "label": "Flygeleder",
+              "count": 1
+            },
+            {
+              "cluster": "r2q8.6",
+              "label": "Programmerer",
+              "count": 1
+            },
+            {
+              "cluster": "r2q8.7",
+              "label": "Taxisjåfør",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q46",
+          "text": "Nevn en grunn til å gi servitøren godt med tips.",
+          "groups": [
+            {
+              "cluster": "r2q46.0",
+              "label": "God service",
+              "count": 36
+            },
+            {
+              "cluster": "r2q46.1",
+              "label": "Følger godt med",
+              "count": 29
+            },
+            {
+              "cluster": "r2q46.2",
+              "label": "Hyggelig",
+              "count": 9
+            },
+            {
+              "cluster": "r2q46.3",
+              "label": "Blid og vennlig",
+              "count": 8
+            },
+            {
+              "cluster": "r2q46.4",
+              "label": "Rask service",
+              "count": 5
+            },
+            {
+              "cluster": "r2q46.5",
+              "label": "Pen",
+              "count": 2
+            },
+            {
+              "cluster": "r2q46.6",
+              "label": "Høflig",
+              "count": 2
+            },
+            {
+              "cluster": "r2q46.7",
+              "label": "Godt tilbud",
+              "count": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "barn-og-oppvekst",
+      "name": "Barn og oppvekst",
+      "questions": [
+        {
+          "sourceId": "r1q11",
+          "text": "Nevn noe som beskytter barn.",
+          "groups": [
+            {
+              "cluster": "r1q11.0",
+              "label": "Bilbelte, bilstol eller hjelm",
+              "count": 40
+            },
+            {
+              "cluster": "r1q11.1",
+              "label": "Foreldre og voksne",
+              "count": 14
+            },
+            {
+              "cluster": "r1q11.2",
+              "label": "Politiet",
+              "count": 10
+            },
+            {
+              "cluster": "r1q11.3",
+              "label": "Barneseng og kosedyr",
+              "count": 8
+            },
+            {
+              "cluster": "r1q11.4",
+              "label": "Gjerder og låser",
+              "count": 7
+            },
+            {
+              "cluster": "r1q11.5",
+              "label": "Regler og forsiktighet",
+              "count": 7
+            },
+            {
+              "cluster": "r1q11.6",
+              "label": "Klær og bleier",
+              "count": 5
+            },
+            {
+              "cluster": "r1q11.7",
+              "label": "Lege og vaksiner",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q7",
+          "text": "Nevn noe foreldre sier at barna ikke får lov til.",
+          "groups": [
+            {
+              "cluster": "r2q7.0",
+              "label": "Hoppe i senga eller bråke",
+              "count": 31
+            },
+            {
+              "cluster": "r2q7.1",
+              "label": "Røyke, drikke eller ruse seg",
+              "count": 11
+            },
+            {
+              "cluster": "r2q7.2",
+              "label": "Slåss",
+              "count": 11
+            },
+            {
+              "cluster": "r2q7.3",
+              "label": "Stjele",
+              "count": 9
+            },
+            {
+              "cluster": "r2q7.4",
+              "label": "Løpe rundt",
+              "count": 9
+            },
+            {
+              "cluster": "r2q7.5",
+              "label": "Lyve",
+              "count": 8
+            },
+            {
+              "cluster": "r2q7.6",
+              "label": "Banne",
+              "count": 4
+            },
+            {
+              "cluster": "r2q7.7",
+              "label": "Snakke med fremmede",
+              "count": 4
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q14",
+          "text": "Nevn noe man kan gjøre etter videregående i stedet for å studere videre.",
+          "groups": [
+            {
+              "cluster": "r2q14.0",
+              "label": "Begynne å jobbe",
+              "count": 68
+            },
+            {
+              "cluster": "r2q14.1",
+              "label": "Slappe av og trene",
+              "count": 10
+            },
+            {
+              "cluster": "r2q14.2",
+              "label": "Ta et kurs",
+              "count": 5
+            },
+            {
+              "cluster": "r2q14.3",
+              "label": "Sove",
+              "count": 3
+            },
+            {
+              "cluster": "r2q14.4",
+              "label": "Reise",
+              "count": 3
+            },
+            {
+              "cluster": "r2q14.5",
+              "label": "Studere likevel",
+              "count": 2
+            },
+            {
+              "cluster": "r2q14.6",
+              "label": "Førstegangstjeneste",
+              "count": 2
+            },
+            {
+              "cluster": "r2q14.7",
+              "label": "Starte bedrift",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q15",
+          "text": "Nevn noe folk husker helt til de blir gamle.",
+          "groups": [
+            {
+              "cluster": "r2q15.0",
+              "label": "Første kjærlighet eller kyss",
+              "count": 30
+            },
+            {
+              "cluster": "r2q15.1",
+              "label": "Familie og venner",
+              "count": 20
+            },
+            {
+              "cluster": "r2q15.2",
+              "label": "Navn og alder",
+              "count": 14
+            },
+            {
+              "cluster": "r2q15.3",
+              "label": "Barndommen",
+              "count": 12
+            },
+            {
+              "cluster": "r2q15.4",
+              "label": "Bursdager",
+              "count": 6
+            },
+            {
+              "cluster": "r2q15.5",
+              "label": "Gode øyeblikk og reiser",
+              "count": 5
+            },
+            {
+              "cluster": "r2q15.6",
+              "label": "Ulykker og vonde opplevelser",
+              "count": 2
+            },
+            {
+              "cluster": "r2q15.7",
+              "label": "Ungdomstiden",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "sourceId": "r1q18",
+          "text": "Nevn et klesplagg du ikke ville lånt bort til noen.",
+          "groups": [
+            {
+              "cluster": "r1q18.0",
+              "label": "Undertøy",
+              "count": 84
+            },
+            {
+              "cluster": "r1q18.1",
+              "label": "Genser eller skjorte",
+              "count": 5
+            },
+            {
+              "cluster": "r1q18.2",
+              "label": "Sokker",
+              "count": 5
+            },
+            {
+              "cluster": "r1q18.3",
+              "label": "Klokke, slips eller solbriller",
+              "count": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "blandet-drops",
+      "name": "Blandet drops",
+      "questions": [
+        {
+          "sourceId": "r2q26",
+          "text": "Nevn et dyr man kan lære å gjøre triks.",
+          "groups": [
+            {
+              "cluster": "r2q26.0",
+              "label": "Hund",
+              "count": 87
+            },
+            {
+              "cluster": "r2q26.1",
+              "label": "Ape",
+              "count": 8
+            },
+            {
+              "cluster": "r2q26.2",
+              "label": "Delfin",
+              "count": 2
+            },
+            {
+              "cluster": "r2q26.3",
+              "label": "Papegøye",
+              "count": 2
+            },
+            {
+              "cluster": "r2q26.4",
+              "label": "Tiger",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "sourceId": "r1q1",
+          "text": "Nevn noe som er vanskelig å gjette om en person du nettopp har møtt.",
+          "groups": [
+            {
+              "cluster": "r1q1.0",
+              "label": "Alder eller bursdag",
+              "count": 35
+            },
+            {
+              "cluster": "r1q1.1",
+              "label": "Tanker og interesser",
+              "count": 28
+            },
+            {
+              "cluster": "r1q1.2",
+              "label": "Navn",
+              "count": 12
+            },
+            {
+              "cluster": "r1q1.3",
+              "label": "Fortid, jobb eller religion",
+              "count": 11
+            },
+            {
+              "cluster": "r1q1.4",
+              "label": "Foreldre eller partner",
+              "count": 6
+            },
+            {
+              "cluster": "r1q1.5",
+              "label": "Høyde, vekt eller IQ",
+              "count": 5
+            },
+            {
+              "cluster": "r1q1.6",
+              "label": "Undertøy",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q4",
+          "text": "Nevn en grunn til at noen går med hansker.",
+          "groups": [
+            {
+              "cluster": "r2q4.0",
+              "label": "Kulde eller varme",
+              "count": 38
+            },
+            {
+              "cluster": "r2q4.1",
+              "label": "Rengjøring",
+              "count": 12
+            },
+            {
+              "cluster": "r2q4.2",
+              "label": "Smittevern og operasjoner",
+              "count": 10
+            },
+            {
+              "cluster": "r2q4.3",
+              "label": "Beskytte hendene",
+              "count": 9
+            },
+            {
+              "cluster": "r2q4.4",
+              "label": "Arbeid",
+              "count": 8
+            },
+            {
+              "cluster": "r2q4.5",
+              "label": "Trening og boksing",
+              "count": 7
+            },
+            {
+              "cluster": "r2q4.6",
+              "label": "Slippe å bli skitten",
+              "count": 5
+            },
+            {
+              "cluster": "r2q4.7",
+              "label": "Hygiene",
+              "count": 3
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q27",
+          "text": "Nevn noe folk gjør mens tannlegen undersøker dem.",
+          "groups": [
+            {
+              "cluster": "r2q27.0",
+              "label": "Åpner munnen",
+              "count": 23
+            },
+            {
+              "cluster": "r2q27.1",
+              "label": "Slapper av og lukker øynene",
+              "count": 21
+            },
+            {
+              "cluster": "r2q27.2",
+              "label": "Tenker eller ber",
+              "count": 15
+            },
+            {
+              "cluster": "r2q27.3",
+              "label": "Prater",
+              "count": 10
+            },
+            {
+              "cluster": "r2q27.4",
+              "label": "Gruer seg eller har vondt",
+              "count": 9
+            },
+            {
+              "cluster": "r2q27.5",
+              "label": "Ser på mobilen",
+              "count": 6
+            },
+            {
+              "cluster": "r2q27.6",
+              "label": "Sitter og venter",
+              "count": 4
+            },
+            {
+              "cluster": "r2q27.7",
+              "label": "Stirrer i taket",
+              "count": 3
+            }
+          ]
+        },
+        {
+          "sourceId": "r2q47",
+          "text": "Nevn noe du kan finne på å ødelegge med vilje.",
+          "groups": [
+            {
+              "cluster": "r2q47.0",
+              "label": "Tallerken eller glass",
+              "count": 40
+            },
+            {
+              "cluster": "r2q47.1",
+              "label": "Papir eller konvolutt",
+              "count": 8
+            },
+            {
+              "cluster": "r2q47.2",
+              "label": "Egg",
+              "count": 6
+            },
+            {
+              "cluster": "r2q47.3",
+              "label": "Blyant",
+              "count": 6
+            },
+            {
+              "cluster": "r2q47.4",
+              "label": "Vase eller krukke",
+              "count": 6
+            },
+            {
+              "cluster": "r2q47.5",
+              "label": "Spagetti eller kjeks",
+              "count": 5
+            },
+            {
+              "cluster": "r2q47.6",
+              "label": "Speil",
+              "count": 4
+            },
+            {
+              "cluster": "r2q47.7",
+              "label": "Mobil",
+              "count": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

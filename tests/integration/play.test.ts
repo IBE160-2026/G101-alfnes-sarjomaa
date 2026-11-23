@@ -19,6 +19,7 @@ import { DomainError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import type { GameState } from "@/lib/game-state";
 import { RETENTION_PLAYED_MS } from "@/lib/limits";
+import { QUESTION_SET_CREDIT } from "@/lib/question-sets";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import {
@@ -840,6 +841,8 @@ describe("/spill/[id]/skjerm", () => {
     expect(text(html)).toContain(
       "Spørsmål 1 av 3 Svarer nå Hyttegjengen 0 poeng Lag 2 0 poeng 1 2 3 Bom [M] Neste lag [T] Vis resten uten poeng [U] Neste spørsmål [N] ? Trykk F for fullskjerm.",
     );
+    // FR-33: a Host-written Game never shows the Question-set credit.
+    expect(html).not.toContain(QUESTION_SET_CREDIT);
   });
 
   it("FR-24, FR-27: the first flush of a playing Game's screen is the stage with Henter spillet …", async () => {

@@ -9,6 +9,7 @@ import {
   SETS,
   submitSets,
   test,
+  WIDE_TEAMS,
 } from "./fixtures";
 
 const outline = (locator: Locator) =>
@@ -419,9 +420,6 @@ test("FR-24, FR-25, FR-27 (AC1, AC2, AC4, AC5), UX-DR13, UX-DR14, UX-DR21, NFR-5
 
 // Manual check A9 and the wide-name case of A8: the widest content the canvas must hold.
 const WIDE_LABEL = "M".repeat(39) + "Ø";
-const WIDE_TEAMS = ["W", "M", "W", "M"].map(
-  (letter, i) => letter.repeat(13) + String(i + 1),
-);
 
 test("FR-24 (A8, A9), UX-DR21: a 40-character label of wide letters wraps inside its tile, scored and unscored, never truncated, with its Count inside the tile and every tile above the control bar; four 14-character Team names of wide letters fit the Team column with every Score in its card", async ({
   page,

@@ -4,6 +4,7 @@ import { cache, Suspense } from "react";
 import { FinalScores, PlayView, StageLoading } from "@/components/PlayView";
 import { TeamSetup } from "@/components/TeamSetup";
 import { DomainError } from "@/lib/errors";
+import { QUESTION_SET_CREDIT } from "@/lib/question-sets";
 import * as auth from "@/server/auth";
 import * as games from "@/server/games";
 import * as play from "@/server/play";
@@ -55,17 +56,30 @@ export default async function ScreenPage({
   if (game.state !== "playing") redirect(`/spill/${game.id}`);
   return (
     <Suspense fallback={<StageLoading />}>
-      <PlayStage hostId={game.hostId} gameId={game.id} />
+      <PlayStage
+        hostId={game.hostId}
+        gameId={game.id}
+        credit={game.questionSet ? QUESTION_SET_CREDIT : undefined}
+      />
     </Suspense>
   );
 }
 
+// credit: the FR-33 source credit, for a Game made from a Question set only.
 async function PlayStage({
   hostId,
   gameId,
+  credit,
 }: {
   hostId: string;
   gameId: string;
+  credit?: string;
 }) {
-  return <PlayView gameId={gameId} {...await play.load(hostId, gameId)} />;
+  return (
+    <PlayView
+      gameId={gameId}
+      credit={credit}
+      {...await play.load(hostId, gameId)}
+    />
+  );
 }

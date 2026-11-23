@@ -59,6 +59,8 @@ export const game = pgTable("game", {
   inviteLinksIssued: integer("invite_links_issued").notNull().default(0),
   // Set to now + 180 s when Collection closes; the Grouping runner extends it (AD-12).
   groupingLeaseUntil: timestamp("grouping_lease_until", utc),
+  // FR-33: the Question set the Game was made from; null means the Host wrote the Questions.
+  questionSet: text("question_set"),
 });
 
 // Content-free usage counters, one row per Game, created by the first bump (AD-18).

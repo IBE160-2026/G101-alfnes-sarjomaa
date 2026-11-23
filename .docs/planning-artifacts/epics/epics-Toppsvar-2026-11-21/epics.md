@@ -1434,6 +1434,8 @@ So that we can play without a Collection.
 
 **Precondition:** PRD §10 item 3 (ProtoQA provenance and trademark) is settled with the course staff.
 
+*Amended 2026-11-24, recording the group's decision of 2026-11-23 (`wiki/prosjekt/beslutninger.md`):* the group settled the precondition itself, without asking the course staff: only the crowdsourced part of ProtoQA (CC BY 4.0) is used. Story 8.1 started before SM-1 passed, by the same decision; the SM-1 gate still applies to Stories 8.2 to 8.4. The entry point is `review.createFromQuestionSet`, which composes the owners' writers (AD-1, AD-15).
+
 **Acceptance Criteria:**
 
 **AC1 (FR-33)**

@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 import { DomainError, validate } from "@/lib/errors";
 import { PERMITTED } from "@/lib/game-state";
+import { createFromSetSchema, QUESTION_SETS } from "@/lib/question-sets";
 import { boardCut, rankGroups } from "@/lib/ranking";
 import {
   collapseChips,
@@ -484,6 +485,57 @@ export function confirmBoard(
       await grouping.clearContributorData(tx, gameId);
       await games.transition(tx, gameId, "in_review", "ready");
       return { questions: all.length };
+    });
+  });
+}
+
+// FR-33: a Game from a ready-made Question set, born in ready with its Board locked, in one
+// transaction. Here, not in games, because review is the latest of the three owners it
+// composes (AD-1): games.insertReady, questions.insertAll and this module's board_slot.
+// The Board goes through rankGroups and boardCut like confirmBoard's (AD-11), so play
+// reads it through getBoard with no separate path (AD-15).
+export function createFromQuestionSet(
+  hostId: string,
+  input: unknown,
+): Promise<{ id: string }> {
+  return withBoundary("review", "createFromQuestionSet", async () => {
+    const { title, questionSet } = validate(createFromSetSchema, input);
+    const set = QUESTION_SETS.find((s) => s.id === questionSet)!;
+    const db = await getDb();
+    return db.transaction(async (tx) => {
+      const { id } = await games.insertReady(tx, {
+        hostId,
+        title,
+        questionSet,
+      });
+      const ids = await questions.insertAll(
+        tx,
+        id,
+        set.questions.map((q) => q.text),
+      );
+      await tx.insert(boardSlot).values(
+        set.questions.flatMap((q, i) => {
+          const { board } = boardCut(
+            rankGroups(
+              q.groups.map((g) => ({
+                groupId: g.cluster,
+                count: g.count,
+                rank1Count: 0,
+                labelCandidates: [],
+                customLabel: g.label,
+                discarded: false,
+              })),
+            ),
+          );
+          return board.map((g, j) => ({
+            questionId: ids[i],
+            position: j + 1,
+            label: g.label,
+            count: g.count,
+          }));
+        }),
+      );
+      return { id };
     });
   });
 }

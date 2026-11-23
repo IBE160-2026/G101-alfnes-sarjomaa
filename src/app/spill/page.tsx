@@ -8,6 +8,7 @@ import { CreateGameForm } from "@/components/CreateGameForm";
 import { Notice } from "@/components/Notice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatDate } from "@/lib/format";
+import { QUESTION_SETS } from "@/lib/question-sets";
 import * as auth from "@/server/auth";
 import * as games from "@/server/games";
 
@@ -34,7 +35,10 @@ export default async function GamesPage() {
           «{slettet}» er slettet.
         </Notice>
       )}
-      <CreateGameForm action={createGame} />
+      <CreateGameForm
+        action={createGame}
+        questionSets={QUESTION_SETS.map(({ id, name }) => ({ id, name }))}
+      />
       {list === null ? (
         <Notice tone="danger" className="mt-10">
           Fikk ikke hentet spillene dine. Last inn siden på nytt.

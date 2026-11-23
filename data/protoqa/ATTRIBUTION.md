@@ -42,3 +42,31 @@ the same licence, CC-BY-4.0, with the same credit.
 
 ProtoQA is English, and the product groups Norwegian answers. The B-cubed figure measures the
 Judge on English survey answers and says nothing direct about Norwegian answers.
+
+## Derived Question sets (Stage 2, FR-33)
+
+`data/question-sets/protoqa-nb.json` holds five Question sets of five Questions each, 25 Questions
+in all, taken from `dev.crowdsourced.jsonl` above. It is a derived work of the ProtoQA dataset by
+the ProtoQA authors (IESL, UMass Amherst), shared under the same licence, CC-BY-4.0
+(<https://creativecommons.org/licenses/by/4.0/>), with the same credit.
+
+**The material is translated and adapted.** The changes are:
+
+- **Selection.** Only 25 of the 52 Questions are used. Questions that make little sense at a
+  Norwegian party, or that are crude, were left out.
+- **Translation.** Each Question was translated into Norwegian (bokmål) by hand. Every Question
+  keeps its source id (`sourceId`, the row's `metadata.id`).
+- **Group labels.** The dataset's clusters have no label, only their raw answers. Each label is a
+  short Norwegian name written by hand for what the cluster's answers have in common. Every Group
+  keeps its source cluster id (`cluster`).
+- **Board size.** Only the top clusters by count are kept, at most eight per Question, as on the
+  app's Board (FR-21). None of the 25 Questions has a tie at the eighth place. The app orders
+  the slots itself, by Count and then by the Norwegian label, so the order in the file is not
+  the slot order.
+
+**Counts are unchanged.** Every `count` is the cluster's count in the source file.
+
+The app credits the source on the play screen of every Game made from a set, and in the README.
+The play screen carries the short form "Spørsmål fra ProtoQA (CC BY 4.0), oversatt og tilpasset".
+The full credit, with the ProtoQA authors, is in this file and in the README.
+No model or API was used for the translation.
