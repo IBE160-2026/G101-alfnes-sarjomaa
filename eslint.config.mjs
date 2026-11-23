@@ -128,8 +128,8 @@ export default defineConfig([
     },
   },
   zone(["src/cli/**"], PROVIDERS, {
-    regex: "^@/server/db(/(?!migrate$)|$)",
+    regex: "^@/server/db(/(?!(migrate|dump)$)|$)",
     message:
-      "The CLI uses module entry points; from db only @/server/db/migrate.",
+      "The CLI uses module entry points; from db only @/server/db/migrate and dump.",
   }),
 ]);

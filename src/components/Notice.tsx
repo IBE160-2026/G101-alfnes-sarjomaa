@@ -14,18 +14,21 @@ export function Notice({
   className = "",
   ref,
   tabIndex,
+  live = true,
 }: {
   tone: keyof typeof TONES;
   children: ReactNode;
   className?: string;
   ref?: Ref<HTMLDivElement>;
   tabIndex?: number;
+  // false for static page content, which is not a status message.
+  live?: boolean;
 }) {
   return (
     <div
       ref={ref}
       tabIndex={tabIndex}
-      role={TONES[tone].role}
+      role={live ? TONES[tone].role : undefined}
       className={`w-full rounded-md p-4 ${TONES[tone].className} ${className}`}
     >
       {children}

@@ -1,0 +1,55 @@
+[
+  {
+    "kind": "partition",
+    "promptVersion": "1",
+    "normalizeVersion": 1,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "question": "Hva må være med på hytteturen?",
+    "items": [
+      "kaffe",
+      "kortspill",
+      "kortstokk",
+      "sjokolade",
+      "sovepose",
+      "ullsokker",
+      "varme sokker"
+    ],
+    "assignments": [0, 1, 1, 2, 3, 4, 4]
+  },
+  {
+    "kind": "partition",
+    "promptVersion": "1",
+    "normalizeVersion": 1,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "question": "Hva spiser dere til frokost på hytta?",
+    "items": [
+      "brunost",
+      "egg",
+      "egg og bacon",
+      "geitost",
+      "grøt",
+      "havregrøt",
+      "kaffe",
+      "vafler"
+    ],
+    "assignments": [0, 1, 2, 3, 4, 4, 5, 6]
+  },
+  {
+    "kind": "partition",
+    "promptVersion": "1",
+    "normalizeVersion": 1,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "question": "Hva gjør dere når det regner på hytta?",
+    "items": [
+      "baker kake",
+      "brettspill",
+      "filmkveld",
+      "kortspill",
+      "leser bok",
+      "ser film",
+      "sover",
+      "spiller kort"
+    ],
+    "assignments": [0, 1, 2, 1, 3, 2, 4, 1]
+  }
+]

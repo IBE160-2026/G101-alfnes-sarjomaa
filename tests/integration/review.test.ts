@@ -1719,25 +1719,32 @@ describe("review.confirmBoard", () => {
     const answerIds = before.rows[0].answers
       .filter((a) => a.groupId === per)
       .map((a) => a.id);
-    const calls: [string, Promise<unknown>][] = [
-      ["merge", review.merge(hostId, { gameId, groupIds: [ola, per] })],
-      ["move", review.moveAnswers(hostId, { gameId, answerIds, groupId: ola })],
-      ["new", review.moveAnswers(hostId, { gameId, answerIds })],
-      ["rename", review.rename(hostId, { gameId, groupId: ola, label: "x" })],
-      ["discard", review.discard(hostId, { gameId, groupId: ola })],
-      ["restore", review.restore(hostId, { gameId, groupId: frida })],
-      ...[true, false].map((reviewed): [string, Promise<unknown>] => [
+    const calls: [string, () => Promise<unknown>][] = [
+      ["merge", () => review.merge(hostId, { gameId, groupIds: [ola, per] })],
+      [
+        "move",
+        () => review.moveAnswers(hostId, { gameId, answerIds, groupId: ola }),
+      ],
+      ["new", () => review.moveAnswers(hostId, { gameId, answerIds })],
+      [
+        "rename",
+        () => review.rename(hostId, { gameId, groupId: ola, label: "x" }),
+      ],
+      ["discard", () => review.discard(hostId, { gameId, groupId: ola })],
+      ["restore", () => review.restore(hostId, { gameId, groupId: frida })],
+      ...[true, false].map((reviewed): [string, () => Promise<unknown>] => [
         `mark ${reviewed}`,
-        review.setReviewed(hostId, {
-          gameId,
-          questionId: ids[0],
-          reviewed,
-        }),
+        () =>
+          review.setReviewed(hostId, {
+            gameId,
+            questionId: ids[0],
+            reviewed,
+          }),
       ]),
-      ["confirm", review.confirmBoard(hostId, { gameId })],
+      ["confirm", () => review.confirmBoard(hostId, { gameId })],
     ];
     for (const [name, call] of calls)
-      expect(await codeOf(call), name).toBe("WRONG_STATE");
+      expect(await codeOf(call()), name).toBe("WRONG_STATE");
     expect(
       await markReviewed({ gameId, questionId: ids[0], reviewed: true }),
     ).toMatchObject({ ok: false, code: "WRONG_STATE" });

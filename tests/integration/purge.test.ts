@@ -8,6 +8,7 @@ import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import { game, host, session } from "@/server/db/schema";
 import * as games from "@/server/games";
+import { onPostgres } from "./driver";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -135,32 +136,36 @@ describe("VACUUM after purge", () => {
     ]);
   });
 
-  it("FR-13, AD-9: a purge VACUUM that skips the tables (run by a role that does not own them) logs one VACUUM_SKIPPED line", async () => {
-    const db = await getDb();
-    await db.execute(sql`create role vacuum_skip`);
-    // Not ALL, which includes MAINTAIN (the right to VACUUM) since Postgres 17.
-    await db.execute(
-      sql`grant select, insert, update, delete on all tables in schema public to vacuum_skip`,
-    );
-    const write = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
-    let out;
-    try {
-      await db.execute(sql`set role vacuum_skip`);
-      await games.purgeExpired();
-    } finally {
-      await db.execute(sql`reset role`);
-      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
-      write.mockRestore();
-    }
-    expect(
-      out
-        .trimEnd()
-        .split("\n")
-        .map((l) => JSON.parse(l)),
-    ).toEqual([{ module: "games", op: "vacuum", code: "VACUUM_SKIPPED" }]);
-  });
+  // PGlite only: SET ROLE holds for one connection, and postgres.js pools several.
+  it.skipIf(onPostgres)(
+    "FR-13, AD-9: a purge VACUUM that skips the tables (run by a role that does not own them) logs one VACUUM_SKIPPED line",
+    async () => {
+      const db = await getDb();
+      await db.execute(sql`create role vacuum_skip`);
+      // Not ALL, which includes MAINTAIN (the right to VACUUM) since Postgres 17.
+      await db.execute(
+        sql`grant select, insert, update, delete on all tables in schema public to vacuum_skip`,
+      );
+      const write = vi
+        .spyOn(process.stderr, "write")
+        .mockImplementation(() => true);
+      let out;
+      try {
+        await db.execute(sql`set role vacuum_skip`);
+        await games.purgeExpired();
+      } finally {
+        await db.execute(sql`reset role`);
+        out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+        write.mockRestore();
+      }
+      expect(
+        out
+          .trimEnd()
+          .split("\n")
+          .map((l) => JSON.parse(l)),
+      ).toEqual([{ module: "games", op: "vacuum", code: "VACUUM_SKIPPED" }]);
+    },
+  );
 });
 
 describe("session purge", () => {

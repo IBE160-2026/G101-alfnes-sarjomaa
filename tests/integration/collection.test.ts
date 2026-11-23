@@ -43,6 +43,7 @@ import {
   run,
   runAfterTasks,
 } from "./next-mocks";
+import { onPostgres } from "./driver";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -1348,39 +1349,45 @@ describe("close", () => {
     expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
   });
 
-  it("FR-13, AD-9: a VACUUM that skips the tables (run by a role that does not own them) still closes, and logs one VACUUM_SKIPPED line", async () => {
-    const { gameId, ids, tokens } = await collectingGame(
-      "Vakuum hoppes over",
-      3,
-    );
-    for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
-    const db = await getDb();
-    await db.execute(sql`create role vacuum_skip`);
-    // Not ALL, which includes MAINTAIN (the right to VACUUM) since Postgres 17.
-    await db.execute(
-      sql`grant select, insert, update, delete on all tables in schema public to vacuum_skip`,
-    );
-    const write = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
-    let result, out;
-    try {
-      await db.execute(sql`set role vacuum_skip`);
-      result = await closeCollection({ gameId });
-    } finally {
-      await db.execute(sql`reset role`);
-      out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
-      write.mockRestore();
-    }
-    expect(result).toEqual({ ok: true });
-    expect(
-      out
-        .trimEnd()
-        .split("\n")
-        .map((l) => JSON.parse(l)),
-    ).toEqual([{ module: "collection", op: "vacuum", code: "VACUUM_SKIPPED" }]);
-    expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
-  });
+  // PGlite only: SET ROLE holds for one connection, and postgres.js pools several.
+  it.skipIf(onPostgres)(
+    "FR-13, AD-9: a VACUUM that skips the tables (run by a role that does not own them) still closes, and logs one VACUUM_SKIPPED line",
+    async () => {
+      const { gameId, ids, tokens } = await collectingGame(
+        "Vakuum hoppes over",
+        3,
+      );
+      for (let k = 0; k < 3; k++) await send(gameId, tokens[k], setOf(ids, k));
+      const db = await getDb();
+      await db.execute(sql`create role vacuum_skip`);
+      // Not ALL, which includes MAINTAIN (the right to VACUUM) since Postgres 17.
+      await db.execute(
+        sql`grant select, insert, update, delete on all tables in schema public to vacuum_skip`,
+      );
+      const write = vi
+        .spyOn(process.stderr, "write")
+        .mockImplementation(() => true);
+      let result, out;
+      try {
+        await db.execute(sql`set role vacuum_skip`);
+        result = await closeCollection({ gameId });
+      } finally {
+        await db.execute(sql`reset role`);
+        out = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+        write.mockRestore();
+      }
+      expect(result).toEqual({ ok: true });
+      expect(
+        out
+          .trimEnd()
+          .split("\n")
+          .map((l) => JSON.parse(l)),
+      ).toEqual([
+        { module: "collection", op: "vacuum", code: "VACUUM_SKIPPED" },
+      ]);
+      expect((await snapshot(gameId, tokens, ids)).game.state).toBe("grouping");
+    },
+  );
 
   it("FR-10, FR-9: after close every former link, one revoked before close included, is closed in openInviteLink, linkStatus and the shell, and a late submit is COLLECTION_CLOSED with no row", async () => {
     const { gameId, ids, tokens } = await collectingGame("Etter stenging", 5);
@@ -1593,30 +1600,34 @@ describe("close", () => {
     }
   });
 
-  // shortcut: PGlite runs one transaction at a time, so the race tests above pass even without the row lock; this pins the lock's SQL until Story 7.3's real-Postgres CI job runs the races for real.
-  it("FR-10, FR-9, AD-9: close, submit and revoke each lock the Game row with a select that ends in for update", async () => {
-    const { gameId, ids, tokens, links } = await collectingGame("Låsen", 4);
-    const lockSelects = async (run: () => Promise<unknown>) => {
-      const prepare = vi.spyOn(PgliteSession.prototype, "prepareQuery");
-      try {
-        await run();
-        return prepare.mock.calls
-          .map(([query]) => query.sql)
-          .filter((q) => /^select .* from "game" where /s.test(q));
-      } finally {
-        prepare.mockRestore();
-      }
-    };
-    const LOCK = expect.stringMatching(/ for update$/);
-    for (const k of [0, 1, 2])
+  // PGlite runs one transaction at a time, so there the race tests above pass even without
+  // the row lock; this pins the lock's SQL, and the CI Postgres job runs the races for real.
+  it.skipIf(onPostgres)(
+    "FR-10, FR-9, AD-9: close, submit and revoke each lock the Game row with a select that ends in for update",
+    async () => {
+      const { gameId, ids, tokens, links } = await collectingGame("Låsen", 4);
+      const lockSelects = async (run: () => Promise<unknown>) => {
+        const prepare = vi.spyOn(PgliteSession.prototype, "prepareQuery");
+        try {
+          await run();
+          return prepare.mock.calls
+            .map(([query]) => query.sql)
+            .filter((q) => /^select .* from "game" where /s.test(q));
+        } finally {
+          prepare.mockRestore();
+        }
+      };
+      const LOCK = expect.stringMatching(/ for update$/);
+      for (const k of [0, 1, 2])
+        expect(
+          await lockSelects(() => send(gameId, tokens[k], setOf(ids, k))),
+        ).toContainEqual(LOCK);
       expect(
-        await lockSelects(() => send(gameId, tokens[k], setOf(ids, k))),
+        await lockSelects(() => revokeInviteLink({ gameId, link: links[3] })),
       ).toContainEqual(LOCK);
-    expect(
-      await lockSelects(() => revokeInviteLink({ gameId, link: links[3] })),
-    ).toContainEqual(LOCK);
-    expect(await lockSelects(() => closeCollection({ gameId }))).toContainEqual(
-      LOCK,
-    );
-  });
+      expect(
+        await lockSelects(() => closeCollection({ gameId })),
+      ).toContainEqual(LOCK);
+    },
+  );
 });

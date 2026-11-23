@@ -305,6 +305,10 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Fixtures.** Fixture files are JSON arrays: `data/rulings/demo.json` and `data/rulings/protoqa-dev.json`. They are written only by `npm run judge:record`, which needs a live key.
   - **In the DB.** A Game's stored ruling is its materialised Groups plus `grouping_result(question_id, source: judge | replay | fallback, prompt_version, normalize_version, model_id, judge_calls, uncovered_items, fell_back, fallback_reason)`.
 - *Amended in Story 4.4:* `npm run judge:record <input.json> <output.json>` reads a JSON array of `{ question, answers }`, makes one partition per entry (up to two requests with the retry) over its sorted distinct non-empty normalised answers, and writes the rulings with the result's `model` and `promptVersion`. It refuses before any call without `OPENROUTER_API_KEY` or for an output path outside `.data/` other than the two fixtures, and a `JudgeError` writes nothing. `npm run judge:smoke` makes one live call on a fixed synthetic Question and prints model, latency, calls, usage and the groups; without a key it prints `skipped: no OPENROUTER_API_KEY` and exits 0. Neither is part of the test scripts or CI.
+- *Amended in Story 7.1:* `data/rulings/demo.json` is hand-written, since there was no live key when the demo was built. It has the recorder's exact shape, with `model` and `promptVersion` both `"hand-written"` so nothing claims a model made it. `npm run judge:record -- <input.json> data/rulings/demo.json` (input: `[{ question, answers }]` from `src/server/demo.ts`), then `npx prettier --write data/rulings/demo.json`, may replace it; `demo-replay.test.ts` then checks the recorded partition still covers every item.
+- *Amended after the live recording (2026-11-23):* `data/rulings/demo.json` was recorded live with `judge:record`, so its rulings carry `model: "deepseek/deepseek-v4.1-flash"` and `promptVersion: "1"`, not `"hand-written"`. `demo-replay.test.ts` asserts that model and pins the full partition, so a new recording means updating the test.
+- *Amended in Story 7.2:* `data/rulings/protoqa-dev.json` is committed as a marked placeholder, since there was no live key when the evaluation was built. It has the recorder's exact shape, one ruling per ProtoQA Question over the same items `judge:eval` builds, with every item its own cluster, `promptVersion: "placeholder"` and `model: "placeholder: every item alone (no Judge)"`. Its figure is the no-Judge baseline (the FR-17 fallback). `npm run judge:eval -- --live` replaces it (or `judge:record` with an input built from `parseLabelled`'s items, never from all raw answers, since replay would ignore the extra items and the figure would silently come from a different Judge input), then `npx prettier --write data/rulings/protoqa-dev.json`, and the pinned figures and version strings in `judge-eval.test.ts` are updated. Replay also loads it, so it ships with the other rulings.
+- *Amended in Story 7.2, after the live recording (2026-11-23):* `judge:eval --live` records every Question it can. A Question whose call fails (`JudgeError`) is stored as one Group per item, with `promptVersion` the current one and `model: "fallback: <reason>"`, so the offline replay reproduces the figure the app would give (FR-17) and the `Model` line names the fallback. Only when every Question fails is nothing written. The calls a failed Question made count in the live calls per Question. The version warning ignores `fallback:` models.
 
 ### AD-15 — Review closes with a Board snapshot, and play reads only the snapshot
 
@@ -373,6 +377,10 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   4. Start `next dev` on `PORT` with `DATABASE_URL=pglite://.data/demo`, `JUDGE_PROVIDER=replay`, `DEMO_MODE=1` and a matching `APP_BASE_URL`.
 
   The rulings for the demo Answers are in `data/rulings/demo.json`, so close takes the normal Grouping path. Answers added before close become their own Groups. No tracked file holds text derived from `.idea/`, including fixtures, few-shot examples, tests, rulings and `prompting/`.
+- *Amended in Story 7.1:*
+  - **Seeding.** `auth.register` sets a cookie, so it needs a request. `auth.createHost(input)` validates with `registrationSchema`, hashes and inserts the Host with no session or cookie. The demo Game, its three Questions, six Answer sets and the seed itself live in `src/server/demo.ts` (`seed()`, and `seedAndClose()` for the CLI, which releases the PGlite directory before `next dev` opens it), shared by the CLI and `demo-replay.test.ts`. Eight links are issued and six answered.
+  - **Command.** `npm run demo` adds `--tsconfig tsconfig.cli.json` to the AD-21 CLI form. Under `react-server` React has no `createContext`, so plain Node cannot load `next/navigation`'s client build, which `src/server/boundary.ts` and `auth` import; `tsconfig.cli.json` maps it to Next's `navigation.react-server` build, as Next's own bundler does for server code. `next dev` is spawned as `process.execPath` plus Next's bin with `--port` from the parsed `PORT`, with SIGINT and SIGTERM forwarded. Only the fixed path `.data/demo` is deleted.
+  - **Surfaces.** `/` (now rendered per request) and `/logg-inn` show the login in an info Notice when `DEMO_MODE=1`, passed from the server page, never imported by a client component; the login page adds "Fyll inn demobrukeren". `HostChrome` takes `demo` from the spill layout and the root 404 page and shows the band inside the `<header>` landmark, below the bar, so it hides with the header (`data-host-chrome`) under the play stage.
 
 ### AD-20 — Judge evaluation command and ProtoQA data
 
@@ -385,6 +393,15 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Output.** B-cubed precision, recall and F1 (`src/lib/bcubed.ts`), Judge calls per Question, the prompt version and the model ID.
   - **Local data.** `--file <path>` scores a local labelled set (SM-4) and prints aggregates only. `judge:record -- <input.json> <output.json>` (AD-14, amended in Story 4.4) writes only under `.data/`, except for the two fixtures `data/rulings/demo.json` and `data/rulings/protoqa-dev.json`.
   - **Licensing.** `data/protoqa/ATTRIBUTION.md` gives the credit and license, states the changes made, and covers `protoqa-dev.json`. Scraped and train files are never committed.
+- *Amended in Story 7.2:*
+  - **Modules.** `src/lib/bcubed.ts` holds the pure weighted B-cubed. `src/server/judge/eval.ts` holds `parseLabelled(jsonl)` (zod-validated ProtoQA rows to `{ question, items, weights, gold }`) and `evaluate(questions, judge)`. `index.ts` exports `getReplayJudge()` (replay over `data/rulings`), so the CLI still imports no provider (AD-13).
+  - **Items.** Built as `judge:record` builds them (`itemsOf` from `record.ts`: sorted distinct non-empty normalised answers), so a recording from the same input covers every item. Raw answers the annotators left in no cluster have no gold label and are dropped before the Judge sees the Question (285 raw strings, 305 of 5,192 respondent answers in the dev file). A gold-cluster tie goes to the cluster met first in the row's raw answers (the dev file has no ties).
+  - **Scoring.** One micro-average over every respondent answer across Questions: each item is weighted by its respondents, and clusters and Groups are scoped per Question.
+  - **Default run.** Replay only: no key is used and no network call is made, even when `.env` holds a key. A Question with no stored ruling exits 1 naming how many Questions miss one; items a ruling leaves uncovered count as singletons with a warning giving their count. When the rulings' prompt versions or models differ from `PROMPT_VERSION` and `JUDGE_MODEL`, a warning on stderr names both sets. Calls per Question is 0.00 on replay, since stored rulings carry no call count.
+  - **Output.** Aggregates only, in every mode: data label, Question and answer counts, precision, recall and F1 to four decimals, calls per Question, prompt version(s), model(s), whether F1 reaches 0.70, and for ProtoQA that the data is English. Never a Question or an item. The command exits 0 whatever the figure. A bad `--file` line is named by its number, never its content.
+  - **`--live`** refuses without `OPENROUTER_API_KEY` before reading anything, records one partition per Question through `record()` with a live Judge wrapped to count calls, writes `data/rulings/protoqa-dev.json` (a `JudgeError` writes nothing), then replays it and reports the live calls per Question.
+  - **`--file <path>`** refuses without a key before reading anything, then scores the local labelled set (ProtoQA format) with the live Judge and writes nothing. No other option exists; an unknown argument, a positional argument or both options together print the usage line and exit 1.
+- *Amended after the live recording and the Epic 7 review (2026-11-23):* a Question the live Judge fails on (any `JudgeError` except the replay misses `NO_KEY` and `NO_STORED_RULING`) falls back to one Group per item, as FR-17 does in the app, in both live modes. Its calls count. `--live` stores it with `model: "fallback: <reason>"` and writes the file unless every Question failed. `--file` scores it the same way and reports the model as `fallback: <reason>`. Both print "Questions that fell back to one Group per item: N (reasons)." If every Question fails, the run exits 1 and gives no figure.
 
 ### AD-21 — Configuration through environment variables only
 
@@ -394,7 +411,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Reading.** The app reads only the variables below, through `src/server/env.ts` (zod-validated).
   - **Template.** `.env.example` lists every variable with a safe default or an empty value. A test checks that its keys equal those in `env.ts`.
   - **Git.** `.env*` files (except `.env.example`), `.data/`, `.next/` and `node_modules/` are gitignored.
-  - **CLI.** `src/cli` runs as `tsx --conditions=react-server --env-file-if-exists=.env.local`. *Amended in Story 4.4:* the `judge:*` scripts also read `.env` first (`--env-file-if-exists=.env --env-file-if-exists=.env.local`), and `no-console` is off in `src/cli`.
+  - **CLI.** `src/cli` runs as `tsx --conditions=react-server --env-file-if-exists=.env.local`. *Amended in Story 4.4:* the `judge:*` scripts also read `.env` first (`--env-file-if-exists=.env --env-file-if-exists=.env.local`), and `no-console` is off in `src/cli`. *Amended in Story 7.3:* `db:dump` and `seed:sizing` load no env file on purpose, so a database URL in `.env.local` can never be dumped or seeded by mistake.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -442,6 +459,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
     - a demo smoke test: start `npm run demo` in the background, poll `/api/health`, then stop it
   - **CI Postgres job.** A second job runs `tests/integration` against a Postgres service container.
   - **`server-only`** is aliased to an empty module in Vitest.
+  - *Amended in Story 7.1:* the 3101 server is `npm run demo` (same port, same `dev.log` capture) instead of `npm run dev`, since Next 16 locks the dist dir per `next dev` and `demo.spec.ts` needs the demo Game. `server-output.spec.ts` keeps its guarantee there, since the demo is `next dev`, and still registers its own Host. An e2e run recreates the working copy's `.data/demo`. The CI demo smoke runs last, after the e2e run, for the same lock, and fails with the log after 120 s.
 
 ### AD-23 — Retention purge
 
@@ -450,7 +468,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 - **Rule:**
   - **Cascade.** Every child table references `game` with `ON DELETE CASCADE`.
   - **What is purged.** `games.purgeExpired()` deletes Games 30 days after `played_at`, and Games never played 90 days after `updated_at`. `updated_at` reflects Host activity (AD-4).
-  - **When it runs.** At most once an hour per process (the marker is in memory on `globalThis`, and the delete is idempotent). It is triggered from Host requests and from `GET /api/purge`. On the pilot, a daily Vercel Cron calls `/api/purge` with `CRON_SECRET`.
+  - **When it runs.** At most once an hour per process (the marker is in memory on `globalThis`, and the delete is idempotent). It is triggered from Host requests and from `GET /api/purge`. The pilot is meant to add a daily Vercel Cron that calls `/api/purge` with `CRON_SECRET`, but it does not run one yet (see the Story 7.5 bullet in AD-24).
   - **Failure.** A purge failure is caught and never fails the request that triggered it.
   - **Timestamps.** Game-level timestamps (`created_at`, `updated_at`, `played_at`, `grouping_lease_until`) are allowed. Answer-level timestamps are not (AD-10).
 
@@ -475,9 +493,10 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
 
 The pilot is Vercel Hobby (300 s per function with fluid compute), with production from `main` only. *Amended 2026-11-23 (group decision):*
 
-- **Open registration.** `REGISTRATION_CODE` is not set, so anyone with the address can create a Host account. `CRON_SECRET` stays set for the daily purge (AD-23).
+- **Open registration.** `REGISTRATION_CODE` is not set, so anyone with the address can create a Host account.
 - **Previews on.** Preview deployments set `DATABASE_URL=pglite:///tmp/toppsvar` and no `OPENROUTER_API_KEY`. They never reach the production database or the Judge, and their data lasts only as long as the function instance.
 - **Production.** Neon Postgres in Frankfurt (EU) and an OpenRouter key with a USD 0.10 credit limit, which is the cost cap. When the credit is used up, OpenRouter refuses the request, the Judge reports `ERROR`, and the Question starts with one Group per distinct normalised Answer (FR-17).
+- *Amended 2026-11-23 in Story 7.5:* `vercel.json` pins the functions to `fra1`, next to the database. `CRON_SECRET` and the daily Cron are not set on the pilot yet: Production has no `CRON_SECRET`, so `/api/purge` answers 404 `disabled`, and `vercel.json` has no `crons` entry. Until the group adds both, the purge on the pilot runs only from Host requests (AD-23). If they are still missing at the Stage 1 freeze, the scheduled expiry slips (PRD §6.5). The steps are in the "Pilot" section of `tests/manual/checklist.md`.
 
 There are no backups beyond Neon's short history, and the pilot database is deleted when the course ends. Any Node host running `next start` with a Postgres URL is equivalent. The README's local path never mentions a host.
 
@@ -495,7 +514,7 @@ There are no backups beyond Neon's short history, and the pilot database is dele
 | Logging | Only through `src/server/log.ts` (ESLint `no-console` elsewhere). It accepts `{ module, op, code, sqlstate }`, never request objects, arguments or `error.message`. |
 | Transactions | A multi-row change is one transaction, opened by the entry point. The Judge is never called inside one. |
 | Assets | Fonts come from npm packages or `next/font/local`, never `next/font/google` or a CDN, so builds and tests work offline. Nothing names or imitates the TV show (PRD §6.3). |
-| Scripts | `dev`, `demo`, `build`, `start`, `lint`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `judge:eval`, `judge:record`, `judge:smoke`. README, CI and Playwright use these names only. |
+| Scripts | `dev`, `demo`, `build`, `start`, `lint`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `judge:eval`, `judge:record`, `judge:smoke`, and since Story 7.3 `db:dump` and `seed:sizing`. README, CI and Playwright use these names only. |
 | Style | ESLint flat config (`eslint-config-next`, `typescript-eslint`, `eslint-config-prettier`) and Prettier defaults, over `src`, `tests` and the root config files. Ignored: `_bmad .claude wiki .docs prompting scripts drizzle .idea .next .data .logs`. No commented-out code. |
 | Delivery | The README states the anonymity limits that AD-7 to AD-10, AD-13 and AD-24 name, and the outcome of the PRD §6.5 slip list. One PR per epic. A departure from this spine amends it in the same PR. Details are in `delivery-notes.md`. |
 

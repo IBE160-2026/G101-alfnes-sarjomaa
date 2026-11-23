@@ -5,7 +5,7 @@ import { normalize, NORMALIZE_VERSION } from "@/lib/normalize";
 import type { Judge } from "@/server/judge/core";
 import type { Ruling } from "@/server/judge/providers/replay";
 
-const itemsOf = (answers: string[]) =>
+export const itemsOf = (answers: string[]) =>
   [...new Set(answers.map(normalize).filter(Boolean))].sort();
 
 export const recordInputSchema = z

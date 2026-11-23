@@ -108,6 +108,37 @@ Grensen: selve svarteksten kan avsløre hvem som skrev den.
 
 </details>
 
+## Anonymitet
+
+Ingen kan se hvem som skrev hvilket svar, heller ikke verten. Svarene kan bli sendt til en
+ekstern KI-tjeneste for gruppering. Begge deler står øverst i svarskjemaet.
+
+Spill slettes 30 dager etter at de er spilt, ellers 90 dager etter siste endring. Slettingen
+kjører når en vert åpner spillsidene (høyst én gang i timen), eller fra Cron når `CRON_SECRET`
+er satt. Pilotdatabasen slettes når emnet er over.
+
+<details>
+<summary>Grensene: hvem kan se hva</summary>
+
+1. Verten leser hvert svar slik det er skrevet. Skrivestil anonymiseres ikke.
+2. Før stenging kan den som driver databasen, koble en lenkes hash til svarsettet.
+3. Etter stenging kan databasens skrivelogg, frigjorte sider og leverandørens historikk holde
+   slettede rader en stund.
+4. Mellom stenging og låst brett kan antallet svar per spørsmål koble en persons svar på tvers
+   av spørsmål. Nøkler og rangering slettes når brettet låses.
+5. Med live gruppering sendes svartekstene til modell-leverandøren.
+6. Pilotens tilgangslogger lagrer IP-adresser og tidspunkt, aldri lenkens token.
+7. Minstekravet på tre svarsett beskytter mot en nysgjerrig vert, ikke mot en som svarer selv
+   gjennom lenker hen beholder.
+8. Svarene kan bare leses på enheten som sendte dem. Endrer du fra en annen enhet, starter du
+   på nytt.
+9. Et usendt utkast ligger i nettleseren på deltakerens enhet. Andre som bruker enheten, kan
+   lese det.
+
+Bakgrunn: [endringsforslaget fra 23. november](.docs/planning-artifacts/sprint-change-proposal-2026-11-23.md).
+
+</details>
+
 ## Medlemmer
 
 - Sondre Alfnes
@@ -134,55 +165,110 @@ implementering. Rammeverket ligger i `_bmad/`, skillene i `.claude/skills/`. `po
 på ved koding: minste endring som løser oppgaven, uten å kutte krav, tester eller sikkerhet.
 Promptene arkiveres i [`prompting/`](prompting/README.md).
 
+## Status
+
+Per 23. november. Trinn 1 fryses 1. desember.
+
+- **Trinn 1 er ikke godkjent ennå (SM-1).** Testene og [sporingen](tests/TRACE.md) er grønne. De
+  [manuelle sjekkene](tests/manual/checklist.md) og
+  [anonymitetsrevisjonen](tests/manual/anonymity-audit.md) gjenstår.
+- **Ingenting er kuttet, og ingenting har glidd.** Av glidelista i PRD §6.5 kjører piloten (uten
+  Vercel Cron), og kjennelsene er tatt opp live på nytt. Målingen på ekte norske svar (SM-4) er
+  ikke kjørt. Det som ikke er ferdig ved frysen, flyttes til trinn 2.
+- **Trinn 2 venter** til trinn 1 er godkjent: ferdige spørsmålssett (FR-33), egen rekkefølge på
+  brettet (FR-22), hjelp til gjetninger (FR-28), strikes og steals (FR-29).
+- **Dommeren mot ProtoQA (SM-2): B-cubed F1 0.6849**, under målet på 0.70. Spørsmål med mange
+  ulike svar faller tilbake til én gruppe per svar, og verten slår sammen i gjennomgangen.
+  ProtoQA er engelsk. `npm run judge:eval` gjentar tallet uten nett.
+
+<details>
+<summary>SM-2: alle versjoner som er prøvd</summary>
+
+Promptversjon 1 og `deepseek/deepseek-v4.1-flash`, 52 spørsmål.
+
+| Resonnering | F1 | Presisjon | Recall | Kall per spørsmål | Falt tilbake |
+|---|---|---|---|---|---|
+| `none`, lagret | **0.6849** | 0.9809 | 0.5261 | 1.40 | 15, `INVALID_OUTPUT` |
+| `none`, første kjøring | 0.6739 | – | – | – | 14, `INVALID_OUTPUT` |
+| `medium` | 0.6545 | 0.9911 | 0.4886 | 1.04 | 25, `TIMEOUT` |
+| `high` | 0.6304 | 0.9979 | 0.4607 | 1.00 | 33, `TIMEOUT` |
+
+Uten resonnering teller modellen feil fra rundt 40 ulike svar. Med resonnering går store spørsmål
+over tidsgrensen på 30 s. Se [historie 7.2](.docs/implementation-artifacts/spec-7-2-judge-evaluation-against-protoqa.md).
+
+</details>
+
 ## Utvikling
 
-Krever Node.js 22.13 eller nyere (testet på 22 og 26) og git. Ingen database, nøkkel eller
-konto: appen bruker innebygd PGlite i `.data/local`.
+Krever Node.js 22.13 eller nyere (testet på 22 og 26) og git. Ingen database, nøkkel eller konto.
 
 ```bash
+git clone https://github.com/IBE160-2026/G101-alfnes-sarjomaa.git
+cd G101-alfnes-sarjomaa
 npm install
-npm run dev                 # http://localhost:3000, helsesjekk på /api/health
+npm run demo                # skriver ut innloggingen
 ```
 
-Variablene står i [`.env.example`](.env.example). Kopier den til `.env.local` for å endre noe.
+Åpne <http://localhost:3000/logg-inn> og logg inn med `demo@toppsvar.test` og `demo-passord`.
+Demospillet er oppdiktet og har seks svarsett. Steng innsamlingen, så grupperer dommeren fra
+lagrede avgjørelser. `.data/demo` lages på nytt ved hver start. `npm run dev` starter tomt i
+`.data/local`.
 
-**Uten nøkkel** bruker dommeren lagrede kjennelser i `data/rulings/`. Mangler en kjennelse, blir
-hvert ulike svar en egen gruppe (`NO_KEY`), og verten slår sammen for hånd. Så lenge mappa er tom,
-er «Grupper foreslått 0» etter stenging forventet.
+**Appen kjører uten noen nøkkel.** Variablene står i [`.env.example`](.env.example). Kopier den
+til `.env.local` for å endre noe.
 
-**Med nøkkel** (`OPENROUTER_API_KEY` i `.env` eller `.env.local`) grupperer dommeren live, opptil
-minst 120 ulike svar per spørsmål. Fra 180 faller den tilbake til manuell gruppering
+<details>
+<summary>Miljøvariablene</summary>
+
+| Variabel | Standard | Hva den gjør |
+|---|---|---|
+| `DATABASE_URL` | `pglite://.data/local` | `pglite://<mappe>`, `pglite://:memory:` eller `postgres://…` |
+| `PORT` | `3000` | Porten appen lytter på |
+| `APP_BASE_URL` | `http://localhost:<PORT>` | Adressen i lenkene. `https` slår på sikre informasjonskapsler |
+| `OPENROUTER_API_KEY` | tom | Slår på live gruppering gjennom OpenRouter |
+| `JUDGE_PROVIDER` | `openrouter` med nøkkel, ellers `replay` | `openrouter`, `replay` eller `mock` |
+| `JUDGE_MODEL` | `deepseek/deepseek-v4.1-flash` | Modellen dommeren bruker live |
+| `DEMO_MODE` | tom | `1` viser demoinnloggingen og demobåndet |
+| `REGISTRATION_CODE` | tom | Krever denne koden ved registrering |
+| `CRON_SECRET` | tom | Slår på `GET /api/purge` med denne hemmeligheten |
+
+`npm run demo` setter selv `DATABASE_URL`, `JUDGE_PROVIDER`, `DEMO_MODE` og `APP_BASE_URL`.
+
+</details>
+
+**Uten nøkkel** bruker dommeren lagrede avgjørelser i `data/rulings/`. I egne spill blir hvert
+ulike svar en egen gruppe (`NO_KEY`), og verten slår sammen for hånd.
+
+**Med nøkkel** (`OPENROUTER_API_KEY` i `.env` eller `.env.local`) grupperer dommeren live
 ([målinger](.docs/planning-artifacts/architecture/architecture-Toppsvar-2026-11-21/delivery-notes.md)).
+En nøkkel eksportert i skallet vinner over `.env` i nøkkelskriptene (Nodes `--env-file`
+overstyrer ikke), så sjekk `echo $OPENROUTER_API_KEY` først.
 
 <details>
 <summary>Skript som bruker nøkkelen (aldri i testene eller CI)</summary>
 
 ```bash
 npm run judge:smoke         # ett live kall: modell, ventetid, tokens og grupper; hopper over uten nøkkel
-npm run judge:record -- inn.json .data/rulings/ut.json   # tar opp kjennelser (AD-14); bare under .data/ eller data/rulings/demo.json og protoqa-dev.json
+npm run judge:record -- inn.json .data/rulings/ut.json   # tar opp avgjørelser (AD-14); bare under .data/ eller data/rulings/demo.json og protoqa-dev.json
 ```
 
 </details>
 
-Testene trenger verken nøkkel eller nettverk. CI kjører dem på Node 22 og 26.
-
-<details>
-<summary>Kommandoene CI kjører</summary>
+Testene trenger verken nøkkel eller nettverk:
 
 ```bash
-npm run lint                # ESLint, også lagreglene mellom src/app, src/server og src/lib
-npm run format:check        # Prettier (npm run format retter)
-npm run typecheck           # next typegen + tsc
-npx drizzle-kit check       # migrasjonene i drizzle/ henger sammen
-npm test                    # Vitest: enhets- og integrasjonstester
+npm test                          # Vitest: enhets- og integrasjonstester
 npx playwright install chromium   # én gang
-npm run test:e2e            # Playwright mot next build && next start
+npm run test:e2e                  # Playwright, på port 3100 og 3101
+npm run judge:eval                # dommeren mot ProtoQA, fra lagrede avgjørelser
 ```
 
-Stopp `npm run dev` først: e2e starter sin egen `next dev`, og Next tillater bare én per repo.
-Feilloggen er `dev.log` i en ny `toppsvar-e2e-*`-mappe under `$TMPDIR` (macOS) eller `/tmp` (Linux).
+Stopp `npm run dev` og `npm run demo` før e2e: Next tillater bare én `next dev` per repo.
 
-</details>
+CI kjører lint, format, typesjekk, migrasjonssjekk, testene, `judge:eval`, e2e og en
+demosjekk på Node 22 og 26 uten nøkkel, og integrasjonstestene mot Postgres 17 i en egen jobb
+(se [`ci.yml`](.github/workflows/ci.yml)). Feilloggen fra e2e er `dev.log` i en
+`toppsvar-e2e-*`-mappe under `$TMPDIR` (macOS) eller `/tmp` (Linux).
 
 <details>
 <summary>Database og migrasjoner</summary>
@@ -203,3 +289,36 @@ beslutningslogg.
 ./scripts/sync-brief.sh     # regenererer product-brief.md og PRD.md
 ./scripts/scan-cohort.sh    # ser hva andre grupper i emnet har levert
 ```
+
+<details>
+<summary>Mappene</summary>
+
+| Mappe | Innhold |
+|---|---|
+| `src/app`, `src/components` | Sidene, rutene og komponentene |
+| `src/server` | Moduler med databasetilgang, og dommeren |
+| `src/lib` | Ren logikk og grenser, delt av resten |
+| `src/cli` | Skriptene bak `demo`, `seed:sizing`, `judge:*` og `db:*` |
+| `tests/` | Testene, [sporingen](tests/TRACE.md) og [de manuelle sjekkene](tests/manual/checklist.md) |
+| `data/` | ProtoQA-data og lagrede avgjørelser |
+| `drizzle/` | Migrasjonene |
+| `docs-assets/` | Skjermbilder og diagrammer |
+| [`.docs/`](.docs/) | BMAD-artefaktene: brief, PRD, UX, arkitektur, epics og én spesifikasjon per historie |
+| [`wiki/`](wiki/index.md) | Prosjektdokumentasjonen |
+| [`prompting/`](prompting/README.md) | Promptarkivet |
+| `_bmad/`, `.claude/skills/` | BMAD-rammeverket og skillene |
+
+</details>
+
+<details>
+<summary>Innleveringszip</summary>
+
+```bash
+./scripts/make-zip.sh       # G101-alfnes-sarjomaa.zip i rotmappa, fra git archive HEAD
+```
+
+Bare committede filer kommer med, aldri `.env.local`, `.idea/`, `.data/` eller `node_modules/`.
+Skriptet advarer om endringer som ikke er committet. Git-historikken er ikke med i zipen, den
+ligger på <https://github.com/IBE160-2026/G101-alfnes-sarjomaa>.
+
+</details>

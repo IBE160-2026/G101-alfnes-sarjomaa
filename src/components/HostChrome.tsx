@@ -9,9 +9,11 @@ const control =
 
 export function HostChrome({
   signedIn,
+  demo = false,
   children,
 }: {
   signedIn: boolean;
+  demo?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -45,6 +47,15 @@ export function HostChrome({
             </nav>
           )}
         </div>
+        {/* Inside the banner landmark, so landmark navigation reaches it. */}
+        {demo && (
+          <div className="bg-primary-soft">
+            <p className="mx-auto max-w-320 px-4 py-2 text-body-sm sm:px-8">
+              <strong>Demomodus:</strong> alt innhold er oppdiktet, og dommeren
+              bruker lagrede avgjørelser.
+            </p>
+          </div>
+        )}
       </header>
       <main
         id="innhold"

@@ -1,30 +1,118 @@
 # Manual checklist
 
-What the automated tests cannot prove (SM-1). Each row is copied from the Accessibility Floor table in `EXPERIENCE.md`. Run every row before a release and before handing in, on a real phone where the row says so, and note the date, device and result.
+What the automated tests cannot prove (SM-1). The A rows are copied from the Accessibility Floor table in `EXPERIENCE.md`. Run every row once before the Stage 1 freeze (1 December) and again before handing in, on a real phone or TV where the row says so. A person fills in Result and Date: write "pass" or "fail", the device or machine, and for a T row the slowest of five tries. The AI that builds the app fills in no result, except F1, which the group asked it to run and which a person still repeats. A failed row needs a fix, or, only for a slip-list item, a slip stated in the README.
 
-| #   | Check                                                                                                                                                                               | Covers              |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| A1  | Play view on a 1920×1080 window: question, labels, Counts, Team names and Scores measure ≥ 48 px in dev tools; readable from 3 m on a real TV                                       | FR-24               |
-| A2  | Complete the answer form with keyboard only (Tab, Shift+Tab, Enter, Space), including the error summary links                                                                       | NFR-6               |
-| A3  | Complete the answer form with VoiceOver (iOS) or TalkBack: notice, legends, labels, errors and confirmation are read                                                                | NFR-6, FR-14        |
-| A4  | Answer form at 360 px and 320 px, and at 200 % zoom: no horizontal scroll, keyboard never hides the focused field                                                                   | NFR-4, NFR-6        |
-| A6  | Review end to end with keyboard only: merge, move, new Group, rename, discard, undo discard, mark, confirm                                                                          | NFR-6, FR-20, FR-21 |
-| A7  | Play view: no raw Answer, discarded Group or below-limit Group is visible at any point of a full round                                                                              | FR-24               |
-| A8  | Play view, 200-character Question + 8 Groups, and four 14-character Team names of wide letters (e.g. "WWWW…"): everything fits 1080 px with the control bar and every Score visible | FR-24               |
-| A9  | Play view, a 40-character label of wide letters (e.g. "MMMM…Ø") shows in full, wrapped if needed, never truncated                                                                   | FR-24               |
-| A10 | Review, keyboard only: the focus ring is visible on every SelectionBar control                                                                                                      | NFR-6               |
+## How to prepare
+
+Run on the Game named in the "Run on" column.
+
+- **Sizing Game (S).** `npm run seed:sizing` recreates `.data/sizing` with one _collecting_ Game: 15 Questions, 30 links and 30 Answer sets of 1–5 Answers. Question 1 has 200 characters, and a 40-character Answer of wide letters ("MMMM…Ø") tops its Board. It prints the login. Then start the production build on it:
+
+  ```bash
+  npm run build
+  DATABASE_URL=pglite://.data/sizing JUDGE_PROVIDER=replay npm run start
+  ```
+
+  Log in, close the Collection, review every Question, lock the Board and play. With `replay` and no Stored ruling for these Questions, every Question falls back to one Group per distinct Answer and no model is called. Stop the server before running `npm run seed:sizing` again.
+
+- **Demo (D).** `npm run demo` starts the demo Game on `http://localhost:3000` and prints its login.
+- **Own Game (O).** Any Game made through the UI with at least three Answer sets, for the Participant pages and the states the sizing Game does not reach by itself.
+- **Real device.** A1 needs a real TV at 3 m, A3 and A4 a real phone. Note the model and browser.
+
+## Accessibility
+
+| #   | Check                                                                                                                                                                                   | Covers              | Run on   | Result | Date |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------- | ------ | ---- |
+| A1  | Play view on a 1920×1080 window: question, labels, Counts, Team names and Scores measure ≥ 48 px in dev tools; readable from 3 m on a real TV                                           | FR-24               | S, TV    |        |      |
+| A2  | Complete the answer form with keyboard only (Tab, Shift+Tab, Enter, Space), including the error summary links                                                                           | NFR-6               | O        |        |      |
+| A3  | Complete the answer form with VoiceOver (iOS) or TalkBack: notice, legends, labels, errors and confirmation are read                                                                    | NFR-6, FR-14        | O, phone |        |      |
+| A4  | Answer form at 360 px and 320 px, and at 200 % zoom: no horizontal scroll, keyboard never hides the focused field                                                                       | NFR-4, NFR-6        | O, phone |        |      |
+| A5  | Run axe (or Lighthouse accessibility) on landing, log in, Game list, Game page in each state, Review, play view, answer form, closed and unknown pages: no serious or critical findings | NFR-6               | S, D, O  |        |      |
+| A6  | Review end to end with keyboard only: merge, move, new Group, rename, discard, undo discard, mark, confirm                                                                              | NFR-6, FR-20, FR-21 | S        |        |      |
+| A7  | Play view: no raw Answer, discarded Group or below-limit Group is visible at any point of a full round                                                                                  | FR-24               | S        |        |      |
+| A8  | Play view, 200-character Question + 8 Groups, and four 14-character Team names of wide letters (e.g. "WWWW…"): everything fits 1080 px with the control bar and every Score visible     | FR-24               | S (Q1)   |        |      |
+| A9  | Play view, a 40-character label of wide letters (e.g. "MMMM…Ø") shows in full, wrapped if needed, never truncated                                                                       | FR-24               | S (Q1)   |        |      |
+| A10 | Review, keyboard only: the focus ring is visible on every SelectionBar control                                                                                                          | NFR-6               | S        |        |      |
+
+For A5, the axe DevTools browser extension or Chrome's Lighthouse (Accessibility only) is enough. Visit the Game page in all seven states: _draft_ and _collecting_ on an own Game, _grouping_ right after close, then _in review_, _ready_, _playing_ and _played_ on the sizing Game. The closed page is an old link after close, and the unknown page is `/svar/<any uuid>/x`. Note any serious or critical finding with its page.
 
 ## Timing (NFR-5)
 
-Measured by hand on the sizing Game (30 Answer sets, 15 Questions, up to 5 Answers each) in Review, on a laptop against `npm run start`. Note the date, machine and the slowest of five tries.
+Measured by hand on the sizing Game (S) in Review and play, on a laptop against `npm run start` as prepared above. Time each action from the click to the result on screen, five times, and note the slowest try, the date and the machine.
 
-| #   | Check                                                                                                                       | Covers                     |
-| --- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| T1  | Merge two Groups: from the click on "Slå sammen 2 grupper" to the re-sorted list, within one second                         | NFR-5, FR-20               |
-| T2  | Move Answers: from the click on "Flytt" (and on "Ny gruppe") to the refreshed list with focus moved, within one second      | NFR-5, FR-20               |
-| T3  | Rename (Enter to the closed field with the new label), "Forkast fra brettet" and "Angre forkasting": each within one second | NFR-5, FR-20               |
-| T4  | "Marker som gjennomgått": from the click to the next Question with focus on its heading, within one second                  | NFR-5, FR-21               |
-| T5  | "Lås brettet" in the dialog: from the click to the Game page showing "Brettet er låst", within one second                   | NFR-5, FR-21               |
-| T6  | Avslør a tile: from the click (or rank key) to the revealed label and Score, within one second                              | NFR-5, FR-25               |
-| T7  | Bom, Angre, Neste lag and the uten-poeng toggle each show their result within one second                                    | NFR-5, FR-25, FR-26, FR-27 |
-| T8  | "Neste spørsmål" to the next Question, and "Vis sluttstilling" to "Sluttstilling", each within one second                   | NFR-5, FR-27               |
+| #   | Check                                                                                                                       | Covers                     | Run on | Result | Date |
+| --- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------ | ------ | ---- |
+| T1  | Merge two Groups: from the click on "Slå sammen 2 grupper" to the re-sorted list, within one second                         | NFR-5, FR-20               | S      |        |      |
+| T2  | Move Answers: from the click on "Flytt" (and on "Ny gruppe") to the refreshed list with focus moved, within one second      | NFR-5, FR-20               | S      |        |      |
+| T3  | Rename (Enter to the closed field with the new label), "Forkast fra brettet" and "Angre forkasting": each within one second | NFR-5, FR-20               | S      |        |      |
+| T4  | "Marker som gjennomgått": from the click to the next Question with focus on its heading, within one second                  | NFR-5, FR-21               | S      |        |      |
+| T5  | "Lås brettet" in the dialog: from the click to the Game page showing "Brettet er låst", within one second                   | NFR-5, FR-21               | S      |        |      |
+| T6  | Avslør a tile: from the click (or rank key) to the revealed label and Score, within one second                              | NFR-5, FR-25               | S      |        |      |
+| T7  | Bom, Angre, Neste lag and the uten-poeng toggle each show their result within one second                                    | NFR-5, FR-25, FR-26, FR-27 | S      |        |      |
+| T8  | "Neste spørsmål" to the next Question, and "Vis sluttstilling" to "Sluttstilling", each within one second                   | NFR-5, FR-27               | S      |        |      |
+
+**Supporting evidence, not a result.** On 2026-11-23 a Playwright script timed six Host actions on the pilot (Vercel functions in `fra1`, Neon Postgres, one invented Game of 5 Questions and 5 Answer sets): merge 0.82 s, rename 0.29 s, discard 0.31 s, mark reviewed 0.81 to 0.83 s, Board lock 1.18 s including the redirect to the Game page, and saving a Question 0.18 s. See "Pilot measurements" in `.docs/planning-artifacts/architecture/architecture-Toppsvar-2026-11-21/delivery-notes.md`. It was a smaller Game, a scripted run and a hosted database, so it fills no T row. It does show that T5 is the row most likely to miss one second.
+
+## Demo content
+
+Before a branch that changes the demo is merged, and once before the freeze, someone reads `src/server/demo.ts`, `src/lib/demo.ts` and `data/rulings/demo.json`. Note the reviewer, the result and the date.
+
+| #   | Check                                                                                                                                      | Covers      | Run on | Result | Date |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ------ | ------ | ---- |
+| D1  | Every Question, Answer, title and credential in the demo is invented, holds no real person's name, and nothing in it derives from `.idea/` | FR-31, §6.1 | files  |        |      |
+
+## Fresh clone
+
+Story 7.4 records the fresh-clone run here.
+
+| #   | Check                                                                                                                                                                                                           | Covers       | Run on        | Result                                                                        | Date       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------- | ----------------------------------------------------------------------------- | ---------- |
+| F1  | On a machine without the repository and with no key set: `git clone`, `npm install`, `npm run demo` and the printed login reach the demo Game; `npm run test`, `npm run test:e2e` and `npm run judge:eval` pass | NFR-1, FR-30 | fresh machine | pass, AI run on the developer's Mac; a person's run is still open (see below) | 2026-11-23 |
+
+**F1 run of 2026-11-23 (Story 7.4).** Run by the AI, not a group member, so it does not replace a person's run on another machine. Commit `4b353f1` was cloned with `git clone` into a scratch directory outside the repository, with no `.env`, `.data` or `.next`, on macOS with Node 26.12.1 and npm 11.20.0, and with `OPENROUTER_API_KEY` removed from the environment. The npm cache and the Playwright browser were already on the machine, so the times are faster than on a new machine. Clone and `npm install`: 3 s. `PORT=3457 npm run demo` answered `/api/health` 3 s later and printed the login; a Playwright script logged in with it in 2.5 s and reached "Mine spill" and the demo Game ("6 av 8 svar mottatt"). `npm test`: 805 passed, 1 skipped, 13 s. `npx playwright install chromium`: already installed. `npm run test:e2e`: 99 passed, 74 s. `npm run judge:eval`: F1 0.6849, 1 s. In all, 125 s from clone to the last test. One finding: `npm install` with npm 11.20.0 added `"peer": true` to four optional entries in `package-lock.json`, a metadata change only; `npm ci`, which CI uses, leaves the lockfile alone.
+
+**Hand-in zip, 2026-11-23 (Story 7.4, AC4).** `./scripts/make-zip.sh` in that clone gave `G101-alfnes-sarjomaa.zip`, 8.7 MB with 1,269 entries, every one under `G101-alfnes-sarjomaa/`. It holds no `.env` other than `.env.example`, no `.env.local`, `.idea/`, `.data/`, `.next/` or `node_modules/`. A search for the first names of the private persons in the `.idea/` source material matched only unrelated public people (font designers in a font licence list and a well-known author) in vendored third-party skill data under `.claude/skills/`, never the private persons and never the group's own files. A scan of tracked files for key and password patterns found no real secret; the only credentials are the invented demo login, test fakes and a local probe password in the Story 7.3 spec.
+
+## Pilot (NFR-2, Story 7.5)
+
+The pilot is optional and the first item on the cut list. P1 to P3 are the three acceptance checks of Story 7.5, read through the 2026-11-23 amendment in AD-24 of the architecture spine: registration is open (no `REGISTRATION_CODE`) and previews are on with PGlite and no key. A person fills in Result and Date. If the pilot is cut (moved to Stage 2 under PRD §6.5, and named so in the README with its reason), these rows leave the SM-1 count with it.
+
+| #   | Check                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Covers | Run on        | Result | Date |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ | ------------- | ------ | ---- |
+| P1  | AC1: production deploys from `main` only on Vercel Hobby (Node runtime), built with no code difference from the local build, with Neon in the EU on a pooled `DATABASE_URL`; Preview's `DATABASE_URL` is `pglite:///tmp/toppsvar` with no key (re-enter it if unsure, since a sensitive value cannot be read back); `npm run db:migrate` has been run as an explicit step and who ran it is noted here; `CRON_SECRET` is set and a daily Cron calls `/api/purge` with it | NFR-2  | pilot         |        |      |
+| P2  | AC2: a group member runs a Game on the pilot with Invite links opened on real phones, through to final Scores: every step works and Grouping finishes within 300 s; the Result notes whether Grouping ran live or fell back (a fallback passes the time limit trivially)                                                                                                                                                                                                 | NFR-2  | pilot, phones |        |      |
+| P3  | AC3: the README's local path ("Utvikling") never names a host, and its "Status" section says whether the pilot is live or cut, with the reason for a cut                                                                                                                                                                                                                                                                                                                 | NFR-1  | README        |        |      |
+
+**Supporting evidence, not a result.** Read-only checks run by the AI on 2026-11-23, with no change to the project. The Vercel project is `toppsvar`, connected to the Git repository `IBE160-2026/G101-alfnes-sarjomaa`, with `main` as production branch, framework Next.js and Node.js 26.x. Production has `DATABASE_URL` (from the Neon integration, which also sets a separate `DATABASE_URL_UNPOOLED` and its own variables), `OPENROUTER_API_KEY` and `APP_BASE_URL`; it has no `REGISTRATION_CODE`, which matches open registration, and no `CRON_SECRET`. Preview has only `DATABASE_URL`, marked sensitive, so its value cannot be read back and nobody has confirmed it is `pglite:///tmp/toppsvar`; it has no key. Preview deployments answer 302 to Vercel's login, so they are not public. On the pilot address, `/api/health` answers `{"status":"ok"}` (the database is reachable) and every response carries an `x-vercel-id` routed through `fra1`, as `vercel.json` pins it. `/api/purge` answers 404 `{"status":"disabled"}`, which the route returns only when `CRON_SECRET` is unset, and `vercel.json` has no `crons` entry. The tables exist, since a whole round has been played there: the two production runs in "Pilot measurements" in `.docs/planning-artifacts/architecture/architecture-Toppsvar-2026-11-21/delivery-notes.md` (Grouping 18.9 s, then 3.6 s, with no fallback; every play action 3 to 786 ms; Board lock 1.22 s). Those were scripted runs on a laptop, not real phones. **Still open:** `CRON_SECRET` and the Cron entry (P1), Preview's `DATABASE_URL` value (P1), the real-phone round (P2), and a person's note of how the migration was run (P1). Until the Cron exists, the pilot purges only from Host requests (AD-23), and if it is still missing at the freeze, the scheduled expiry slips (PRD §6.5) and the README says so.
+
+**How to migrate the pilot.** `npm run db:migrate` migrates only a `postgres://` or `postgresql://` URL. It reads `.env.local`, but a `DATABASE_URL` already exported in the shell wins over the file, and an unset or mistyped one silently falls back to local PGlite (`.data/local`), so production is never migrated. Neon sets a pooled `DATABASE_URL`, which the app keeps, and a direct `DATABASE_URL_UNPOOLED`: use the value of `DATABASE_URL_UNPOOLED` for the migration run. Read it without echo or shell history, for example `read -rs DATABASE_URL && export DATABASE_URL`, and never write it into `.env.local` or a tracked file. Check that `echo ${DATABASE_URL%%:*}` prints `postgres` or `postgresql`, run `npm run db:migrate`, then close the terminal session. To close P1:
+
+1. Add `CRON_SECRET` (any long random string) to Production in the Vercel project's environment variables.
+2. Add `"crons": [{ "path": "/api/purge", "schedule": "0 3 * * *" }]` to `vercel.json` and merge it to `main`. The Cron registers on the next production deploy, and a variable added after the last deploy is read only by a new one.
+3. Check that an unauthenticated request to `/api/purge` now answers 401 and that the project's Cron Jobs page lists the job. Then press "Run" on the job and check that the function log shows 200 `{"status":"ok"}`, which proves the Cron calls the route with the secret. Write all three, with the date, in the Result cell.
+
+## SM-1 gate
+
+**Status: not passed** (last updated 2026-11-23).
+
+SM-1 counts every testable Stage 1 consequence, except slip-list items the README names as moved to Stage 2. The automated part is `tests/TRACE.md`, checked by `tests/unit/trace.test.ts`, and runs green in CI with no key and no network. SM-1 passes only when every item below is closed: each row above has a Result and Date with "pass" (or a fix and a new pass), and each open trace item is done. Update this list whenever an item closes.
+
+Open items:
+
+- Accessibility rows without a result: A1, A2, A3, A4, A5, A6, A7, A8, A9, A10.
+- Timing rows without a result: T1, T2, T3, T4, T5, T6, T7, T8.
+- Demo content: D1.
+- Fresh clone: F1 was run by the AI on the developer's machine (Story 7.4); a group member still runs it once on a machine without the repository.
+- SM-3 anonymity audit: `tests/manual/anonymity-audit.md` has no recorded run.
+- Pilot: P1, P2 and P3 have no result, and `CRON_SECRET` and the daily Cron are not set in production (see "Pilot"). If the pilot is cut (moved to Stage 2 under PRD §6.5, and named so in the README), these rows leave the count.
+- README: the "Status" section is dated 23 November. Update it at the freeze (1 December) and before hand-in, so it states what slipped.
+
+SM-2 is reported, not gated. The live ProtoQA figure, recorded 2026-11-23 with prompt version 1 and `deepseek/deepseek-v4.1-flash`, is B-cubed F1 0.6849 (precision 0.9809, recall 0.5261), 1.40 calls per Question, with 15 of 52 Questions falling back on `INVALID_OUTPUT`. Reasoning was tried and rejected (see `.docs/implementation-artifacts/spec-7-2-judge-evaluation-against-protoqa.md`). The figure is below 0.70, which does not fail SM-1. The README reports it, with every version tried, in its "Status" section.
+
+The slip list in PRD §6.5 has three items. What is known about each:
+
+- Pilot deployment: live at the pilot URL since 2026-11-23. Story 7.5's three checks are rows P1 to P3, still without a result, and the daily Cron is not set up.
+- `judge:eval --live`, the live regeneration of the rulings: run on 2026-11-23 (Story 7.2).
+- SM-4, the local measurement on real Answers: not run in this repository.
+
+The README's "Status" section states that none has slipped yet, and that SM-4 moves to Stage 2 if it is not run by the freeze.

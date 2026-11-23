@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { closeDb, getDb } from "@/server/db/client";
+import { onPostgres } from "./driver";
 
 const failNext = vi.hoisted(() => ({ value: true }));
 
@@ -19,7 +20,8 @@ vi.mock("@electric-sql/pglite", async (importOriginal) => {
 
 afterAll(closeDb);
 
-describe("getDb after a failed open", () => {
+// Mocks PGlite's constructor, so it says nothing on the CI Postgres job.
+describe.skipIf(onPostgres)("getDb after a failed open", () => {
   it("NFR-1: does not cache the failure, so the next call retries", async () => {
     await expect(getDb()).rejects.toThrow("open failed");
     expect(

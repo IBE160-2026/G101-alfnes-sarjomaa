@@ -3,6 +3,8 @@ import Link from "next/link";
 import { logIn } from "@/app/logg-inn/actions";
 import { AccountForm } from "@/components/AccountForm";
 import { Notice } from "@/components/Notice";
+import { DEMO_HOST } from "@/lib/demo";
+import { env } from "@/server/env";
 
 export const metadata: Metadata = { title: "Logg inn" };
 
@@ -24,7 +26,12 @@ export default async function LoginPage({
           Du ble logget ut etter 14 dager uten bruk. Logg inn igjen.
         </Notice>
       )}
-      <AccountForm mode="login" askCode={false} action={logIn} />
+      <AccountForm
+        mode="login"
+        askCode={false}
+        action={logIn}
+        demo={env.DEMO_MODE ? DEMO_HOST : undefined}
+      />
     </main>
   );
 }

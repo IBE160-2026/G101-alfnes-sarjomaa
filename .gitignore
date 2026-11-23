@@ -62,3 +62,6 @@ Thumbs.db
 
 # Local PGlite databases
 .data/
+
+# Hand-in zip (scripts/make-zip.sh)
+/G101-alfnes-sarjomaa.zip

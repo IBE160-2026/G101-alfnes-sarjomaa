@@ -25,6 +25,7 @@ import {
 import * as play from "@/server/play";
 import * as review from "@/server/review";
 import { cookieJar, run, runAfterTasks } from "./next-mocks";
+import { sqlRows } from "./driver";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -88,7 +89,7 @@ async function foreignKeysUnder(root: string): Promise<ForeignKey[]> {
       ${edge} join fk on c.confrelid = fk.relid where c.contype = 'f'
     )
     select tbl, col, ref, confdeltype from fk`);
-  return (result as unknown as { rows: ForeignKey[] }).rows;
+  return sqlRows<ForeignKey>(result);
 }
 
 const direct = async (root: string) =>
@@ -135,10 +136,7 @@ describe("deleteGame", () => {
         const result = await db.execute(
           sql`select count(*)::int as n from ${sql.identifier(tbl)} where ${sql.identifier(col)} = ${id}`,
         );
-        expect(
-          (result as unknown as { rows: { n: number }[] }).rows[0].n,
-          tbl,
-        ).toBe(0);
+        expect(sqlRows<{ n: number }>(result)[0].n, tbl).toBe(0);
       }
     },
   );
@@ -282,21 +280,18 @@ describe("cascade", () => {
 // Every column in a user schema whose value, cast to text, holds `marker`, as schema.table.column.
 async function columnsHolding(marker: string): Promise<string[]> {
   const db = await getDb();
-  const columns = (
-    (await db.execute(sql`
+  const columns = sqlRows<{ s: string; t: string; c: string }>(
+    await db.execute(sql`
       select table_schema as s, table_name as t, column_name as c
       from information_schema.columns
-      where table_schema not in ('pg_catalog', 'information_schema')`)) as unknown as {
-      rows: { s: string; t: string; c: string }[];
-    }
-  ).rows;
+      where table_schema not in ('pg_catalog', 'information_schema')`),
+  );
   const hits: string[] = [];
   for (const { s, t, c } of columns) {
     const result = await db.execute(
       sql`select count(*)::int as n from ${sql.identifier(s)}.${sql.identifier(t)} where position(${marker} in ${sql.identifier(c)}::text) > 0`,
     );
-    if ((result as unknown as { rows: { n: number }[] }).rows[0].n > 0)
-      hits.push(`${s}.${t}.${c}`);
+    if (sqlRows<{ n: number }>(result)[0].n > 0) hits.push(`${s}.${t}.${c}`);
   }
   return hits;
 }

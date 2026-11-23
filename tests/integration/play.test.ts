@@ -34,6 +34,7 @@ import {
 import * as games from "@/server/games";
 import * as play from "@/server/play";
 import { cookieJar, nextCache, RedirectError } from "./next-mocks";
+import { sqlRows } from "./driver";
 
 vi.mock("next/headers", () =>
   import("./next-mocks").then((m) => m.nextHeaders),
@@ -155,9 +156,7 @@ async function rawSums(gameId: string) {
     where t.game_id = ${gameId}
     group by t.id, t.position
     order by t.position`);
-  return (result as unknown as { rows: { score: number }[] }).rows.map(
-    (r) => r.score,
-  );
+  return sqlRows<{ score: number }>(result).map((r) => r.score);
 }
 
 async function rowsOf(gameId: string) {
@@ -1100,14 +1099,14 @@ describe("play.nextQuestion", () => {
     const next = { gameId: id, position: 3 };
     const start = { gameId: id, teams: ["Lag 1", "Lag 2"] };
     for (const call of [
-      play.reveal(hostId, slot),
-      play.undo(hostId, { gameId: id, boardSlotId: slotIds[0][0] }),
-      play.nextTeam(hostId, { gameId: id }),
-      play.nextQuestion(hostId, next),
-      play.start(hostId, start),
-      play.load(hostId, id),
+      () => play.reveal(hostId, slot),
+      () => play.undo(hostId, { gameId: id, boardSlotId: slotIds[0][0] }),
+      () => play.nextTeam(hostId, { gameId: id }),
+      () => play.nextQuestion(hostId, next),
+      () => play.start(hostId, start),
+      () => play.load(hostId, id),
     ])
-      expect(await codeOf(call)).toBe("WRONG_STATE");
+      expect(await codeOf(call())).toBe("WRONG_STATE");
     for (const result of [
       await revealSlot(slot),
       await undoReveal({ gameId: id, boardSlotId: slotIds[0][0] }),
