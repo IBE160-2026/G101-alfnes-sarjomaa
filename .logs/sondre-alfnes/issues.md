@@ -17,7 +17,7 @@
 - [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): story 5.3–5.5 og review av epic 5; ikke merge epic 5 før 5.5 (løst 2026-11-23: epic 5 merget)
 - [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): epic 6 og epic 7 (løst 2026-11-23: PR #7 og #8 merget)
 - [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): PR-tekster ligger i prompting/fase-4-implementering/pr/; push og åpne i rekkefølge (løst 2026-11-24: alle PR-er merget)
-- [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): dommer-fallback over ~120–180 ulike svar per spørsmål
+- [ ] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): dommer-fallback ved mange ulike svar per spørsmål. Oppdatert 2026-11-24: ProtoQA-målingen viser at modellen teller feil allerede fra rundt 40 ulike svar (15 av 52 spørsmål falt tilbake, F1 0,6849). Resonnering løste tellingen, men ga tidsavbrudd. Mulig neste steg: promptversjon 2 med nummererte svar, bare før frysen 1. des. (SM-2)
 - [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): låser og VACUUM-skip bare testet på PGlite (story 7.3) (løst 2026-11-23: CI-jobben kjører integrasjonstestene mot Postgres)
 - [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): manuelle sjekker A2–A4, A10, T1 (erstattet 2026-11-24 av SM-1-punktet under)
 - [x] 2026-11-23 [epic-1-til-5](996-2026-11-23-01-03-30-epic-1-til-5.md): sjekk caveman-lisens upstream (løst 2026-11-23: godkjent av Sondre)
