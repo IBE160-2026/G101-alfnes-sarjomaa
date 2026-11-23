@@ -15,6 +15,10 @@ test.describe("on the demo server (npm run demo)", () => {
   test("FR-31: the demo login shows on / and /logg-inn, fills in and logs in; every Host page shows the band; closing the demo Game gives Judge Groups from stored rulings with no fallback; the band hides under the play stage", async ({
     page,
   }) => {
+    // Compile the first routes before a page is open: next dev may reload an open page
+    // when it finishes compiling another route.
+    for (const path of ["/", "/logg-inn", "/spill", "/finnes-ikke"])
+      await page.request.get(path, { timeout: 120_000 });
     await page.goto("/");
     await slow(page.getByText(LOGIN)).toBeVisible();
     // Static content, not a status message (NFR-6).
