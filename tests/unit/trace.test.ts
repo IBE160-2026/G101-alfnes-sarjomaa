@@ -31,11 +31,12 @@ for (const line of readFileSync("tests/TRACE.md", "utf8").split("\n")) {
     sections.set(line.slice(3).trim(), (current = []));
   else if (line.startsWith("- ")) current.push(line);
 }
-// A bullet traces when it mentions CI or names a file under tests/ (a test or a manual
-// item) that exists. "Pending" and "Open" bullets never trace.
+// A bullet traces when it says CI runs something or names a file under tests/ (a test or a
+// manual item) that exists. Bullets that start with "Pending" or "Open", or say "not in CI" or
+// "Open until", never trace.
 const traces = (bullet: string) =>
-  !/^- (Pending|Open)\b/.test(bullet) &&
-  (/\bCI\b/.test(bullet) ||
+  !/^- (Pending|Open)\b|not in CI|Open until/.test(bullet) &&
+  (/\bCI runs\b/.test(bullet) ||
     [...bullet.matchAll(/`(tests\/[^`\s]+)`/g)].some(([, path]) =>
       existsSync(path),
     ));
@@ -51,6 +52,16 @@ describe("tests/TRACE.md", () => {
       expect((sections.get(id) ?? []).some(traces)).toBe(true);
     },
   );
+
+  it("SM-1: bullets that say they are not covered never trace", () => {
+    expect(traces("- CI runs `npm run demo`.")).toBe(true);
+    for (const bullet of [
+      "- Timed by hand, not in CI.",
+      "- `tests/manual/anonymity-audit.md`: the audit. Open until it is run.",
+      "- Mentions CI without running anything.",
+    ])
+      expect(traces(bullet), bullet).toBe(false);
+  });
 
   it.each(STORY_NFRS)("SM-1: has a heading for %s", (id) => {
     expect(sections.has(id)).toBe(true);

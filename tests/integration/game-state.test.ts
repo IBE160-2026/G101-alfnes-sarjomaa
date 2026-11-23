@@ -290,7 +290,8 @@ describe("close outside collecting", () => {
 // AC2: every real entry point of every Operation, in every state. "Refused" differs by
 // kind on purpose: Host actions throw WRONG_STATE, Participant link actions show the link
 // as closed (COLLECTION_CLOSED), and Grouping stops without a trace (no grouping_result).
-// Inside a permitted state any other outcome counts; the module tests cover that behaviour.
+// Inside a permitted state any outcome except INTERNAL or a crash counts; the module tests
+// cover that behaviour.
 type Entry = {
   name: string;
   kind: "host" | "participant" | "grouping";
@@ -525,7 +526,8 @@ async function attempt(entry: Entry, state: GameState) {
     .select()
     .from(groupingResult)
     .where(eq(groupingResult.questionId, questionId));
-  return { outcome, refused: results.length === 0 };
+  // The silent stop: it returns, and a crash or INTERNAL is never a refusal.
+  return { outcome, refused: outcome === "ok" && results.length === 0 };
 }
 
 describe("the permitted-operations table against the real operations", () => {
