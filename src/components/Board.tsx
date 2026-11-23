@@ -8,7 +8,7 @@ import {
   revealSlot,
   undoReveal,
 } from "@/app/spill/[id]/actions";
-import { FullscreenKey } from "@/components/FullscreenKey";
+import { FullscreenKey, isShortcut } from "@/components/FullscreenKey";
 import { focusHeading } from "@/components/RouteFocus";
 import { callAction } from "@/components/useFormAction";
 import type { ActionResult, ErrorCode } from "@/lib/errors";
@@ -191,11 +191,7 @@ export function Board({
   // Board. Ignored in a text field and inside the open overlay.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey)
-        return;
-      const target = event.target as HTMLElement;
-      if (target.closest("input, textarea, select, [contenteditable], dialog"))
-        return;
+      if (!isShortcut(event)) return;
       if (event.key === "?") return helpRef.current?.showModal();
       if (event.shiftKey) return;
       const key = event.key.toLowerCase();
@@ -242,12 +238,16 @@ export function Board({
             className="flex"
             style={{ flex: `0 1 ${height}px` }}
           >
-            {slot.revealed && slot.scored ? (
+            {slot.revealed ? (
               <div
                 data-slot={slot.id}
                 data-revealing={slot.id === clicked ? "" : undefined}
                 tabIndex={-1}
-                className="flex flex-1 items-center rounded-md border-2 border-stage-ink bg-stage-ink px-6 text-ink"
+                className={`flex flex-1 items-center rounded-md border-2 px-6 ${
+                  slot.scored
+                    ? "border-stage-ink bg-stage-ink text-ink"
+                    : "border-dashed border-stage-line bg-stage-raised text-stage-ink"
+                }`}
               >
                 <span className="w-14 shrink-0 text-tv-label">
                   {slot.position}
@@ -255,32 +255,21 @@ export function Board({
                 <span className="reveal-label min-w-0 flex-1 break-words text-tv-label leading-[1.05]">
                   {slot.label}
                 </span>
-                <span className="reveal-count ml-6 min-w-24 shrink-0 rounded-full bg-count-badge px-4 py-2 text-center text-tv-count tabular-nums text-stage-ink">
-                  {slot.count}
-                  <span className="sr-only"> poeng</span>
-                </span>
-              </div>
-            ) : slot.revealed ? (
-              <div
-                data-slot={slot.id}
-                data-revealing={slot.id === clicked ? "" : undefined}
-                tabIndex={-1}
-                className="flex flex-1 items-center rounded-md border-2 border-dashed border-stage-line bg-stage-raised px-6 text-stage-ink"
-              >
-                <span className="w-14 shrink-0 text-tv-label">
-                  {slot.position}
-                </span>
-                <span className="reveal-label min-w-0 flex-1 break-words text-tv-label leading-[1.05]">
-                  {slot.label}
-                </span>
-                <span className="reveal-count ml-6 flex shrink-0 items-baseline gap-4">
-                  <span className="text-tv-count tabular-nums text-stage-muted">
+                {slot.scored ? (
+                  <span className="reveal-count ml-6 min-w-24 shrink-0 rounded-full bg-count-badge px-4 py-2 text-center text-tv-count tabular-nums text-stage-ink">
                     {slot.count}
+                    <span className="sr-only"> poeng</span>
                   </span>
-                  <span className="font-sans text-tv-control text-stage-muted">
-                    uten poeng
+                ) : (
+                  <span className="reveal-count ml-6 flex shrink-0 items-baseline gap-4">
+                    <span className="text-tv-count tabular-nums text-stage-muted">
+                      {slot.count}
+                    </span>
+                    <span className="font-sans text-tv-control text-stage-muted">
+                      uten poeng
+                    </span>
                   </span>
-                </span>
+                )}
               </div>
             ) : (
               <button
