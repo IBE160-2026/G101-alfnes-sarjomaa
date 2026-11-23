@@ -819,9 +819,20 @@ test("FR-3, FR-27 (AC2, AC3), UX-DR21, NFR-5, NFR-6: Neste spørsmål by N and �
   const dates = [30, 31].map(
     (days) => `Spillet slettes automatisk ${dateIn(days)}.`,
   );
+  // A tab left on Q3 while this one finishes the Game.
+  const stale = await page.context().newPage();
+  await stale.goto(page.url());
+  await expect(stale.locator("h1")).toHaveText(Q3);
   await next.click();
   await expect(heading).toHaveText("Sluttstilling");
   await expect(heading).toBeFocused();
+  // N there is WRONG_STATE: it refreshes to Sluttstilling with no banner.
+  await stale.keyboard.press("n");
+  await expect(stale.locator("h1")).toHaveText("Sluttstilling");
+  await expect(
+    stale.getByText(/^(Fikk ikke lagret trekket|Mistet forbindelsen)/),
+  ).toHaveCount(0);
+  await stale.close();
   const final = stage
     .getByRole("list", { name: "Sluttstilling" })
     .getByRole("listitem");
