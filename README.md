@@ -14,11 +14,13 @@ vente på at et skjema fylles ut.
 
 ## Slik ser det ut
 
-Skjermbildene er tatt av den faktiske appen med et oppdiktet spill, «Hyttetur 2026», uten
-KI-nøkkel. Spillvisningen på TV-en kommer i epic 6.
+Skjermbildene er tatt av den faktiske appen med et oppdiktet spill, «Hyttetur 2026». Gjennomgangen
+og låst brett er fra piloten på <https://toppsvar.vercel.app>, der dommeren grupperte svarene live.
+Resten er fra en lokal kjøring uten KI-nøkkel. Spillvisningen på TV-en kommer i epic 6.
 
 **Gjennomgangen.** Verten ser de rangerte gruppene per spørsmål, slår sammen, flytter, gir
-nytt navn og forkaster før brettet låses. Her er to grupper valgt for sammenslåing.
+nytt navn og forkaster før brettet låses. Her er to grupper valgt for sammenslåing. Dommeren
+hadde allerede slått sammen skrivemåter som «Ullsokker», «ullsokker» og «ullsokkar».
 
 ![Gjennomgangen med to grupper valgt og valglinja nederst](docs-assets/skjermbilder/gjennomgang-valg.png)
 
@@ -36,9 +38,11 @@ nytt navn og forkaster før brettet låses. Her er to grupper valgt for sammensl
 | Innsamlingen åpnes | ![Bekreftelsesdialog før innsamlingen åpnes](docs-assets/skjermbilder/apne-innsamling-dialog.png) |
 | Engangslenkene | ![Lista med invitasjonslenker](docs-assets/skjermbilder/invitasjonslenker.png) |
 | Svaret er lagret | <img src="docs-assets/skjermbilder/svar-lagret-mobil.png" alt="Bekreftelsen etter innsending på mobil" width="300"> |
-| Innsamlingen stenges | ![Bekreftelsesdialog før innsamlingen stenges](docs-assets/skjermbilder/steng-dialog.png) |
+| Innsamlingen stenges (lokalt, uten nøkkel) | ![Bekreftelsesdialog før innsamlingen stenges](docs-assets/skjermbilder/steng-dialog.png) |
+| Dommeren er ferdig (5 spørsmål, 29 grupper, ingen til manuell gruppering) | ![Spillsiden etter live gruppering](docs-assets/skjermbilder/gruppering-ferdig.png) |
 | Gjennomgang av ett spørsmål | ![Gjennomgangen med sammenslåtte og omdøpte grupper](docs-assets/skjermbilder/gjennomgang.png) |
 | Forkastede grupper | ![Forkastet-seksjonen med Angre forkasting](docs-assets/skjermbilder/gjennomgang-forkastet.png) |
+| Brettet er låst | ![Spillsiden etter at brettet er låst](docs-assets/skjermbilder/brett-last.png) |
 
 </details>
 
