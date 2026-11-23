@@ -242,3 +242,28 @@
   - five test gaps (4 to 8) and a trace check weaker than its header (9);
   - the CI smoke timing (3), the `db:dump` message (10), the README purge sentence (12), feedback for screen-reader users (13), and one word in the copy (14).
 - **Before the PR:** decide finding 1. Findings 2 to 14 are each a one-line or one-test change.
+
+## Epic 7 review fixes
+
+Fixed on 2026-11-23 on `epic-7-demo-og-levering`. Each finding was checked against the code before it was changed. `npm run lint`, `npm run typecheck`, `npm run format:check` and `npm run test` were green at every commit, and `npm run test:e2e` passed in full (99 tests) before the last code commit.
+
+| # | Finding | Outcome | Commit |
+|---|---|---|---|
+| 1 | `judge:eval --file` stops on one failed Question | **Fixed, option A.** `evaluate()` treats a `JudgeError` other than `NO_KEY` and `NO_STORED_RULING` as `--live` does: one Group per item, its calls counted, its model reported as `fallback: <reason>`, and the same "Questions that fell back to one Group per item: N (reasons)." line. If every Question fails, the run exits 1 with the reason and no figure. Replay misses still stop the run. Tested with the stand-in endpoint (one fallback, and all failing). Spec 7.2 has a dated note and an amended matrix row; AD-20 is amended. | `c98cabc` |
+| 2 | Demo ruling still called hand-written | **Fixed.** TRACE names the recorded model and the pinned partition, AD-14 has an "Amended after the live recording" line, and the e2e comment says "recorded". | `63927c7` |
+| 3 | CI demo smoke can outlive its timeout | **Fixed.** A 120 s deadline with `curl -m 2`, so the log prints after at most about 123 s. TRACE states that bound. | `3fb74ee` |
+| 4 | No test for the band on the not-found page | **Fixed.** The demo e2e visits `/finnes-ikke` signed in and expects the band. | `e57fb3e` |
+| 5 | `db:dump` working path untested | **Fixed.** A spawned run on a migrated PGlite directory exits 0 with only JSON on stdout. | `c8635b5` |
+| 6 | Calls of a fallen-back `--live` Question untested | **Fixed.** `live-half` asserts 1.50 calls per Question (one call plus a retried failure). | `c98cabc` |
+| 7 | No warning test for a prompt-version-only change | **Fixed.** A spawned run with `promptVersion: "0"` and the current model expects the warning. | `c98cabc` |
+| 8 | Matrix counts a crashing Grouping entry as refused | **Fixed.** Refused now means `outcome === "ok"` and no `grouping_result` row; the comment and TRACE say so. | `ffa69c8` |
+| 9 | `trace.test.ts` counts uncovered bullets | **Fixed.** A bullet must say "CI runs" or name an existing `tests/` file, and bullets with "not in CI" or "Open until" never count. A small test pins the filter, and the TRACE header states the rule. | `ffa69c8` |
+| 10 | `db:dump` hides the missing-directory reason | **Fixed.** The error carries `PGLITE_DIR_MISSING`, and the test expects that exact line. | `c8635b5` |
+| 11 | New scripts missing from spine and README | **Fixed.** The Scripts row lists `db:dump` and `seed:sizing`, the CLI row says they load no env file on purpose, and the README `src/cli` row names `seed:sizing`. | `63927c7` |
+| 12 | README purge sentence leaves out the trigger | **Fixed.** "Slettingen kjører når en vert åpner spillsidene (høyst én gang i timen), eller fra Cron når `CRON_SECRET` er satt." | `63927c7` |
+| 13 | "Fyll inn demobrukeren" silent for screen readers | **Fixed.** Focus moves to "Logg inn" after filling, and the stale field errors from the last submit are hidden until the next one. | `e57fb3e` |
+| 14 | "avgjørelser" against "kjennelser" | **Fixed, in the other direction.** The finding proposed changing the band to "kjennelser". `EXPERIENCE.md` uses "avgjørelser" for both the band and the fallback Notice, and the contract wins, so the README and the `oversikt` diagram now say "avgjørelser" and the band is unchanged. | `63927c7` |
+
+**Dismissed item 1 revisited.** The residual risk of dumping a hosted database was closed with a cheap guard after all: `db:dump` refuses a `postgres://` URL unless `-- --postgres` is given. The supported input stays, but it must be chosen. Spec 7.3 and TRACE are amended. Commit `c8635b5`.
+
+Nothing was deferred. Epic 7 stays `in-progress` in `sprint-status.yaml`, because the manual SM-1 gate is still open.

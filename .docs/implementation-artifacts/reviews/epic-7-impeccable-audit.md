@@ -67,3 +67,17 @@ In `review-360.png`, "Kaffe" shows as "K / af / fe" and "Sjokolade" as "Sj / ok 
 2. N1: focus the submit button at the end of `fillDemo`.
 3. N3: one word for stored rulings in the README and the diagram, or in the app copy and the contract.
 4. N2 and N4 if time allows. N4 is outside Epic 7 and can go to the backlog.
+
+## Epic 7 review fixes
+
+Fixed on 2026-11-23 on `epic-7-demo-og-levering`, in commit `e57fb3e` unless noted. Checked against fresh screenshots of the demo server at 414, 360 and 1280 px, and by the extended `tests/e2e/demo.spec.ts`. `npm run test:e2e` passed in full (99 tests).
+
+| # | Finding | Outcome |
+|---|---|---|
+| S1 | The demo password can break across lines | **Fixed.** The email and the password are in `<code className="font-mono whitespace-nowrap">` on `/` and `/logg-inn`, as `OnceLinkList` uses `font-mono`. The full stop sits outside the code. The e2e test checks that each value is one line box at 414 px. |
+| N1 | "Fyll inn demobrukeren" leaves old field errors | **Fixed.** After filling, the last submit's field errors and danger Notice are hidden until the next submit, so no field stays `aria-invalid`, and focus moves to "Logg inn". The form is not sent automatically. The e2e test covers the empty submit, the fill, the focus and Enter. |
+| N2 | Static demo Notices are live regions | **Fixed.** `Notice` has `live={false}`, which drops the role, and both demo Notices use it. The e2e test checks that no status region holds "Demomodus". |
+| N3 | "kjennelser" against "avgjørelser" | **Fixed in commit `63927c7`.** The README and the `oversikt` diagram (re-rendered, PNG and `.excalidraw`) now say "avgjørelser", as the band and `EXPERIENCE.md` do. |
+| N4 | Review breaks short Group labels letter by letter at 360 px | **Fixed.** Below `sm`, the header rows wrap and the label gets `basis-40 grow`, so "N personer" and the menu drop to a second line, right-aligned. Desktop is unchanged (compared at 1280 px). The e2e test requires every visible Group label to be at least 100 px wide at 360 px, and it failed at 19 px without the fix. |
+
+Nothing was rejected or deferred. Epic 7 stays `in-progress`, because the manual SM-1 gate is still open.

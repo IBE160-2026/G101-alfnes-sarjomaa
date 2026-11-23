@@ -61,3 +61,18 @@ Verdict: Ship. Finding 1 is a cheap doc fix worth doing before the PR, since the
 Lean: -125 lines possible (about 25 in the seeds and CLIs, 46 in the zip test, 25 in the judge-eval preloads, 8 in leftovers and 20 in the README).
 
 Not checked: the full Vitest and Playwright runs and the CI Postgres job on GitHub (other reviewers share this working copy), the pilot itself, the manual checklist and anonymity audit procedures by running them, and `data/rulings/protoqa-dev.json` against the live model.
+
+## Epic 7 review fixes
+
+Fixed on 2026-11-23 on `epic-7-demo-og-levering`. Every commit was green on lint, typecheck, format and `npm run test`, and `npm run test:e2e` passed in full before the last code commit.
+
+| # | Finding | Outcome | Commit |
+|---|---|---|---|
+| 1 | Trace and spine still call the demo ruling hand-written | **Fixed** (same as bmad finding 2). | `63927c7` |
+| 2 | Demo and sizing seeds written twice | **Fixed.** `src/server/demo.ts` has one `seedGame()` and one `seedAndClose(run)`; `sizing.ts` keeps only its data and both CLIs use the shared close. The suggested shared `reset(name)` for the two CLIs was left out: each CLI sets its own environment before any import, so a shared helper would need its own dynamic import and saves only a few lines. `seed:sizing` was run in a scratch directory and dumped: 1 Game, 15 Questions, 30 Answer sets. | `dcb4b45` |
+| 3 | Second zip test proves things nobody asked for | **Fixed, test deleted.** Story 7.4 AC4 asks only for the zip's contents, which the first test proves on the real repository. The default path and the dirty-tree warning are I/O-matrix rows but no acceptance criterion; the default path is in the F1 record, and the warning now has no automated test. Spec 7.4 and TRACE say so. | `56b9786` |
+| 4 | Four fake OpenRouter preloads | **Fixed.** One preload blocks sockets and picks its `fetch` from `FAKE_OPENROUTER` (`retry`, `half`, `down`, or none). | `c98cabc` |
+| 5 | Small leftovers | **Fixed.** The `--live` fallback uses `items` directly; `DEMO_TITLE`, `SIZING_TITLE` and `sizingSet` are no longer exported; `sqlRows` lives only in `src/server/db/dump.ts` and `tests/integration/driver.ts` re-exports it. | `c98cabc`, `dcb4b45` |
+| 6 | README repeats the CI file | **Fixed.** Two sentences and a link to `ci.yml`, keeping the `dev.log` hint. | `bcc55d1` |
+
+Nothing was rejected or deferred. Epic 7 stays `in-progress`, because the manual SM-1 gate is still open.
