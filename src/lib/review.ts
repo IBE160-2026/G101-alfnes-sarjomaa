@@ -75,14 +75,21 @@ export function collapseChips(
     chip.ids.push(id);
     byText.set(normalizedText, chip);
   }
-  return [...byText.values()].map(({ forms, ids }) => {
-    let text = "";
-    let best = 0;
-    // Map keeps insertion order, so a strict > keeps the first form on a tie.
-    for (const [form, count] of forms)
-      if (count > best) [text, best] = [form, count];
-    return { text, n: ids.length, ids };
-  });
+  return [...byText.values()].map(({ forms, ids }) => ({
+    text: mostCommon(forms),
+    n: ids.length,
+    ids,
+  }));
+}
+
+// The written form with the most Answers; a tie keeps the first, so the caller's
+// order (SQL: text) decides. Chips and default labels both use it (FR-16, FR-19).
+export function mostCommon(forms: Iterable<[string, number]>): string {
+  let text = "";
+  let best = 0;
+  for (const [form, count] of forms)
+    if (count > best) [text, best] = [form, count];
+  return text;
 }
 
 type NoticeQuestion = {

@@ -209,7 +209,8 @@ describe("review.load", () => {
           // Three sets wrote kari or ola: Count 3, though five Answers.
           {
             id: kari,
-            label: "kari",
+            // FR-16: chosen by normalised text, shown in its most common written form.
+            label: "Kari",
             count: 3,
             chips: [
               { text: "Kari", n: 3, ids: expect.any(Array) },
@@ -218,7 +219,7 @@ describe("review.load", () => {
           },
           {
             id: per,
-            label: "per",
+            label: "Per",
             count: 2,
             chips: [{ text: "Per", n: 2, ids: expect.any(Array) }],
           },
@@ -307,12 +308,21 @@ describe("review.load", () => {
     expect((await review.load(hostId, gameId, 99)).current.position).toBe(1);
   });
 
-  it("FR-19, FR-13 (AC3): two written forms once each (Kari, kari) give the chip in SQL order, Kari", async () => {
+  it("FR-16, FR-19, FR-13 (AC3): two written forms once each (Kari, kari) give the chip and the default label the same form in SQL order, Kari", async () => {
     const { gameId } = await reviewGame([[Q1, [["Kari"], ["kari"], ["Ola"]]]]);
     const { current } = await review.load(hostId, gameId);
+    expect(current.board[0].label).toBe("Kari");
     expect(current.board[0].chips).toEqual([
       { text: "Kari", n: 2, ids: expect.any(Array) },
     ]);
+  });
+
+  it("FR-16: the default label is the most common written form of the winning normalised text (Ullsokker twice, ullsokker and Ullsokker! once)", async () => {
+    const { gameId } = await reviewGame([
+      [Q1, [["ullsokker"], ["Ullsokker"], ["Ullsokker!"], ["Ullsokker"]]],
+    ]);
+    const { current } = await review.load(hostId, gameId);
+    expect(current.board.map((g) => g.label)).toEqual(["Ullsokker"]);
   });
 
   it.each(["draft", "collecting", "grouping", "ready", "playing", "played"])(
@@ -374,22 +384,24 @@ describe("Review page", () => {
     const labels = [...html.matchAll(/<h4[^>]*>([^<]*)<\/h4>/g)].map(
       (m) => m[1],
     );
+    // FR-16: each default label is shown in its written form.
     expect(labels).toEqual([
-      "anne",
-      "dina",
-      "kari",
-      "bjørn",
-      "cato",
-      "erik",
-      "frida",
-      "ola",
-      "per",
+      "Anne",
+      "Dina",
+      "Kari",
+      "Bjørn",
+      "Cato",
+      "Erik",
+      "Frida",
+      "Ola",
+      "Per",
     ]);
     // One chip each: compact 52 px rows with no chip list; the ninth is dashed.
     expect(html.match(/min-h-13/g)).toHaveLength(9);
     expect(html.match(/border-dashed/g)).toHaveLength(1);
-    // The raw written form follows the normalised label (FR-19).
-    expect(screen).toMatch(/9\. per Per 1 person/);
+    // The label is the raw written form, so it is not repeated (FR-19).
+    expect(screen).toMatch(/9\. Per 1 person/);
+    expect(screen).not.toContain("Per Per");
     expect(screen).toContain("1 person");
     expect(html).not.toMatch(/sikker|terskel|prosent|%|confidence/i);
   });
@@ -409,7 +421,7 @@ describe("Review page", () => {
     );
     const html = await render(gameId);
     const screen = text(html);
-    expect(screen).toContain("1. kari 3 personer");
+    expect(screen).toContain("1. Kari 3 personer");
     expect(screen).toMatch(/Bo Kari · 3 svar Ola/);
     expect(html).not.toContain("min-h-13");
   });
@@ -430,12 +442,12 @@ describe("Review page", () => {
     const html = await render(gameId);
     const screen = text(html);
     expect(html).toMatch(/<h3[^>]*>Forkastet \(1 gruppe\)<\/h3>/);
-    expect(html).toMatch(/<h4 [^>]*class="[^"]*line-through[^"]*">kari<\/h4>/);
+    expect(html).toMatch(/<h4 [^>]*class="[^"]*line-through[^"]*">Kari<\/h4>/);
     expect(html).toMatch(/<h3[^>]*>På brettet \(3 grupper\)<\/h3>/);
-    // Per's rename sorts before anne ("aa" would be å in nb); its raw Answer follows the label.
-    expect(screen).toMatch(/1\. Alle per Per 1 person ⋯ .*? 2\. anne/);
-    expect(screen).toMatch(/3\. ola Ola 1 person/);
-    expect(html.indexOf(">kari</h4>")).toBeGreaterThan(
+    // Per's rename sorts before Anne ("aa" would be å in nb); its raw Answer follows the label.
+    expect(screen).toMatch(/1\. Alle per Per 1 person ⋯ .*? 2\. Anne/);
+    expect(screen).toMatch(/3\. Ola 1 person/);
+    expect(html.indexOf(">Kari</h4>")).toBeGreaterThan(
       html.indexOf("Forkastet"),
     );
     // The Forkastet card lists its raw Answer as plain text, never as a compact row.
@@ -444,13 +456,13 @@ describe("Review page", () => {
     expect(forkastet).not.toContain("min-h-13");
   });
 
-  it("FR-19, FR-13 (AC3): a one-chip Group of Kari, kari, Kari is a compact row showing the label kari, then Kari · 3 svar", async () => {
+  it("FR-16, FR-19, FR-13 (AC3): a one-chip Group of Kari, kari, Kari is a compact row showing the label Kari, then only · 3 svar", async () => {
     const { gameId } = await reviewGame(
       [[Q1, [["Kari"], ["kari"], ["Kari"]]]],
       createReplayJudge({ dir: emptyDir(), hasKey: false }),
     );
     const html = await render(gameId);
-    expect(text(html)).toContain("1. kari Kari · 3 svar 3 personer");
+    expect(text(html)).toContain("1. Kari · 3 svar 3 personer");
     expect(html.match(/min-h-13/g)).toHaveLength(1);
   });
 
@@ -673,14 +685,14 @@ describe("review.merge", () => {
 
     expect(result).toEqual({
       groupId: kari,
-      label: "kari",
+      label: "Kari",
       count: 4,
       position: 1,
     });
     expect(result.count).toBeLessThan(3 + 2);
     const { rows, counters } = await snapshot(gameId, [ids[0]]);
     expect(rows[0].groups).toEqual([
-      expect.objectContaining({ id: kari, customLabel: "kari", editCount: 1 }),
+      expect.objectContaining({ id: kari, customLabel: "Kari", editCount: 1 }),
     ]);
     expect(await groupRow(ola)).toBeUndefined();
     expect(rows[0].answers).toEqual(
@@ -692,7 +704,7 @@ describe("review.merge", () => {
     expect(current.board).toEqual([
       {
         id: kari,
-        label: "kari",
+        label: "Kari",
         count: 4,
         chips: [
           { text: "Kari", n: 3, ids: expect.any(Array) },
@@ -743,7 +755,7 @@ describe("review.merge", () => {
     ).toEqual([per]);
     expect(
       await review.merge(hostId, { gameId, groupIds: [per, anne] }),
-    ).toEqual({ groupId: anne, label: "anne", count: 2, position: 1 });
+    ).toEqual({ groupId: anne, label: "Anne", count: 2, position: 1 });
     const { current } = await review.load(hostId, gameId);
     expect(current.board).toHaveLength(8);
     expect(current.below).toEqual([]);
@@ -879,9 +891,9 @@ describe("review.merge", () => {
       .where(eq(answerGroup.id, await groupIdOf(ids[0], "geir")));
     const html = await render(gameId);
     expect(html.match(/type="checkbox"/g)).toHaveLength(9);
-    expect(html).toContain('aria-label="Velg «per»"');
+    expect(html).toContain('aria-label="Velg «Per»"');
     const forkastet = html.slice(html.indexOf(">Forkastet"));
-    expect(forkastet).toContain(">geir</h4>");
+    expect(forkastet).toContain(">Geir</h4>");
     expect(forkastet).not.toContain('type="checkbox"');
     // No selection yet, so no SelectionBar.
     expect(html).not.toContain("valgt");
@@ -945,7 +957,7 @@ describe("review.moveAnswers", () => {
     // C now holds keys 1, 2, 3, 4, 5: Count 5 from six Answers.
     expect(result).toEqual({
       groupId: C,
-      label: "ola",
+      label: "Ola",
       count: 5,
       position: 1,
       moved: 5,
@@ -995,7 +1007,7 @@ describe("review.moveAnswers", () => {
     expect(result.ok).toBe(true);
     const data = (result as { data: review.MoveResult }).data;
     expect(data).toMatchObject({
-      label: "ola",
+      label: "Ola",
       count: 3,
       moved: 3,
       created: true,
@@ -1145,7 +1157,7 @@ describe("review.moveAnswers", () => {
       .set({ discarded: true })
       .where(eq(answerGroup.id, await groupIdOf(ids[0], "geir")));
     const { current } = await review.load(hostId, gameId);
-    expect(current.board[0].label).toBe("ola");
+    expect(current.board[0].label).toBe("Ola");
     expect(current.below.map((g) => g.chips.length)).toEqual([2]);
     const html = await render(gameId);
     const chipBoxes = html.match(/id="velg-svar-/g) ?? [];
@@ -1259,7 +1271,7 @@ describe("review.discard and review.restore", () => {
 
     expect(await discardGroup({ gameId, groupId: kari })).toEqual({
       ok: true,
-      data: { groupId: kari, label: "kari" },
+      data: { groupId: kari, label: "Kari" },
     });
     expect(nextCache.revalidatePath.mock.calls).toEqual([
       [`/spill/${gameId}`],
@@ -1272,18 +1284,18 @@ describe("review.discard and review.restore", () => {
     expect(await answerCount(ids[0])).toBe(9);
     let { current } = await review.load(hostId, gameId);
     expect(labelsOf(current.board)).toEqual([
-      "anne",
-      "dina",
-      "bjørn",
-      "cato",
-      "erik",
-      "frida",
-      "ola",
-      "per",
+      "Anne",
+      "Dina",
+      "Bjørn",
+      "Cato",
+      "Erik",
+      "Frida",
+      "Ola",
+      "Per",
     ]);
     expect(current.below).toEqual([]);
     expect(current.discarded).toMatchObject([
-      { id: kari, label: "kari", chips: [{ text: "Kari", n: 1 }] },
+      { id: kari, label: "Kari", chips: [{ text: "Kari", n: 1 }] },
     ]);
     let { rows, counters } = await snapshot(gameId, [ids[0]]);
     expect(rows[0].reviewed).toBe(false);
@@ -1292,7 +1304,7 @@ describe("review.discard and review.restore", () => {
     await markReviewed(gameId);
     expect(await restoreGroup({ gameId, groupId: kari })).toEqual({
       ok: true,
-      data: { groupId: kari, label: "kari" },
+      data: { groupId: kari, label: "Kari" },
     });
     expect(await groupRow(kari)).toMatchObject({
       discarded: false,
@@ -1300,16 +1312,16 @@ describe("review.discard and review.restore", () => {
     });
     ({ current } = await review.load(hostId, gameId));
     expect(labelsOf(current.board)).toEqual([
-      "anne",
-      "dina",
-      "kari",
-      "bjørn",
-      "cato",
-      "erik",
-      "frida",
-      "ola",
+      "Anne",
+      "Dina",
+      "Kari",
+      "Bjørn",
+      "Cato",
+      "Erik",
+      "Frida",
+      "Ola",
     ]);
-    expect(labelsOf(current.below)).toEqual(["per"]);
+    expect(labelsOf(current.below)).toEqual(["Per"]);
     expect(current.discarded).toEqual([]);
     ({ rows, counters } = await snapshot(gameId, [ids[0]]));
     expect(rows[0].reviewed).toBe(false);
@@ -1369,15 +1381,15 @@ describe("review.discard and review.restore", () => {
     const { gameId, ids } = await reviewGame(NINE);
     let html = await render(gameId);
     for (const label of [
-      "anne",
-      "dina",
-      "kari",
-      "bjørn",
-      "cato",
-      "erik",
-      "frida",
-      "ola",
-      "per",
+      "Anne",
+      "Dina",
+      "Kari",
+      "Bjørn",
+      "Cato",
+      "Erik",
+      "Frida",
+      "Ola",
+      "Per",
     ])
       expect(html).toContain(`aria-label="Mer for «${label}»"`);
     expect(html.match(/aria-expanded="false"/g)).toHaveLength(9);
@@ -1389,10 +1401,10 @@ describe("review.discard and review.restore", () => {
       groupId: await groupIdOf(ids[0], "kari"),
     });
     html = await render(gameId);
-    expect(html).not.toContain("Mer for «kari»");
+    expect(html).not.toContain("Mer for «Kari»");
     expect(html.match(/aria-label="Mer for/g)).toHaveLength(8);
     const forkastet = html.slice(html.indexOf(">Forkastet"));
-    expect(text(forkastet)).toContain("Angre forkasting av «kari»");
+    expect(text(forkastet)).toContain("Angre forkasting av «Kari»");
     expect(forkastet).not.toContain('type="checkbox"');
     expect(forkastet).not.toContain("aria-expanded");
   });
@@ -1601,14 +1613,14 @@ describe("review.confirmBoard", () => {
       );
     }
     expect(expected[0].map((s) => s.label)).toEqual([
-      "kari",
-      "cato",
-      "anne",
-      "bjørn",
-      "dina",
-      "erik",
-      "geir",
-      "ola",
+      "Kari",
+      "Cato",
+      "Anne",
+      "Bjørn",
+      "Dina",
+      "Erik",
+      "Geir",
+      "Ola",
     ]);
     expect(expected[0][0].count).toBe(2);
     nextCache.revalidatePath.mockClear();

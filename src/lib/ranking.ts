@@ -6,15 +6,17 @@ export type RankInput = {
   // Distinct Contributor keys (FR-15).
   count: number;
   rank1Count: number;
-  // Each normalised text of the Group with its distinct Contributor keys.
-  labelCandidates: { text: string; count: number }[];
+  // Each normalised text of the Group with its distinct Contributor keys, and the
+  // written form the label shows (its most common raw text, FR-16).
+  labelCandidates: { text: string; count: number; display?: string }[];
   customLabel?: string | null;
   discarded?: boolean;
 };
 
 const collator = new Intl.Collator("nb", { sensitivity: "base" });
 
-// Most Contributor keys, then the shortest, then code-unit order; cut at a word boundary.
+// Most Contributor keys, then the shortest, then code-unit order, all on the normalised
+// text; shown in its written form and cut at a word boundary.
 export function defaultLabel(candidates: RankInput["labelCandidates"]): string {
   const [best] = [...candidates].sort(
     (a, b) =>
@@ -22,7 +24,7 @@ export function defaultLabel(candidates: RankInput["labelCandidates"]): string {
       a.text.length - b.text.length ||
       (a.text < b.text ? -1 : a.text > b.text ? 1 : 0),
   );
-  const text = best?.text ?? "";
+  const text = best ? (best.display ?? best.text) : "";
   if (text.length <= LABEL_MAX) return text;
   // A space right after the 40th character still ends a whole word.
   const space = text.slice(0, LABEL_MAX + 1).lastIndexOf(" ");

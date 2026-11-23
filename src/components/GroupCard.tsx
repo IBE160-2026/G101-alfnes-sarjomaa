@@ -83,11 +83,11 @@ export function GroupCard({
           {label}
         </h4>
       )}
-      {/* Raw strings on purpose: the default label is normalised, and the Host must see the written form (FR-19). */}
+      {/* The raw form when the label differs (a custom or merged label), so the Host sees what was written (FR-19). */}
       {compact && (chips[0].text !== label || chips[0].n > 1) && (
         <span className="min-w-0 text-body-sm break-words text-ink-muted">
-          {chips[0].text}
-          {chips[0].n > 1 && ` · ${chips[0].n} svar`}
+          {chips[0].text !== label && `${chips[0].text} `}
+          {chips[0].n > 1 && `· ${chips[0].n} svar`}
         </span>
       )}
       <span className="ml-auto shrink-0 pl-4 whitespace-nowrap">

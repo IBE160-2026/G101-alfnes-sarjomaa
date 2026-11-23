@@ -2,6 +2,7 @@ import "server-only";
 import {
   and,
   asc,
+  count,
   countDistinct,
   eq,
   inArray,
@@ -17,6 +18,7 @@ import {
   groupRefSchema,
   markReviewedSchema,
   mergeGroupsSchema,
+  mostCommon,
   moveAnswersSchema,
   renameGroupSchema,
 } from "@/lib/review";
@@ -68,10 +70,33 @@ async function rankedGroups(db: Db | Tx, questionId: string) {
     .from(answer)
     .where(and(eq(answer.questionId, questionId), isNotNull(answer.groupId)))
     .groupBy(answer.groupId, answer.normalizedText);
+  // Ordered by text, as the chips are, so a tie picks the same written form.
+  const forms = await db
+    .select({
+      groupId: answer.groupId,
+      normalizedText: answer.normalizedText,
+      text: answer.text,
+      n: count(),
+    })
+    .from(answer)
+    .where(and(eq(answer.questionId, questionId), isNotNull(answer.groupId)))
+    .groupBy(answer.groupId, answer.normalizedText, answer.text)
+    .orderBy(asc(answer.text));
   return rankGroups(
     groups.map((g) => ({
       ...g,
-      labelCandidates: candidates.filter((c) => c.groupId === g.groupId),
+      labelCandidates: candidates
+        .filter((c) => c.groupId === g.groupId)
+        .map((c) => ({
+          ...c,
+          display: mostCommon(
+            forms
+              .filter(
+                (f) => f.groupId === c.groupId && f.normalizedText === c.text,
+              )
+              .map((f): [string, number] => [f.text, f.n]),
+          ),
+        })),
     })),
   );
 }

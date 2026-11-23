@@ -49,6 +49,22 @@ describe("defaultLabel", () => {
     ).toBe("Zb");
   });
 
+  it("FR-16: chooses on the normalised text but returns the chosen text's written form", () => {
+    expect(
+      defaultLabel([
+        { text: "kjenner eieren", count: 2, display: "Kjenner eieren" },
+        { text: "eieren", count: 1, display: "Eieren" },
+      ]),
+    ).toBe("Kjenner eieren");
+    // The tie on Count goes to the shorter normalised text, whatever its written form.
+    expect(
+      defaultLabel([
+        { text: "ab", count: 1, display: "Ab!!!" },
+        { text: "abc", count: 1, display: "Abc" },
+      ]),
+    ).toBe("Ab!!!");
+  });
+
   it("FR-16 (AC1): keeps a 40-character text and cuts a longer one at the last word boundary", () => {
     const forty = "a".repeat(LABEL_MAX);
     expect(defaultLabel([{ text: forty, count: 1 }])).toBe(forty);
