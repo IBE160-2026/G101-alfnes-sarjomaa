@@ -1,9 +1,15 @@
 import Link from "next/link";
+import { connection } from "next/server";
+import { Notice } from "@/components/Notice";
+import { DEMO_HOST } from "@/lib/demo";
+import { env } from "@/server/env";
 
 const button =
   "inline-flex min-h-11 items-center justify-center rounded-md px-4 text-title";
 
-export default function Home() {
+// Rendered per request, so DEMO_MODE is read at run time, not baked in at build.
+export default async function Home() {
+  await connection();
   return (
     <main className="mx-auto max-w-140 px-4 py-24 sm:py-32">
       <h1 className="text-display">Toppsvar</h1>
@@ -11,6 +17,12 @@ export default function Home() {
         Lag spørsmål om gjengen, samle inn anonyme svar og spill topplista
         sammen på én skjerm.
       </p>
+      {env.DEMO_MODE && (
+        <Notice tone="info" className="mt-6">
+          <strong>Demomodus:</strong> logg inn som {DEMO_HOST.email} med
+          passordet {DEMO_HOST.password}.
+        </Notice>
+      )}
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
           href="/logg-inn"

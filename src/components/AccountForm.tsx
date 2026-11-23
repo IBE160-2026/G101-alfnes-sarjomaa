@@ -37,10 +37,13 @@ export function AccountForm({
   mode,
   askCode,
   action,
+  demo,
 }: {
   mode: "register" | "login";
   askCode: boolean;
   action: (prev: unknown, formData: FormData) => Promise<Failure>;
+  // Passed by the server page only in Demo mode, so the login never ships otherwise.
+  demo?: { email: string; password: string };
 }) {
   const copy = COPY[mode];
   const askForCode = mode === "register" && askCode;
@@ -61,8 +64,31 @@ export function AccountForm({
       : ["email", "password"],
   );
 
+  function fillDemo() {
+    if (!demo) return;
+    setEmail(demo.email);
+    const password = formRef.current?.elements.namedItem("password");
+    if (password instanceof HTMLInputElement) password.value = demo.password;
+  }
+
   return (
     <>
+      {demo && (
+        <Notice tone="info" className="mt-6">
+          <p>
+            <strong>Demomodus:</strong> logg inn som {demo.email} med passordet{" "}
+            {demo.password}.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={fillDemo}
+            className="mt-3"
+          >
+            Fyll inn demobrukeren
+          </Button>
+        </Notice>
+      )}
       {showNotice && (
         <Notice tone="danger" ref={noticeRef} tabIndex={-1} className="mt-6">
           {state?.message}
