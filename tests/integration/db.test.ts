@@ -13,6 +13,9 @@ import {
 } from "@/server/db/client";
 import { checkDatabase } from "@/server/health";
 
+// Migrating an on-disk PGlite takes over 5 s when the whole suite runs in parallel.
+vi.setConfig({ testTimeout: 30_000 });
+
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 
 const tmp = mkdtempSync(path.join(tmpdir(), "toppsvar-db-"));
