@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
 import { TextField } from "@/components/TextField";
@@ -16,10 +16,11 @@ export function CreateGameForm({
   // FR-33: only id and name, so the sets' JSON stays on the server.
   questionSets: { id: string; name: string }[];
 }) {
-  // Controlled, so the typed title and the chosen set survive a failed submit.
+  // Controlled, so the typed title survives a failed submit. The set needs the effect below.
   const [title, setTitle] = useState("");
   const [questionSet, setQuestionSet] = useState("");
   const setId = useId();
+  const setRef = useRef<HTMLSelectElement>(null);
   const {
     state,
     submit,
@@ -29,6 +30,12 @@ export function CreateGameForm({
     fieldErrors,
     showNotice,
   } = useFormAction(action, ["title", "questionSet"]);
+
+  // React 19 resets the form after the action and restores the title, but not the
+  // unchanged select, so put the chosen set back or a retry makes a draft.
+  useEffect(() => {
+    if (setRef.current) setRef.current.value = questionSet;
+  }, [state, questionSet]);
 
   // Trimmed, as the server counts it.
   const length = title.trim().length;
@@ -67,6 +74,7 @@ export function CreateGameForm({
             Spørsmål
           </label>
           <select
+            ref={setRef}
             id={setId}
             name="questionSet"
             value={questionSet}

@@ -10,11 +10,18 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
   page,
 }) => {
   await registerHost(page);
-  await page.getByLabel("Navn på spillet").fill("Fredag");
   const set = page.getByLabel("Spørsmål", { exact: true });
   await expect(set).toHaveValue("");
   await set.selectOption({ label: home.name });
   expect(await seriousViolations(page)).toEqual([]);
+
+  // The chosen set survives a failed submit (React 19 resets the form after the
+  // action), so the retry below takes the set path, not the draft one.
+  const title = page.getByLabel("Navn på spillet");
+  await page.getByRole("button", { name: "Lag spill" }).click();
+  await expect(title).toHaveAttribute("aria-invalid", "true");
+  await expect(set).toHaveValue(home.id);
+  await title.fill("Fredag");
   await page.getByRole("button", { name: "Lag spill" }).click();
 
   // AC1: straight to ready, no usage report (there was no Grouping).
