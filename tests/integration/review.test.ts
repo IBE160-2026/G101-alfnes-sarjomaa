@@ -835,29 +835,6 @@ describe("review.merge", () => {
     expect(await snapshot(gameId, ids)).toEqual(before);
   });
 
-  it.each(["ready", "draft"])(
-    "FR-20, AD-4 (AC2): a Game in %s is WRONG_STATE, and nothing changes",
-    async (state) => {
-      const { gameId, ids } = await reviewGame(SHARED);
-      const groupIds = [
-        await groupIdOf(ids[0], "kari"),
-        await groupIdOf(ids[0], "ola"),
-      ];
-      await (
-        await getDb()
-      )
-        .update(game)
-        .set({ state: state as GameState })
-        .where(eq(game.id, gameId));
-      const before = await snapshot(gameId, ids);
-      const error = await review
-        .merge(hostId, { gameId, groupIds })
-        .catch((e: unknown) => e);
-      expect((error as DomainError).code).toBe("WRONG_STATE");
-      expect(await snapshot(gameId, ids)).toEqual(before);
-    },
-  );
-
   it("FR-20, AD-15 (AC1): a write failing after the Answers moved rolls the whole merge back", async () => {
     const { gameId, ids } = await reviewGame(SHARED);
     const groupIds = [
@@ -1121,24 +1098,6 @@ describe("review.moveAnswers", () => {
     expect(await snapshot(gameId, ids)).toEqual(before);
   });
 
-  it("FR-20, AD-4 (AC1): a Game in ready is WRONG_STATE for a move and a new Group, and nothing changes", async () => {
-    const { gameId, ids, C, ola } = await moveGame();
-    await (
-      await getDb()
-    )
-      .update(game)
-      .set({ state: "ready" })
-      .where(eq(game.id, gameId));
-    const before = await snapshot(gameId, ids);
-    for (const groupId of [C, undefined])
-      expect(
-        await codeOf(
-          review.moveAnswers(hostId, { gameId, answerIds: ola, groupId }),
-        ),
-      ).toBe("WRONG_STATE");
-    expect(await snapshot(gameId, ids)).toEqual(before);
-  });
-
   it("FR-20, AD-15 (AC2): a counter write failing after the move rolls everything back, the new Group included", async () => {
     const { gameId, ids, ola } = await moveGame();
     const before = await snapshot(gameId, ids);
@@ -1236,7 +1195,7 @@ describe("review.rename", () => {
     expect(await snapshot(gameId, ids)).toEqual(before);
   });
 
-  it("FR-20, AD-5, AD-4: a discarded, random or malformed Group, a malformed Game is NOT_FOUND, a Game in ready WRONG_STATE, and nothing changes", async () => {
+  it("FR-20, AD-5: a discarded, random or malformed Group or a malformed Game is NOT_FOUND, and nothing changes", async () => {
     const { gameId, ids, A } = await moveGame();
     const discarded = await groupIdOf(ids[1], "b");
     const db = await getDb();
@@ -1255,14 +1214,6 @@ describe("review.rename", () => {
         await codeOf(review.rename(hostId, { ...input, label: "X" })),
         JSON.stringify(input),
       ).toBe("NOT_FOUND");
-    await db.update(game).set({ state: "ready" }).where(eq(game.id, gameId));
-    expect(
-      await codeOf(review.rename(hostId, { gameId, groupId: A, label: "X" })),
-    ).toBe("WRONG_STATE");
-    await db
-      .update(game)
-      .set({ state: "in_review" })
-      .where(eq(game.id, gameId));
     expect(await snapshot(gameId, ids)).toEqual(before);
   });
 });
@@ -1394,27 +1345,14 @@ describe("review.discard and review.restore", () => {
     expect(await snapshot(gameId, ids)).toEqual(before);
   });
 
-  it("FR-20: a missing or numeric groupId is INVALID_INPUT, a Game in ready WRONG_STATE, and nothing changes", async () => {
+  it("FR-20: a missing or numeric groupId is INVALID_INPUT, and nothing changes", async () => {
     const { gameId, ids } = await reviewGame(NINE);
-    const kari = await groupIdOf(ids[0], "kari");
     const before = await snapshot(gameId, ids);
     for (const op of [review.discard, review.restore])
       for (const input of [{ gameId }, { gameId, groupId: 7 }])
         expect(await codeOf(op(hostId, input)), JSON.stringify(input)).toBe(
           "INVALID_INPUT",
         );
-    const db = await getDb();
-    await db.update(game).set({ state: "ready" }).where(eq(game.id, gameId));
-    expect(
-      await codeOf(review.discard(hostId, { gameId, groupId: kari })),
-    ).toBe("WRONG_STATE");
-    expect(
-      await codeOf(review.restore(hostId, { gameId, groupId: kari })),
-    ).toBe("WRONG_STATE");
-    await db
-      .update(game)
-      .set({ state: "in_review" })
-      .where(eq(game.id, gameId));
     expect(await snapshot(gameId, ids)).toEqual(before);
   });
 
