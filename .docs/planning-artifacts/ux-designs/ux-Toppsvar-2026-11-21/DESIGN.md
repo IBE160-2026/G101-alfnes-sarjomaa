@@ -310,7 +310,7 @@ Two families: **light** for Host pages and the answer form, **stage** for the pl
 | `stage-line` | `#739690` | Hidden tile border (needed: tile fill alone is 1.5:1 against `stage`) | Text |
 | `stage-ink` | `#F6F1E7` (cream) | Text on stage; revealed tile fill | — |
 | `stage-muted` | `#A7BAB4` | Control bar text, "uten poeng" marker | Labels or Scores |
-| `stage-accent` | `#7FE0C2` (mint) | Active Team card fill, Score change | Revealed tiles, decoration |
+| `stage-accent` | `#7FE0C2` (mint) | Active Team card fill | Revealed tiles, decoration, Score digits (a Score counts up in its card's own text colour; on the mint active card `stage-accent` digits would be 1:1) |
 | `count-badge` | `#10201E` (forest) | Count badge on a revealed tile, with `stage-ink` digits | Anything else |
 
 ### Verified contrast (WCAG 2.1 AA)
