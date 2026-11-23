@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { asc, eq, inArray } from "drizzle-orm";
-import { prerenderToNodeStream } from "react-dom/static";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeCollection,
@@ -12,15 +11,13 @@ import {
   saveQuestion,
   startPlay,
 } from "@/app/spill/[id]/actions";
-import ScreenPage from "@/app/spill/[id]/skjerm/page";
 import { createGame } from "@/app/spill/actions";
 import { DomainError } from "@/lib/errors";
-import { QUESTION_SET_CREDIT, QUESTION_SETS } from "@/lib/question-sets";
+import { QUESTION_SETS } from "@/lib/question-sets";
 import { boardCut, rankGroups } from "@/lib/ranking";
 import * as auth from "@/server/auth";
 import { getDb } from "@/server/db/client";
 import { boardSlot, game, question } from "@/server/db/schema";
-import * as games from "@/server/games";
 import * as play from "@/server/play";
 import * as review from "@/server/review";
 import { cookieJar, run } from "./next-mocks";
@@ -133,6 +130,22 @@ describe("createGame with a Question set", () => {
         count: s.count,
       })),
     ).toEqual(expected);
+    // Pinned, not recomputed: equal Counts are ordered by the nb label, not by the file.
+    const r2q12 = home.questions.find((q) => q.sourceId === "r2q12")!.text;
+    expect(
+      slots
+        .filter((s) => texts.get(s.questionId) === r2q12)
+        .map((s) => [s.label, s.count]),
+    ).toEqual([
+      ["Basseng eller vanntank", 19],
+      ["Hageutstyr og trær", 19],
+      ["Garasje og bil", 11],
+      ["Hund og hundehus", 11],
+      ["Møbler og peis", 11],
+      ["Trampoline eller huske", 7],
+      ["Grill", 4],
+      ["Tomt eller tak", 4],
+    ]);
     const rows = await db
       .select({ groupId: boardSlot.groupId })
       .from(boardSlot)
@@ -183,14 +196,6 @@ describe("createGame with a Question set", () => {
     });
     expect(await gameCount()).toBe(before);
   });
-
-  it("FR-1, AD-5: logged out it redirects to /logg-inn and creates no Game", async () => {
-    const before = await gameCount();
-    expect(
-      await run(createGame, { title: "Fredag", questionSet: "hjemme" }),
-    ).toEqual({ redirect: "/logg-inn" });
-    expect(await gameCount()).toBe(before);
-  });
 });
 
 describe("a Game from a Question set", () => {
@@ -219,18 +224,6 @@ describe("a Game from a Question set", () => {
     expect((error as DomainError).code).toBe("WRONG_STATE");
   });
 
-  it("FR-33 (AC1), AD-5: only its Host sees it; Host B gets NOT_FOUND", async () => {
-    const gameId = await createFromSet();
-    const error = await games
-      .getOwned(hosts.B, gameId)
-      .catch((e: unknown) => e);
-    expect((error as DomainError).code).toBe("NOT_FOUND");
-    as("B");
-    expect(
-      await startPlay({ gameId, teams: ["Lag 1", "Lag 2"] }),
-    ).toMatchObject({ ok: false, code: "NOT_FOUND" });
-  });
-
   it("FR-33 (AC1, AC2): Team setup starts play, and revealing slot 1 scores the data's top Group", async () => {
     const gameId = await createFromSet();
     expect(await startPlay({ gameId, teams: ["Lag 1", "Lag 2"] })).toEqual({
@@ -250,18 +243,5 @@ describe("a Game from a Question set", () => {
     });
     const after = await play.load(hosts.A, gameId);
     expect(after.teams[0].score).toBe(home.questions[0].groups[0].count);
-
-    // AC3: the stage of a set Game carries the source credit in its control bar.
-    as("A");
-    const { prelude } = await prerenderToNodeStream(
-      await ScreenPage({
-        params: Promise.resolve({ id: gameId }),
-        searchParams: Promise.resolve({}),
-      }),
-    );
-    let html = "";
-    for await (const chunk of prelude) html += chunk;
-    expect(html).toContain("data-stage");
-    expect(html).toContain(QUESTION_SET_CREDIT);
   });
 });

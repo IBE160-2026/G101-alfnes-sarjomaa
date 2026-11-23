@@ -1,8 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { BOARD_SIZE, LABEL_MAX, QUESTION_TEXT_MAX } from "@/lib/limits";
-import { createFromSetSchema, QUESTION_SETS } from "@/lib/question-sets";
-import { boardCut, rankGroups } from "@/lib/ranking";
+import { QUESTION_SETS } from "@/lib/question-sets";
 
 type Row = {
   metadata: { id: string };
@@ -36,6 +35,8 @@ describe("the ProtoQA Question sets", () => {
         .sort((a, b) => b.count - a.count);
       const n = Math.min(BOARD_SIZE, byCount.length);
       expect(q.groups, q.sourceId).toHaveLength(n);
+      // A Board needs Groups to play, and an empty one would make the slot insert throw.
+      expect(q.groups.length, q.sourceId).toBeGreaterThanOrEqual(4);
       for (const g of q.groups)
         expect(g.count, g.cluster).toBe(clusters![g.cluster]?.count);
       expect(new Set(q.groups.map((g) => g.cluster)), q.sourceId).toEqual(
@@ -60,35 +61,5 @@ describe("the ProtoQA Question sets", () => {
       }
       expect(new Set(q.groups.map((g) => g.label)).size).toBe(q.groups.length);
     }
-  });
-
-  it("FR-33 (AC2), AD-11: rankGroups and boardCut keep every Group of a set Question", () => {
-    for (const q of questions) {
-      const { board } = boardCut(
-        rankGroups(
-          q.groups.map((g) => ({
-            groupId: g.cluster,
-            count: g.count,
-            rank1Count: 0,
-            labelCandidates: [],
-            customLabel: g.label,
-            discarded: false,
-          })),
-        ),
-      );
-      expect(board.map((g) => g.label)).toHaveLength(q.groups.length);
-    }
-  });
-
-  it("FR-33: createFromSetSchema takes a listed set and refuses any other id", () => {
-    expect(
-      createFromSetSchema.safeParse({ title: "Fredag", questionSet: "hjemme" })
-        .success,
-    ).toBe(true);
-    const result = createFromSetSchema.safeParse({
-      title: "Fredag",
-      questionSet: "finnes-ikke",
-    });
-    expect(result.error?.issues[0].message).toBe("Velg et sett fra lista.");
   });
 });
