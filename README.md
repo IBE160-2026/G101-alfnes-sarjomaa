@@ -16,13 +16,19 @@ vente på at et skjema fylles ut.
 
 Skjermbildene er tatt av den faktiske appen med et oppdiktet spill, «Hyttetur 2026». Gjennomgangen
 og låst brett er fra piloten på <https://toppsvar.vercel.app>, der dommeren grupperte svarene live.
-Resten er fra en lokal kjøring uten KI-nøkkel. Spillvisningen på TV-en kommer i epic 6.
+Resten er fra en lokal kjøring uten KI-nøkkel. Spillvisningen er også fra piloten.
 
 **Gjennomgangen.** Verten ser de rangerte gruppene per spørsmål, slår sammen, flytter, gir
 nytt navn og forkaster før brettet låses. Her er to grupper valgt for sammenslåing. Dommeren
 hadde allerede slått sammen skrivemåter som «Ullsokker», «ullsokker» og «ullsokkar».
 
 ![Gjennomgangen med to grupper valgt og valglinja nederst](docs-assets/skjermbilder/gjennomgang-valg.png)
+
+**Spillet på TV-en.** Verten styrer fra tastaturet: tallene avslører plasser, og `M`, `Z`, `T`, `U` og
+`N` gir bom, angre, neste lag, avsløring uten poeng og neste spørsmål. Lagene ser bare brettet og
+poengene.
+
+![Brettet på storskjermen med tre avslørte svar og poengene til tre lag](docs-assets/skjermbilder/spill-brett.png)
 
 | Deltakeren svarer på mobilen | Verten følger innsamlingen |
 |---|---|
@@ -43,6 +49,9 @@ hadde allerede slått sammen skrivemåter som «Ullsokker», «ullsokker» og «
 | Gjennomgang av ett spørsmål | ![Gjennomgangen med sammenslåtte og omdøpte grupper](docs-assets/skjermbilder/gjennomgang.png) |
 | Forkastede grupper | ![Forkastet-seksjonen med Angre forkasting](docs-assets/skjermbilder/gjennomgang-forkastet.png) |
 | Brettet er låst | ![Spillsiden etter at brettet er låst](docs-assets/skjermbilder/brett-last.png) |
+| Lagene navngis | ![Lagoppsettet med tre lag](docs-assets/skjermbilder/lagoppsett.png) |
+| Hurtigtastene | ![Brettet med oversikten over hurtigtaster åpen](docs-assets/skjermbilder/spill-hurtigtaster.png) |
+| Sluttstillingen | ![Sluttstillingen med vinnerlaget øverst](docs-assets/skjermbilder/sluttstilling.png) |
 
 </details>
 
