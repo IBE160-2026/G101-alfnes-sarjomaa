@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
-import { TextField } from "@/components/TextField";
+import { fieldClass, TextField } from "@/components/TextField";
 import { useFormAction } from "@/components/useFormAction";
 import type { Failure } from "@/lib/errors";
 import { GAME_TITLE_COUNTER_FROM, GAME_TITLE_MAX } from "@/lib/limits";
@@ -83,11 +83,7 @@ export function CreateGameForm({
             aria-describedby={
               fieldErrors.questionSet ? `${setId}-error` : undefined
             }
-            className={`mt-1 block min-h-12 w-full rounded-sm bg-surface text-body text-ink ${
-              fieldErrors.questionSet
-                ? "border-2 border-danger px-2.75"
-                : "border border-line-strong px-3"
-            }`}
+            className={fieldClass(fieldErrors.questionSet)}
           >
             <option value="">Jeg skriver egne</option>
             <optgroup label="Ferdige sett">

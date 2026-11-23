@@ -8,6 +8,12 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
   counter?: ReactNode;
 };
 
+// The house field look, shared with the create row's select.
+export const fieldClass = (error?: string) =>
+  `mt-1 block min-h-12 w-full rounded-sm bg-surface text-body text-ink ${
+    error ? "border-2 border-danger px-2.75" : "border border-line-strong px-3"
+  }`;
+
 export function TextField({
   label,
   helper,
@@ -36,11 +42,7 @@ export function TextField({
         id={id}
         aria-invalid={error ? true : invalidExtra}
         aria-describedby={describedBy || undefined}
-        className={`mt-1 block min-h-12 w-full rounded-sm bg-surface text-body text-ink ${
-          error
-            ? "border-2 border-danger px-2.75"
-            : "border border-line-strong px-3"
-        }`}
+        className={fieldClass(error)}
       />
       {(helper || counter) && (
         <div className="mt-1 flex gap-4 text-body-sm text-ink-muted">
