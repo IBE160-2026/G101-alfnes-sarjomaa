@@ -305,6 +305,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Fixtures.** Fixture files are JSON arrays: `data/rulings/demo.json` and `data/rulings/protoqa-dev.json`. They are written only by `npm run judge:record`, which needs a live key.
   - **In the DB.** A Game's stored ruling is its materialised Groups plus `grouping_result(question_id, source: judge | replay | fallback, prompt_version, normalize_version, model_id, judge_calls, uncovered_items, fell_back, fallback_reason)`.
 - *Amended in Story 4.4:* `npm run judge:record <input.json> <output.json>` reads a JSON array of `{ question, answers }`, makes one partition per entry (up to two requests with the retry) over its sorted distinct non-empty normalised answers, and writes the rulings with the result's `model` and `promptVersion`. It refuses before any call without `OPENROUTER_API_KEY` or for an output path outside `.data/` other than the two fixtures, and a `JudgeError` writes nothing. `npm run judge:smoke` makes one live call on a fixed synthetic Question and prints model, latency, calls, usage and the groups; without a key it prints `skipped: no OPENROUTER_API_KEY` and exits 0. Neither is part of the test scripts or CI.
+- *Amended in Story 7.1:* `data/rulings/demo.json` is hand-written, since there was no live key when the demo was built. It has the recorder's exact shape, with `model` and `promptVersion` both `"hand-written"` so nothing claims a model made it. `npm run judge:record -- <input.json> data/rulings/demo.json` (input: `[{ question, answers }]` from `src/server/demo.ts`), then `npx prettier --write data/rulings/demo.json`, may replace it; `demo-replay.test.ts` then checks the recorded partition still covers every item.
 
 ### AD-15 — Review closes with a Board snapshot, and play reads only the snapshot
 
@@ -373,6 +374,10 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   4. Start `next dev` on `PORT` with `DATABASE_URL=pglite://.data/demo`, `JUDGE_PROVIDER=replay`, `DEMO_MODE=1` and a matching `APP_BASE_URL`.
 
   The rulings for the demo Answers are in `data/rulings/demo.json`, so close takes the normal Grouping path. Answers added before close become their own Groups. No tracked file holds text derived from `.idea/`, including fixtures, few-shot examples, tests, rulings and `prompting/`.
+- *Amended in Story 7.1:*
+  - **Seeding.** `auth.register` sets a cookie, so it needs a request. `auth.createHost(input)` validates with `registrationSchema`, hashes and inserts the Host with no session or cookie. The demo Game, its three Questions, six Answer sets and the seed itself live in `src/server/demo.ts` (`seed()`, and `seedAndClose()` for the CLI, which releases the PGlite directory before `next dev` opens it), shared by the CLI and `demo-replay.test.ts`. Eight links are issued and six answered.
+  - **Command.** `npm run demo` adds `--tsconfig tsconfig.cli.json` to the AD-21 CLI form. Under `react-server` React has no `createContext`, so plain Node cannot load `next/navigation`'s client build, which `src/server/boundary.ts` and `auth` import; `tsconfig.cli.json` maps it to Next's `navigation.react-server` build, as Next's own bundler does for server code. `next dev` is spawned as `process.execPath` plus Next's bin with `--port` from the parsed `PORT`, with SIGINT and SIGTERM forwarded. Only the fixed path `.data/demo` is deleted.
+  - **Surfaces.** `/` (now rendered per request) and `/logg-inn` show the login in an info Notice when `DEMO_MODE=1`, passed from the server page, never imported by a client component; the login page adds "Fyll inn demobrukeren". `HostChrome` takes `demo` from the spill layout and the root 404 page and shows the band inside the `<header>` landmark, below the bar, so it hides with the header (`data-host-chrome`) under the play stage.
 
 ### AD-20 — Judge evaluation command and ProtoQA data
 
@@ -442,6 +447,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
     - a demo smoke test: start `npm run demo` in the background, poll `/api/health`, then stop it
   - **CI Postgres job.** A second job runs `tests/integration` against a Postgres service container.
   - **`server-only`** is aliased to an empty module in Vitest.
+  - *Amended in Story 7.1:* the 3101 server is `npm run demo` (same port, same `dev.log` capture) instead of `npm run dev`, since Next 16 locks the dist dir per `next dev` and `demo.spec.ts` needs the demo Game. `server-output.spec.ts` keeps its guarantee there, since the demo is `next dev`, and still registers its own Host. An e2e run recreates the working copy's `.data/demo`. The CI demo smoke runs last, after the e2e run, for the same lock, and fails with the log after 120 s.
 
 ### AD-23 — Retention purge
 
