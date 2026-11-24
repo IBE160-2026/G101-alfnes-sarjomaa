@@ -333,6 +333,57 @@ describe("play.load", () => {
   });
 });
 
+describe("play.answerKey", () => {
+  it("FR-24 to FR-27, AD-15: every slot of the current Question with label, Count and revealed/scored state, plus the Teams, Scores and Spørsmål N av M of play.load", async () => {
+    const { id, slotIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][1],
+      scored: true,
+    });
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][2],
+      scored: false,
+    });
+    const key = await play.answerKey(hostId, id);
+    expect(key.board).toEqual(
+      [
+        { id: slotIds[0][0], position: 1, label: "Kari", count: 5 },
+        { id: slotIds[0][1], position: 2, label: "Ola", count: 3 },
+        { id: slotIds[0][2], position: 3, label: "Per", count: 2 },
+      ].map((s, i) => ({ ...s, revealed: i > 0, scored: i === 1 })),
+    );
+    const { board, ...rest } = await play.load(hostId, id);
+    expect(key).toEqual({ ...rest, board: key.board });
+    expect(board.map((s) => s.revealed)).toEqual([false, true, true]);
+    expect(key).toMatchObject({
+      question: { position: 1, text: QUESTIONS[0] },
+      total: 3,
+      lastReveal: slotIds[0][2],
+    });
+    expect(key.teams.map((t) => [t.name, t.score, t.current])).toEqual([
+      ["Lag 1", 3, true],
+      ["Lag 2", 0, false],
+    ]);
+  });
+
+  it("FR-23, AD-5: a ready or played Game is WRONG_STATE; another Host's, a random or a malformed id is NOT_FOUND", async () => {
+    const { id } = await gameIn();
+    expect(await codeOf(play.answerKey(hostId, id))).toBe("WRONG_STATE");
+    const done = await playing();
+    await finishGame(done.id);
+    expect(await codeOf(play.answerKey(hostId, done.id))).toBe("WRONG_STATE");
+    const live = await playing();
+    for (const [host, gameId] of [
+      [randomUUID(), live.id],
+      [hostId, randomUUID()],
+      [hostId, "abc"],
+    ])
+      expect(await codeOf(play.answerKey(host, gameId))).toBe("NOT_FOUND");
+  });
+});
+
 describe("play.reveal", () => {
   it("FR-25, AD-16: the revealSlot action reveals slot 1 for the current Team with seq 1, returns label, Count and Team, revalidates the Game and screen pages, and leaves Team 1 current; load shows slot 1 revealed and Scores [5, 0]", async () => {
     const { id, slotIds, teamIds } = await playing();
