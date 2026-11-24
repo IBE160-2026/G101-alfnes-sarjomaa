@@ -6,8 +6,8 @@ const [home] = QUESTION_SETS;
 // Spec 8.5: the TV page shows each Host view move within 1.5 s.
 const SYNC = { timeout: 1_500 };
 
-// A playing Game from the first Question set, started on the Host view with Lag 1 and Lag 2.
-async function playingOnHostView(page: Page) {
+// A ready Game from the first Question set; returns its Game page path.
+async function readyGame(page: Page) {
   await registerHost(page);
   await page
     .getByLabel("Spørsmål", { exact: true })
@@ -15,7 +15,12 @@ async function playingOnHostView(page: Page) {
   await page.getByLabel("Navn på spillet").fill("Fredag");
   await page.getByRole("button", { name: "Lag spill" }).click();
   await expect(page.locator("h1")).toHaveText("Fredag");
-  const gamePath = new URL(page.url()).pathname;
+  return new URL(page.url()).pathname;
+}
+
+// The same Game, started on the Host view with Lag 1 and Lag 2.
+async function playingOnHostView(page: Page) {
+  const gamePath = await readyGame(page);
   await page.goto(`${gamePath}/vert`);
   await expect(page.locator("h1")).toHaveText("Hvem spiller?");
   await page.getByRole("button", { name: "Start spillet" }).click();
@@ -23,64 +28,109 @@ async function playingOnHostView(page: Page) {
   return gamePath;
 }
 
+// The answer key's rows on the Host view, and a row's label.
+const keyRows = (page: Page) =>
+  page.getByRole("list", { name: "Fasit" }).getByRole("listitem");
+const labelOf = async (page: Page, n: number) =>
+  (await keyRows(page)
+    .nth(n - 1)
+    .locator("span")
+    .nth(1)
+    .textContent())!;
+// The TV page's tile with rank n.
+const tileOf = (tv: Page, n: number) =>
+  tv
+    .locator(".stage-canvas > ol")
+    .getByRole("listitem")
+    .nth(n - 1);
+
 const fontSize = (locator: Locator) =>
   locator.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
 
-test("FR-24 to FR-27 (AC4), AD-17, NFR-5: every move on the Host view shows on the TV page in the same browser within 1.5 s, Bom and Sluttstilling included", async ({
+test("FR-23 to FR-27 (AC4), AD-17: with the TV page reported hidden, so its poll never refreshes and only the channel can move it, Start spillet and every move on the Host view (buttons and keys) show on the TV page in the same browser within 1.5 s, Bom, unscored Reveals and Sluttstilling included", async ({
   page,
   context,
 }) => {
-  const gamePath = await playingOnHostView(page);
+  const gamePath = await readyGame(page);
+  await page.goto(`${gamePath}/vert`);
+  await expect(page.locator("h1")).toHaveText("Hvem spiller?");
   const tv = await context.newPage();
+  // The poll refreshes only a visible page, so with the page reported hidden only the
+  // channel can move it. (A fake clock also stops React's Suspense reveal timer.)
+  await tv.addInitScript(() =>
+    Object.defineProperty(document, "visibilityState", { get: () => "hidden" }),
+  );
   await tv.setViewportSize({ width: 1920, height: 1080 });
   await tv.goto(`${gamePath}/tv`);
-  await expect(tv.locator("h1")).toHaveText(home.questions[0].text);
+  await expect(tv.locator("h1")).toHaveText("Hvem spiller?");
+  // Hydrated (React owns the form), so the channel listener is up before the Host starts.
+  await tv.waitForFunction(() =>
+    Object.keys(document.querySelector("form")!).some((k) =>
+      k.startsWith("__reactFiber"),
+    ),
+  );
 
-  const key = page.getByRole("list", { name: "Fasit" }).getByRole("listitem");
-  const tile = (n: number) =>
-    tv
-      .locator(".stage-canvas > ol")
-      .getByRole("listitem")
-      .nth(n - 1);
-  const label = async (n: number) =>
-    (await key
-      .nth(n - 1)
-      .locator("span")
-      .nth(1)
-      .textContent())!;
+  await page.getByRole("button", { name: "Start spillet" }).click();
+  await expect(page.locator("h1")).toHaveText(home.questions[0].text);
+  await expect(tv.locator("h1")).toHaveText(home.questions[0].text, SYNC);
+
+  const key = keyRows(page);
+  const label = (n: number) => labelOf(page, n);
+  const tile = (n: number) => tileOf(tv, n);
+  const status = page.locator(`p[role="status"]`);
   const current = tv.locator('[aria-current="true"]');
   await expect(current).toContainText("Lag 1");
 
-  // A Reveal by button, then one by key: the TV shows the label, animates it, and scores it.
+  // A Reveal by button: the revealed row takes focus, the TV shows, animates and scores it.
   await page.getByRole("button", { name: "Avslør plass 1" }).click();
+  await expect(key.nth(0)).toBeFocused();
+  await expect(key.nth(0)).toContainText("Avslørt");
   await expect(tile(1)).toContainText(await label(1), SYNC);
   await expect(tile(1).locator("[data-revealing]")).toHaveCount(1);
-  await expect(key.nth(0)).toContainText("Avslørt");
   const firstCount = await key.nth(0).locator("span").nth(2).textContent();
-  await expect(current).toContainText(`${firstCount!.trim()}`, SYNC);
+  await expect(current.locator(".sr-only")).toHaveText(firstCount!.trim());
   await page.keyboard.press("2");
   await expect(tile(2)).toContainText(await label(2), SYNC);
 
-  // Bom is not saved: the TV shows its panel from the channel message.
-  await page.getByRole("button", { name: "Bom [M]" }).click();
-  await expect(tv.locator(".bom-panel")).toBeVisible(SYNC);
-  await expect(page.locator(`p[role="status"]`)).toHaveText("Bom.");
-
-  // Angre hides slot 2 again on both pages.
-  await page.getByRole("button", { name: "Angre [Z]" }).click();
-  await expect(tile(2)).not.toContainText(await label(2), SYNC);
+  // Angre by key with focus on the row it hides: Avslør plass 3 takes focus back.
+  await page.getByRole("button", { name: "Avslør plass 3" }).click();
+  await expect(key.nth(2)).toBeFocused();
+  await expect(tile(3)).toContainText(await label(3), SYNC);
+  await page.keyboard.press("z");
   await expect(
-    page.getByRole("button", { name: "Avslør plass 2" }),
-  ).toBeVisible();
+    page.getByRole("button", { name: "Avslør plass 3" }),
+  ).toBeFocused();
+  await expect(tile(3)).not.toContainText(await label(3), SYNC);
 
-  await page.getByRole("button", { name: "Neste lag [T]" }).click();
+  // Bom is not saved: the TV shows its panel from the channel message.
+  await page.keyboard.press("m");
+  await expect(tv.locator(".bom-panel")).toBeVisible(SYNC);
+  await expect(status).toHaveText("Bom.");
+
+  await page.keyboard.press("t");
   await expect(current).toContainText("Lag 2", SYNC);
-  await expect(page.locator(`p[role="status"]`)).toHaveText("Lag 2 svarer nå.");
+  await expect(status).toHaveText("Lag 2 svarer nå.");
 
-  // Through every Question to Vis sluttstilling: both pages end on Sluttstilling.
+  // An unscored Reveal: "Uten poeng" on the Host view, "uten poeng" on the TV, no Score.
+  await page.getByRole("button", { name: "Vis resten uten poeng [U]" }).click();
+  await expect(
+    page.getByRole("button", { name: "Avslører uten poeng [U]" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Avslør plass 3" }).click();
+  await expect(key.nth(2)).toContainText("Uten poeng");
+  await expect(status).toHaveText(`«${await label(3)}» er avslørt uten poeng.`);
+  await expect(tile(3)).toContainText("uten poeng", SYNC);
+  await expect(current.locator(".sr-only")).toHaveText("0 poeng");
+  await expect(
+    page.locator('li[aria-current="true"] p.tabular-nums'),
+  ).toHaveText("0 poeng");
+
+  // Through every Question by n, → and the button, to Sluttstilling on both pages.
   for (const [i, q] of home.questions.entries()) {
     if (i === 0) continue;
-    await page.getByRole("button", { name: "Neste spørsmål [N]" }).click();
+    if (i === 1) await page.keyboard.press("n");
+    else if (i === 2) await page.keyboard.press("ArrowRight");
+    else await page.getByRole("button", { name: "Neste spørsmål [N]" }).click();
     await expect(page.locator("h1")).toHaveText(q.text);
     await expect(tv.locator("h1")).toHaveText(q.text, SYNC);
   }
@@ -149,12 +199,25 @@ test("FR-24 (AC5): on the TV page the play keys do nothing and there is no butto
     .toBeNull();
 });
 
-test("FR-24 (AC6), NFR-6: the TV page fills 1920×1080 with labels and Scores of 48 px or more, the Host view fits 1280×800, and axe finds nothing serious on either", async ({
+test("FR-24 (AC6), NFR-6: Åpne TV-visning opens the TV page in its own window and a second click keeps it; the TV page fills 1920×1080 with labels and Scores of 48 px or more, the Host view fits 1280×800, axe finds nothing serious on either (the Host view also with the shortcut dialog open and uten poeng on); a move on /skjerm shows on the TV page within 1.5 s", async ({
   page,
-  context,
 }) => {
   const gamePath = await playingOnHostView(page);
   await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(page).toHaveTitle(/^Vertsvisning – Fredag/);
+  const open = page.getByRole("link", { name: "Åpne TV-visning" });
+  const [tv] = await Promise.all([page.waitForEvent("popup"), open.click()]);
+  await tv.waitForURL(`**${gamePath}/tv`);
+  await expect(tv).toHaveTitle(/^TV – Fredag/);
+  await tv.evaluate(() => {
+    (window as unknown as { kept: boolean }).kept = true;
+  });
+  await open.click();
+  expect(
+    await tv.evaluate(() => (window as unknown as { kept?: boolean }).kept),
+  ).toBe(true);
+  expect(new URL(tv.url()).pathname).toBe(`${gamePath}/tv`);
+
   await page.getByRole("button", { name: "Avslør plass 1" }).click();
   await expect(page.getByText("Avslørt", { exact: true })).toBeVisible();
   expect(
@@ -163,11 +226,22 @@ test("FR-24 (AC6), NFR-6: the TV page fills 1920×1080 with labels and Scores of
     ),
   ).toBe(true);
   expect(await seriousViolations(page)).toEqual([]);
+  await page.keyboard.press("?");
+  await expect(
+    page.getByRole("dialog", { name: "Hurtigtaster" }),
+  ).toBeVisible();
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Vis resten uten poeng [U]" }).click();
+  await expect(
+    page.getByRole("button", { name: "Avslører uten poeng [U]" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(await seriousViolations(page)).toEqual([]);
+  const second = await labelOf(page, 2);
 
-  const tv = await context.newPage();
   await tv.setViewportSize({ width: 1920, height: 1080 });
-  await tv.goto(`${gamePath}/tv`);
   await expect(tv.locator("h1")).toHaveText(home.questions[0].text);
+  await expect(tileOf(tv, 1).locator(".reveal-label")).toBeVisible();
   expect(await tv.locator(".stage-canvas").boundingBox()).toEqual({
     x: 0,
     y: 0,
@@ -180,4 +254,10 @@ test("FR-24 (AC6), NFR-6: the TV page fills 1920×1080 with labels and Scores of
   for (const score of await tv.locator(".score-count").all())
     expect(await fontSize(score)).toBeGreaterThanOrEqual(48);
   expect(await seriousViolations(tv)).toEqual([]);
+
+  // The shared screen posts on the same channel, so the TV page follows it too.
+  await page.goto(`${gamePath}/skjerm`);
+  await expect(page.locator("h1")).toHaveText(home.questions[0].text);
+  await page.keyboard.press("2");
+  await expect(tileOf(tv, 2)).toContainText(second, SYNC);
 });
