@@ -54,10 +54,11 @@ the ProtoQA authors (IESL, UMass Amherst), shared under the same licence, CC-BY-
 
 - **Selection.** Only 25 of the 52 Questions are used. Questions that make little sense at a
   Norwegian party, or that are crude, were left out.
-- **Translation.** Each Question was translated into Norwegian (bokmål) by hand. Every Question
+- **Translation.** Each Question was translated into Norwegian (bokmål) by the group's AI coding
+  assistant (Claude) and checked in review against the English source. Every Question
   keeps its source id (`sourceId`, the row's `metadata.id`).
 - **Group labels.** The dataset's clusters have no label, only their raw answers. Each label is a
-  short Norwegian name written by hand for what the cluster's answers have in common. Every Group
+  short Norwegian name, written the same way, for what the cluster's answers have in common. Every Group
   keeps its source cluster id (`cluster`).
 - **Board size.** Only the top clusters by count are kept, at most eight per Question, as on the
   app's Board (FR-21). None of the 25 Questions has a tie at the eighth place. The app orders
@@ -69,4 +70,5 @@ the ProtoQA authors (IESL, UMass Amherst), shared under the same licence, CC-BY-
 The app credits the source on the play screen of every Game made from a set, and in the README.
 The play screen carries the short form "Spørsmål fra ProtoQA (CC BY 4.0), oversatt og tilpasset".
 The full credit, with the ProtoQA authors, is in this file and in the README.
-No model or API was used for the translation.
+The translation was not made by the app or its Judge: no OpenRouter or other API call was used. It
+was written by the AI assistant the group used to build the app, and reviewed by the group.
