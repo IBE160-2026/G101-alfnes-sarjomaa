@@ -1067,6 +1067,30 @@ describe("/spill/[id]/tv", () => {
     for (const missing of [randomUUID(), "abc"])
       await expect(tv(missing)).rejects.toBeInstanceOf(NotFoundError);
   });
+
+  it("FR-27, AD-17: a last move or a delete that commits between the page's state read and play.load (a poll at the wrong moment) renders /tv again instead of the error page, so the TV shows Sluttstilling", async () => {
+    // The error inside the Suspense boundary, as React reports it to Next.
+    const lateError = async (page: ReactNode) => {
+      const errors: unknown[] = [];
+      await prerenderToNodeStream(page, {
+        onError: (e) => void errors.push(e),
+      });
+      return errors;
+    };
+    const finished = await playing();
+    const page = await TvPage(props(finished.id)); // read: playing
+    await finishGame(finished.id);
+    expect(await lateError(page)).toEqual([
+      new RedirectError(`/spill/${finished.id}/tv`),
+    ]);
+    expect(await tv(finished.id)).toContain(">Sluttstilling</h1>");
+    const deleted = await playing();
+    const gone = await TvPage(props(deleted.id));
+    await games.deleteOwned(hostId, deleted.id);
+    expect(await lateError(gone)).toEqual([
+      new RedirectError(`/spill/${deleted.id}/tv`),
+    ]);
+  });
 });
 
 describe("/spill/[id]/vert", () => {

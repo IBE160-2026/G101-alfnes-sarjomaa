@@ -22,6 +22,22 @@ type View = "skjerm" | "tv" | "vert";
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
 
+// A move can commit between ownedGame's state read and play's own, most often under the
+// TV's poll at the last "Vis sluttstilling" or a delete. Render the path again, so it
+// shows the new state (Sluttstilling, not-found) instead of the error page.
+async function orReread<T>(read: Promise<T>, path: string): Promise<T> {
+  try {
+    return await read;
+  } catch (error) {
+    if (
+      error instanceof DomainError &&
+      (error.code === "WRONG_STATE" || error.code === "NOT_FOUND")
+    )
+      redirect(path);
+    throw error;
+  }
+}
+
 // cache(): generateMetadata and the page share one owner-checked read per request.
 const ownedGame = cache(async (gameId: string) => {
   const { hostId } = await auth.requireHost();
@@ -61,6 +77,7 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
     if (isNotFound(error)) notFound();
     throw error;
   }
+  const path = `/spill/${game.id}/${view}`;
   if (game.state === "ready")
     return (
       <>
@@ -69,7 +86,7 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
       </>
     );
   if (game.state === "played") {
-    const final = await play.finalScores(game.hostId, game.id);
+    const final = await orReread(play.finalScores(game.hostId, game.id), path);
     return view === "vert" ? (
       <HostFinal gameId={game.id} {...final} />
     ) : (
@@ -81,7 +98,7 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
     return (
       <HostPlay
         gameId={game.id}
-        {...await play.answerKey(game.hostId, game.id)}
+        {...await orReread(play.answerKey(game.hostId, game.id), path)}
       />
     );
   return (
@@ -91,6 +108,7 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
         gameId={game.id}
         credit={game.questionSet ? QUESTION_SET_CREDIT : undefined}
         tv={view === "tv"}
+        path={path}
       />
     </Suspense>
   );
@@ -102,18 +120,20 @@ async function PlayStage({
   gameId,
   credit,
   tv,
+  path,
 }: {
   hostId: string;
   gameId: string;
   credit?: string;
   tv: boolean;
+  path: string;
 }) {
   return (
     <PlayView
       gameId={gameId}
       credit={credit}
       tv={tv}
-      {...await play.load(hostId, gameId)}
+      {...await orReread(play.load(hostId, gameId), path)}
     />
   );
 }
