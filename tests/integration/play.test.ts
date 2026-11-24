@@ -1237,6 +1237,7 @@ describe("Sluttstilling (AC3)", () => {
     expect(text(html)).toContain(
       `Sluttstilling Lag 2 7 poeng Lag 3 7 poeng Lag 1 3 poeng Vis sluttstilling Spillet og alle svarene slettes automatisk ${await deleteDate(id)}.`,
     );
-    expect(html).toMatch(/role="status"[^>]*>Spillet og alle svarene/);
+    // Static page text, not a status message (EXPERIENCE.md: one polite region per page).
+    expect(html).not.toMatch(/role="status"[^>]*>Spillet og alle svarene/);
   });
 });
