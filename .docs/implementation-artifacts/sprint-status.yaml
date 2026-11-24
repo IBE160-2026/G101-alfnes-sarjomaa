@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-22-2026 00:10
-last_updated: 11-23-2026 21:40
+last_updated: 11-24-2026 23:45
 project: Toppsvar
 project_key: NOKEY
 tracking_system: file-system
@@ -96,4 +96,5 @@ development_status:
   8-2-reorder-groups-in-review: backlog
   8-3-assisted-guess-matching: backlog
   8-4-strikes-and-steals: backlog
+  8-5-separate-tv-view-and-host-view-with-answer-key: done
   epic-8-retrospective: optional

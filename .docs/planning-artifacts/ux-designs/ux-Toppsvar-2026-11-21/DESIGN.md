@@ -3,7 +3,7 @@ name: Toppsvar
 description: Party game where a Host turns anonymous Answers about the group into a ranked Board, reviews it, and plays it from one shared screen. Next.js + Tailwind CSS; tokens map 1:1 onto a Tailwind theme.
 status: final
 created: 2026-11-21
-updated: 2026-11-22
+updated: 2026-11-24
 sources:
   - ../../prds/prd-Toppsvar-2026-10-12/prd.md
   - ../../briefs/brief-Toppsvar-2026-09-14/brief.md
@@ -286,7 +286,7 @@ Three rules carry the brand:
 
 ## Colors
 
-Two families: **light** for Host pages and the answer form, **stage** for the play view. There is no dark mode for the light surfaces in Stage 1.
+Two families: **light** for Host pages and the answer form, **stage** for the play view. There is no dark mode for the light surfaces in Stage 1. The Host view at `/spill/[id]/vert` is a Host page and uses only the light family, never a stage token; the TV page at `/spill/[id]/tv` is the play view's twin and uses the stage family (amended 2026-11-24, Story 8.5, see EXPERIENCE.md).
 
 | Token | Hex | Role | Never used for |
 |---|---|---|---|
@@ -365,7 +365,8 @@ Spacing uses Tailwind's default 4 px scale unchanged; the frontmatter repeats th
 |---|---|---|---|
 | Answer form (phone) | full width, content max `{spacing.form-max}` 560 px, centred on larger screens | `{spacing.gutter-mobile}` 16 px | One column |
 | Host pages (laptop) | content max `{spacing.host-max}` 1280 px | `{spacing.gutter-host}` 32 px | Game list and Game page: one column, max 800 px. Review: 288 px Question rail + flexible main pane |
-| Play view (TV) | fixed 1920×1080 canvas, scaled to fit the window | `{spacing.gutter-tv}` 64 px | Main column 1312 px (Question + top list) · Team column 448 px · gap 32 px |
+| Play view (TV) | fixed 1920×1080 canvas, scaled to fit the window | `{spacing.gutter-tv}` 64 px | Main column 1312 px (Question + top list) · Team column 448 px · gap 32 px. The TV page uses the same canvas and grid (amended 2026-11-24, Story 8.5) |
+| Host view (laptop) | content max `{spacing.host-max}` 1280 px, usable at 1280 px | `{spacing.gutter-host}` 32 px | Two columns from 1024 px, one below: Question, answer key and action row on the left; Teams, the TV link and its hint on the right (amended 2026-11-24, Story 8.5) |
 
 **Play view vertical budget (1080 px):** 48 top gutter · Question block budgeted at four lines of 48 px (221 px) · 24 gap · top list of up to 8 rows (696 px) · 24 gap · control bar 64 px · remainder as bottom gutter = 1077 px. "Spørsmål N av M" sits at the top of the Team column in `tv-team` / `stage-muted`, not in the main column. Row height is `clamp(80px, (696px − 8px × (n − 1)) / n, 104px)` with 8 px gaps: 104 px for six Groups or fewer, 80 px for eight. Rows are top-aligned and the row count still equals the Group count. A row whose revealed label wraps grows to 112 px (see BoardTile). Worst case, a 200-character Question with 8 Groups, fits 1080 px with the control bar visible.
 
@@ -422,6 +423,13 @@ The whole Stage 1 set is thirteen components. Anything not listed is a plain Tai
 | **TeamScore** | `team-score` block per Team, stacked in the Team column with 12 px between cards: Team name in `tv-team`, Score in `tv-score` to the right of the name. Team names are 1 to 14 characters. A long name wraps beside the Score, hyphenated where Norwegian allows it, so four names of wide letters ("WWW…") fit the 941 px column with Scores of up to two digits (A8). Active Team: `team-score-active`, a card filled `stage-accent` with all text in `stage-on-accent`, and the words "Svarer nå" in `tv-team` (48 px) above the name, with the Score to the right of "Svarer nå" and the name across the full card width below; no badge, no side border. On "Sluttstilling" every Team uses `tv-score-final` 120 px, Teams are centred vertically, and the winner takes the `team-score-active` look with "Vinner" in place of "Svarer nå". |
 
 The play view's **control bar** (`control-bar`) is part of the play view layout, not a reusable component: a row of `tv-control` text buttons on `stage-raised`, each showing its keyboard shortcut in brackets ("Angre [Z]"). While "Vis resten uten poeng" is on, its item reads "Avslører uten poeng [U]" in `stage-ink` at weight 700. A save-failure or lost-connection banner (`control-bar-error`, 64 px, `stage-ink`, weight 700) replaces the control-bar row and never overlays the list.
+
+**Host view and TV page** (amended 2026-11-24, Story 8.5; layout notes, no new component).
+
+- **Host view** (`/spill/[id]/vert`), light family only. Page on `paper`. The Question is the page `<h1>` in `{typography.display}`, and "Spørsmål N av M" sits under it in `body` `ink-muted`. The answer key is a list of rows on `paper` divided by `line` rules: rank in `title` `ink-muted`, label and Count in `title`. A hidden row ends in a `button-secondary` "Avslør" (accessible name "Avslør plass N", min height 44 px). A revealed row ends in a status word instead of a button: "Avslørt" in `success` or "Uten poeng" in `ink-muted`, both in `label` at 4.5:1 or better on `paper`, so state is never carried by colour alone.
+- The action row under the key holds the five controls and "?" (accessible name "Hurtigtaster") as `button-secondary` buttons, each control with its shortcut in brackets ("Bom [M]", "Angre [Z]", "Neste lag [T]", "Vis resten uten poeng [U]", "Neste spørsmål [N]"). "Neste spørsmål [N]" (or "Vis sluttstilling [N]") turns `button-primary` once every slot is revealed, as the control bar makes it bold, so the view keeps one primary action. "Vis resten uten poeng [U]" shows its pressed state with a `primary` border on `primary-soft` and bold text. A visible polite status line (`body`, `ink-muted`) sits under the row and reads out each result, as the play view's live region does.
+- The right column lists the Teams with Scores in the TeamScore layout but on light tokens: the current Team is a card on `primary-soft` with `primary` text and the words "Svarer nå", never mint. Below it a link "Åpne TV-visning" styled as `button-secondary` (opens a new window) and the line "Trykk F i TV-vinduet for fullskjerm." in `body-sm` `ink-muted`. *Amended after the Story 8.5 review:* under it, in the same style, "Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten."
+- **TV page** (`/spill/[id]/tv`), stage family only. The play view with the Host's parts removed: the same canvas, tokens, Team column and Reveal staging, but tiles without buttons (so no `board-tile-pending` look and no unscored-mode preview), no control bar, no shortcut hint and no `?` overlay. The "Bom" panel is the play view's. The FR-33 credit stays in the Team column.
 
 ## Do's and Don'ts
 

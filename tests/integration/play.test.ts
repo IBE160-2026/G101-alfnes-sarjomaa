@@ -15,6 +15,12 @@ import GamePage from "@/app/spill/[id]/page";
 import ScreenPage, {
   generateMetadata as screenMetadata,
 } from "@/app/spill/[id]/skjerm/page";
+import TvPage, {
+  generateMetadata as tvMetadata,
+} from "@/app/spill/[id]/tv/page";
+import HostViewPage, {
+  generateMetadata as hostViewMetadata,
+} from "@/app/spill/[id]/vert/page";
 import { DomainError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import type { GameState } from "@/lib/game-state";
@@ -203,6 +209,12 @@ const screen = async (id: string) => prerender(await ScreenPage(props(id)));
 // The first flush: only the Suspense fallback of the play view.
 const screenShell = async (id: string) =>
   renderToStaticMarkup(await ScreenPage(props(id)));
+const tv = async (id: string) => prerender(await TvPage(props(id)));
+const hostView = async (id: string) =>
+  renderToStaticMarkup(await HostViewPage(props(id)));
+// The TV page keeps F with its hint display:none, so the room never sees it.
+const visible = (html: string) =>
+  html.replace('<p class="hidden">Trykk F for fullskjerm.</p>', "");
 const gamePage = async (id: string) =>
   renderToStaticMarkup(await GamePage(props(id)));
 
@@ -330,6 +342,42 @@ describe("play.load", () => {
       teams: [],
       playState: [],
     });
+  });
+});
+
+describe("play.answerKey", () => {
+  it("FR-24 to FR-27, AD-15: every slot of the current Question with label, Count and revealed/scored state, plus the Teams, Scores and Spørsmål N av M of play.load", async () => {
+    const { id, slotIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][1],
+      scored: true,
+    });
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][2],
+      scored: false,
+    });
+    const key = await play.answerKey(hostId, id);
+    expect(key.board).toEqual(
+      [
+        { id: slotIds[0][0], position: 1, label: "Kari", count: 5 },
+        { id: slotIds[0][1], position: 2, label: "Ola", count: 3 },
+        { id: slotIds[0][2], position: 3, label: "Per", count: 2 },
+      ].map((s, i) => ({ ...s, revealed: i > 0, scored: i === 1 })),
+    );
+    const { board, ...rest } = await play.load(hostId, id);
+    expect(key).toEqual({ ...rest, board: key.board });
+    expect(board.map((s) => s.revealed)).toEqual([false, true, true]);
+  });
+
+  // Another Host's, a random and a malformed id are in authz.test.ts.
+  it("FR-23: a ready or played Game is WRONG_STATE", async () => {
+    const { id } = await gameIn();
+    expect(await codeOf(play.answerKey(hostId, id))).toBe("WRONG_STATE");
+    const done = await playing();
+    await finishGame(done.id);
+    expect(await codeOf(play.answerKey(hostId, done.id))).toBe("WRONG_STATE");
   });
 });
 
@@ -947,8 +995,154 @@ describe("/spill/[id]/skjerm", () => {
   );
 });
 
+describe("/spill/[id]/tv", () => {
+  it("FR-24, FR-25 (AC1): a playing Game with one revealed slot shows the Question, the revealed label and Count, the Teams and Scores and rank-only hidden tiles, with no control and no hidden label or Count in the markup", async () => {
+    const { id, slotIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][1],
+      scored: true,
+    });
+    // Counts long enough to search for, on the two hidden slots (Kari, Per).
+    const db = await getDb();
+    for (const [slot, count] of [
+      [slotIds[0][0], 37],
+      [slotIds[0][2], 29],
+    ] as const)
+      await db.update(boardSlot).set({ count }).where(eq(boardSlot.id, slot));
+    const html = await tv(id);
+    expect(html).toContain("data-stage");
+    // A Reveal made before the TV opened does not replay its animation.
+    expect(html).not.toContain("data-revealing");
+    for (const count of ["37", "29"])
+      expect(html, count).not.toMatch(new RegExp(`>${count}<|${count} poeng`));
+    expect(html).toContain(`text-tv-question">${QUESTIONS[0]}</h1>`);
+    expect(text(html)).toContain(
+      "Spørsmål 1 av 3 Svarer nå Lag 1 3 poeng Lag 2 0 poeng 1 2 Ola 3 poeng 3",
+    );
+    expect(html).not.toContain("<button");
+    for (const control of [
+      "Avslør plass",
+      "Bom",
+      "Angre",
+      "Neste lag",
+      "uten poeng [U]",
+      "Neste spørsmål",
+      "Hurtigtaster",
+      "Trykk F",
+    ])
+      expect(visible(html), control).not.toContain(control);
+    // Hidden slots of this Question (Kari 5, Per 2) and every later Question's Board.
+    for (const hidden of ["Kari", "Per", "Oslo", "Bergen", "Molde"])
+      expect(html, hidden).not.toContain(hidden);
+  });
+
+  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows Sluttstilling with no deletion line or link; titled TV – the Game, or the not-found title for a missing Game", async () => {
+    const { id } = await gameIn();
+    expect(await tv(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
+    expect(await tvMetadata(props(id))).toEqual({ title: "TV – Hyttetur" });
+    expect(await tvMetadata(props(randomUUID()))).toEqual({
+      title: "Vi finner ikke dette spillet",
+    });
+    const draft = await gameIn("draft");
+    await expect(tv(draft.id)).rejects.toEqual(
+      new RedirectError(`/spill/${draft.id}`),
+    );
+    const played = await playing();
+    await finishGame(played.id);
+    const html = await tv(played.id);
+    expect(html).toMatch(/<h1 id="sluttstilling"[^>]*>Sluttstilling<\/h1>/);
+    expect(text(html)).toContain("Sluttstilling Uavgjort Lag 1 0 poeng");
+    for (const host of ["slettes", "Tilbake til spillet", "Trykk F", "<a "])
+      expect(visible(html), host).not.toContain(host);
+  });
+
+  it("FR-27, AD-17: a last move or a delete that commits between the page's state read and play.load (a poll at the wrong moment) renders /tv again instead of the error page, so the TV shows Sluttstilling", async () => {
+    // The error inside the Suspense boundary, as React reports it to Next.
+    const lateError = async (page: ReactNode) => {
+      const errors: unknown[] = [];
+      await prerenderToNodeStream(page, {
+        onError: (e) => void errors.push(e),
+      });
+      return errors;
+    };
+    const finished = await playing();
+    const page = await TvPage(props(finished.id)); // read: playing
+    await finishGame(finished.id);
+    expect(await lateError(page)).toEqual([
+      new RedirectError(`/spill/${finished.id}/tv`),
+    ]);
+    expect(await tv(finished.id)).toContain(">Sluttstilling</h1>");
+    const deleted = await playing();
+    const gone = await TvPage(props(deleted.id));
+    await games.deleteOwned(hostId, deleted.id);
+    expect(await lateError(gone)).toEqual([
+      new RedirectError(`/spill/${deleted.id}/tv`),
+    ]);
+  });
+});
+
+describe("/spill/[id]/vert", () => {
+  it("FR-24 to FR-27, AD-15 (AC2): a playing Game shows the Question, Spørsmål 1 av 3, every slot's label and Count with Avslør or Avslørt / Uten poeng, the Teams and Scores, and the TV link", async () => {
+    const { id, slotIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][1],
+      scored: true,
+    });
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][2],
+      scored: false,
+    });
+    const html = await hostView(id);
+    expect(html).toMatch(
+      new RegExp(`<h1[^>]*>${QUESTIONS[0].replace("?", "\\?")}</h1>`),
+    );
+    expect(html).not.toContain("data-stage");
+    expect(html).toContain('aria-label="Avslør plass 1"');
+    expect(html).not.toContain("Avslør plass 2");
+    const shown = text(html);
+    expect(shown).toContain(
+      "Spørsmål 1 av 3 Fasit 1 Kari 5 poeng Avslør 2 Ola 3 poeng Avslørt 3 Per 2 poeng Uten poeng",
+    );
+    expect(shown).toContain(
+      "Bom [M] Angre [Z] Neste lag [T] Vis resten uten poeng [U] Neste spørsmål [N]",
+    );
+    expect(shown).toContain(
+      "Lag Svarer nå Lag 1 3 poeng Lag 2 0 poeng Åpne TV-visning i et nytt vindu Trykk F i TV-vinduet for fullskjerm. Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten.",
+    );
+    expect(html).toContain(`href="/spill/${id}/tv"`);
+    for (const later of ["Oslo", "Bergen", "Molde"])
+      expect(html, later).not.toContain(later);
+    expect(await hostViewMetadata(props(id))).toEqual({
+      title: "Vertsvisning – Hyttetur",
+    });
+  });
+
+  it("FR-23, FR-27 (AC3): ready shows Team setup, draft redirects, played shows the final standing with the deletion date and Tilbake til spillet", async () => {
+    const { id } = await gameIn();
+    expect(await hostView(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
+    const draft = await gameIn("draft");
+    await expect(hostView(draft.id)).rejects.toEqual(
+      new RedirectError(`/spill/${draft.id}`),
+    );
+    const played = await tiedGame();
+    const html = await hostView(played);
+    expect(html).not.toContain("data-stage");
+    expect(html).toMatch(
+      new RegExp(
+        `<a [^>]*href="/spill/${played}"[^>]*>Tilbake til spillet</a>`,
+      ),
+    );
+    expect(text(html)).toContain(
+      `Sluttstilling Lag 2 7 poeng Lag 3 7 poeng Lag 1 3 poeng Spillet slettes automatisk ${await deleteDate(played)}. Tilbake til spillet`,
+    );
+  });
+});
+
 describe("Game page", () => {
-  it("FR-23: in ready it links Start spillet to the screen; in playing it shows Spillet er i gang, the Question, each Team with its Score and Fortsett spillet", async () => {
+  it("FR-23, FR-24: in ready it links Start spillet to the screen; in playing it shows Spillet er i gang, the Question, each Team with its Score, Fortsett spillet, Åpne TV-visning and Vertsvisning med fasit, and the mirroring warning", async () => {
     const { id } = await gameIn();
     const link = (label: string) =>
       new RegExp(
@@ -960,7 +1154,18 @@ describe("Game page", () => {
     expect(html).toMatch(link("Fortsett spillet"));
     expect(html).not.toContain("Start spillet");
     expect(text(html)).toContain(
-      "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Fortsett spillet",
+      "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Fortsett spillet Åpne TV-visning i et nytt vindu Vertsvisning med fasit Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten.",
+    );
+    // Story 8.5 (AC7): the TV page and the Host view beside the shared screen.
+    expect(html).toMatch(
+      new RegExp(
+        `<a href="/spill/${id}/tv" target="toppsvar-tv"[^>]*>Åpne TV-visning`,
+      ),
+    );
+    expect(html).toMatch(
+      new RegExp(
+        `<a class="[^"]*" href="/spill/${id}/vert">Vertsvisning med fasit</a>`,
+      ),
     );
   });
 });

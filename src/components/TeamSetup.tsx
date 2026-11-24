@@ -15,6 +15,7 @@ import { Notice } from "@/components/Notice";
 import { focusPageHeading } from "@/components/RouteFocus";
 import { TextField } from "@/components/TextField";
 import { callAction, NETWORK } from "@/components/useFormAction";
+import { postToTv } from "@/components/usePlay";
 import { TEAMS_MAX, TEAMS_MIN } from "@/lib/limits";
 import { teamNameSchema } from "@/lib/play";
 
@@ -101,7 +102,8 @@ export function TeamSetup({ gameId }: { gameId: string }) {
       );
       if (result?.ok) {
         acted.current = true;
-        return;
+        // A TV page still on Team setup in this browser follows into play.
+        return postToTv(gameId, "changed");
       }
       if (result?.code === "NOT_FOUND") return router.refresh();
       // A rejected call may still have started play, so the page refreshes too, and

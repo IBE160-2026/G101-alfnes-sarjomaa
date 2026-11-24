@@ -2,7 +2,7 @@
 title: Toppsvar PRD
 status: final
 created: 2026-10-12
-updated: 2026-11-23
+updated: 2026-11-24
 ---
 
 # PRD: Toppsvar
@@ -14,6 +14,8 @@ This PRD turns the Toppsvar product brief into requirements that the UX, archite
 Vocabulary is fixed in the Glossary (§3), and capitalised terms are used exactly as defined there. Features are grouped in §4 with globally numbered requirements (FR-n), each with testable consequences, and every requirement is tagged **Stage 1** or **Stage 2**. §9.1 traces the brief's success criteria to requirements and planned tests. Choices the group delegated on 2026-10-13 are stated as requirements, with their rationale in parentheses, and listed in §11. §10 lists what is deliberately deferred to UX and architecture, each with an owner.
 
 On 2026-11-23 the PRD was amended after the instructor's formative feedback on it (`tilbakemelding-prd.md` in the repository root, dated 2026-11-12). Every amended passage is marked "Amended 2026-11-23" with the feedback point it answers, and §11 lists them. The reasoning, and the changes still owed to architecture, epics, UX and code, are in `.docs/planning-artifacts/sprint-change-proposal-2026-11-23.md`.
+
+On 2026-11-24 the group amended §4.7 (FR-24 to FR-27) after testing the pilot: play can also run as two pages, a TV page and a Host page. Those passages are marked "Amended 2026-11-24", and §11 lists the amendment.
 
 ## 1. Vision
 
@@ -343,7 +345,7 @@ A Host can override the order of Groups on the Board.
 
 ### 4.7 Play
 
-**Description:** Play runs from one shared screen, such as a TV or projector connected to the Host's laptop. Teams answer out loud, and the Host clicks the Group each Guess hits, or marks a miss. No Participant device is involved. Play state is saved, so a reloaded or reopened play view continues where it left off. Realises UJ-4.
+**Description:** Play runs from one shared screen, such as a TV or projector connected to the Host's laptop. Teams answer out loud, and the Host clicks the Group each Guess hits, or marks a miss. No Participant device is involved. Play state is saved, so a reloaded or reopened play view continues where it left off. Realises UJ-4. (Amended 2026-11-24, group decision after the pilot test: play can also run as two pages. A TV page, which the room watches, shows only the audience's Board. A Host page shows the answer key and the controls. The two pages follow each other without a manual reload. The view that is one shared screen with its controls stays, for a Host with a single display.)
 
 #### FR-23: Set up Teams — Stage 1
 A Host can start play on a Game in *ready* by naming two to four Teams. (Two to four covers a party; more makes the shared screen hard to read.)
@@ -353,14 +355,15 @@ A Host can start play on a Game in *ready* by naming two to four Teams. (Two to 
 - Every Team starts with a Score of zero, and the Game moves to *playing*.
 
 #### FR-24: Show the Board — Stage 1
-The shared screen shows one Question at a time, with its Groups hidden and the number of Groups visible, the current Team and every Team's Score.
+The shared screen shows one Question at a time, with its Groups hidden and the number of Groups visible, the current Team and every Team's Score. (Amended 2026-11-24, group decision after the pilot test: on the two-page layout the TV page is the shared screen and shows only this. The Host page shows, besides the Teams and Scores, the answer key: the label and Count of every Group on the current Question's Board, and nothing else from Review.)
 
 **Consequences (testable):**
 - The play view fills a 1920×1080 browser window, and Group labels and Scores render at no less than 48 px. (Legible from about 3 metres; checked manually against this bound.)
 - The play view never shows raw Answers or discarded Groups.
+- The TV page carries no hidden Group's label or Count, in what it shows or in what it is sent. (Amended 2026-11-24, group decision after the pilot test: new consequence.)
 
 #### FR-25: Mark a match or a miss — Stage 1
-For the current Team, the Host clicks the Group a Guess matches, which makes a scored Reveal, or marks a miss. The Guess itself is not typed in Stage 1.
+For the current Team, the Host clicks the Group a Guess matches, which makes a scored Reveal, or marks a miss. The Guess itself is not typed in Stage 1. (Amended 2026-11-24, group decision after the pilot test: the Host can make the same Reveal or miss from the Host page, by button or key, and the TV page shows the result without a manual reload. A miss is not saved, so only a TV page in the same browser shows it; a TV page on another device shows saved state only.)
 
 **Consequences (testable):**
 - A scored Reveal shows the Group's label and Count and adds the Count to the current Team's Score.
@@ -368,19 +371,20 @@ For the current Team, the Host clicks the Group a Guess matches, which makes a s
 - Clicking a Group that is already revealed is refused.
 
 #### FR-26: Undo — Stage 1
-The Host can undo the most recent Reveal, scored or unscored. (A misclick should not ruin a round.)
+The Host can undo the most recent Reveal, scored or unscored. (A misclick should not ruin a round.) (Amended 2026-11-24, group decision after the pilot test: Undo is available on the Host page, and the TV page follows it.)
 
 **Consequences (testable):**
 - Undo hides the Group again and, for a scored Reveal, subtracts its Count from the Team that received it.
 - Undo is available only for the most recent Reveal on the current Question.
 
 #### FR-27: Turns and moving on — Stage 1
-The Host passes the turn to the next Team and moves to the next Question manually, and can make unscored Reveals of the remaining Groups before moving on. (Manual turns, and a Question ending when the Host moves on, replace strikes, steals and round-end rules until Stage 2.)
+The Host passes the turn to the next Team and moves to the next Question manually, and can make unscored Reveals of the remaining Groups before moving on. (Manual turns, and a Question ending when the Host moves on, replace strikes, steals and round-end rules until Stage 2.) (Amended 2026-11-24, group decision after the pilot test: turns and moving on are made on the Host page, and the TV page follows them, up to the final Scores.)
 
 **Consequences (testable):**
 - An unscored Reveal changes no Score.
 - After the last Question the screen shows the final Score of every Team, and the Game moves to *played*.
-- Play state (current Question, current Team, Reveals and Scores) survives a reload of the play view.
+- Play state (current Question, current Team, Reveals and Scores) survives a reload of the play view. (Amended 2026-11-24, group decision after the pilot test: of either page.)
+- On the two-page layout, a Reveal, Undo, turn or Question change made on the Host page shows on the TV page without a manual reload: within 1.5 seconds when both pages are open in the same browser, and within about 2 seconds on another device that is signed in as the Host. (Amended 2026-11-24, group decision after the pilot test: new consequence.)
 
 #### FR-28: Assisted Guess matching — Stage 2
 The Host types a Guess, the Judge proposes which Group it matches, and the Host accepts or overrides the proposal before the Reveal.
@@ -618,6 +622,12 @@ The instructor's formative feedback of 2026-11-12 (`tilbakemelding-prd.md`) was 
 - 4.4 — FR-14's notice names the model provider, always and as a possibility; FR-3 adds Grouping results and usage counters and a text-scan test; the Glossary and §6.2 state that no ruling or cache outside the Game holds its Answers; §6.1 names what is sent to the provider.
 - 4.5 — SM-2 gains a decision rule: tune only before the freeze, then report the figure unchanged.
 - §5 — "Move" replaces "split" (Glossary, UJ-3, FR-18, §9.1); FR-23 loses its redundant exception; §6.1 names the Host's email address and password hash; §7 lists password reset as a Non-Goal. FR-29 needs no consequences, as the feedback agreed.
+
+**Amendment after the pilot test (2026-11-24)**
+
+The group tested the pilot on 2026-11-24 and found that the room sees the Host's controls and the Host has no answer key. It decided to add a second way to play, and the one-shared-screen view stays.
+
+- §4.7 FR-24 to FR-27 — Play can also run as two pages: a TV page with only the audience's Board, and a Host page with the answer key and the controls. A Reveal, Undo, turn or Question change shows on both pages without a manual reload. The TV page never carries a hidden Group's label or Count.
 
 **Numeric parameters**
 

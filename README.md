@@ -7,7 +7,9 @@ Her ligger appen, og dokumentasjon av hvordan vi bygde, testet og kvalitetssikre
 
 **Toppsvar** er et Family Feud-aktig festspill. Verten lager spørsmål om sin egen gjeng, og
 deltakerne svarer anonymt i fritekst. En språkmodell grupperer like svar til rangerte topplister.
-Verten retter, og gjengen spiller fra én delt skjerm. Trinn 2: ferdige spørsmålssett, uten innsamling.
+Verten retter, og gjengen spiller fra én delt skjerm. En vert med to skjermer kan i stedet åpne
+TV-visningen, som bare viser brettet for rommet, og styre spillet fra vertsvisningen med fasit på
+sin egen skjerm. Trinn 2: ferdige spørsmålssett, uten innsamling.
 
 Pilot: <https://toppsvar.vercel.app>. Lokalt trengs verken nøkkel eller konto, se [Utvikling](#utvikling).
 
@@ -197,7 +199,8 @@ Per 23. november. Trinn 1 fryses 1. desember.
   Vercel Cron én gang i måneden), og kjennelsene er tatt opp live på nytt. Målingen på ekte norske svar (SM-4) er
   ikke kjørt. Det som ikke er ferdig ved frysen, flyttes til trinn 2.
 - **Trinn 2 er startet** før trinn 1 er godkjent, etter gruppens valg. [Ferdige
-  spørsmålssett](#ferdige-spørsmålssett) (FR-33) er på plass. Egen rekkefølge på brettet (FR-22),
+  spørsmålssett](#ferdige-spørsmålssett) (FR-33) er på plass, og det samme er TV-visning og
+  vertsvisning med fasit (story 8.5). Egen rekkefølge på brettet (FR-22),
   hjelp til gjetninger (FR-28) og strikes og steals (FR-29) gjenstår.
 - **Dommeren mot ProtoQA (SM-2): B-cubed F1 0.6849**, under målet på 0.70. Spørsmål med mange
   ulike svar faller tilbake til én gruppe per svar, og verten slår sammen i gjennomgangen.

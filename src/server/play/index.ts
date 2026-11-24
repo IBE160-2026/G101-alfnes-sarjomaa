@@ -42,6 +42,17 @@ export type PlayView = {
   lastReveal: string | null;
 };
 
+export type AnswerKey = Omit<PlayView, "board"> & {
+  board: {
+    id: string;
+    position: number;
+    label: string;
+    count: number;
+    revealed: boolean;
+    scored: boolean;
+  }[];
+};
+
 export type RevealResult = {
   label: string;
   count: number;
@@ -108,55 +119,71 @@ export function start(hostId: string, input: unknown): Promise<void> {
   });
 }
 
-// What the play view shows, from saved state only (FR-23, FR-24, FR-27). Reads the
-// Board only through review.getBoard (AD-15), never answer or answer_group.
+// The current Question's saved state with every slot's label and Count, for load and
+// answerKey. Reads the Board only through review.getBoard (AD-15), never answer or
+// answer_group.
+async function readPlay(hostId: string, gameId: string) {
+  const { state } = await games.getOwned(hostId, gameId);
+  if (state !== "playing") throw new DomainError("WRONG_STATE");
+  const db = await getDb();
+  const [current] = await db
+    .select({
+      questionId: playState.currentQuestionId,
+      position: question.position,
+      text: question.text,
+      teamId: playState.currentTeamId,
+    })
+    .from(playState)
+    .innerJoin(question, eq(question.id, playState.currentQuestionId))
+    .where(eq(playState.gameId, gameId));
+  const total = await db.$count(question, eq(question.gameId, gameId));
+  const teams = await teamsWithScores(db, gameId);
+  const slots = (await review.getBoard(db, gameId)).filter(
+    (s) => s.questionId === current.questionId,
+  );
+  const reveals = await db
+    .select({ id: revealRow.boardSlotId, teamId: revealRow.teamId })
+    .from(revealRow)
+    .where(eq(revealRow.gameId, gameId))
+    .orderBy(asc(revealRow.seq));
+  // Slot id → scored (an unscored Reveal has no Team).
+  const revealed = new Map(reveals.map((r) => [r.id, r.teamId !== null]));
+  const onQuestion = new Set(slots.map((s) => s.id));
+  return {
+    question: { position: current.position, text: current.text },
+    total,
+    teams: teams.map((t) => ({ ...t, current: t.id === current.teamId })),
+    board: slots.map(({ id, position, label, count }) => ({
+      id,
+      position,
+      label,
+      count,
+      revealed: revealed.has(id),
+      scored: revealed.get(id) ?? false,
+    })),
+    lastReveal: reveals.findLast((r) => onQuestion.has(r.id))?.id ?? null,
+  };
+}
+
+// What the room sees, from saved state only (FR-23, FR-24, FR-27).
 export function load(hostId: string, gameId: string): Promise<PlayView> {
   return withBoundary("play", "load", async () => {
-    const { state } = await games.getOwned(hostId, gameId);
-    if (state !== "playing") throw new DomainError("WRONG_STATE");
-    const db = await getDb();
-    const [current] = await db
-      .select({
-        questionId: playState.currentQuestionId,
-        position: question.position,
-        text: question.text,
-        teamId: playState.currentTeamId,
-      })
-      .from(playState)
-      .innerJoin(question, eq(question.id, playState.currentQuestionId))
-      .where(eq(playState.gameId, gameId));
-    const total = await db.$count(question, eq(question.gameId, gameId));
-    const teams = await teamsWithScores(db, gameId);
-    const slots = (await review.getBoard(db, gameId)).filter(
-      (s) => s.questionId === current.questionId,
-    );
-    const reveals = await db
-      .select({ id: revealRow.boardSlotId, teamId: revealRow.teamId })
-      .from(revealRow)
-      .where(eq(revealRow.gameId, gameId))
-      .orderBy(asc(revealRow.seq));
-    // Slot id → scored (an unscored Reveal has no Team).
-    const revealed = new Map(reveals.map((r) => [r.id, r.teamId !== null]));
-    const onQuestion = new Set(slots.map((s) => s.id));
+    const { board, ...rest } = await readPlay(hostId, gameId);
     return {
-      question: { position: current.position, text: current.text },
-      total,
-      teams: teams.map((t) => ({ ...t, current: t.id === current.teamId })),
-      board: slots.map(({ id, position, label, count }) =>
-        revealed.has(id)
-          ? {
-              id,
-              position,
-              revealed: true as const,
-              label,
-              count,
-              scored: revealed.get(id)!,
-            }
-          : { id, position, revealed: false as const },
+      ...rest,
+      board: board.map(({ id, position, revealed, label, count, scored }) =>
+        revealed
+          ? { id, position, revealed, label, count, scored }
+          : { id, position, revealed },
       ),
-      lastReveal: reveals.findLast((r) => onQuestion.has(r.id))?.id ?? null,
     };
   });
+}
+
+// The Host view's answer key: the same read with every slot's label and Count (FR-24 to
+// FR-27). Board content only, so it never shows Answers or discarded Groups.
+export function answerKey(hostId: string, gameId: string): Promise<AnswerKey> {
+  return withBoundary("play", "answerKey", () => readPlay(hostId, gameId));
 }
 
 // FR-25, AD-16: reveals one slot of the current Question, crediting the play_state Team

@@ -34,6 +34,8 @@ Run on the Game named in the "Run on" column.
 | A9  | Play view, a 40-character label of wide letters (e.g. "MMMM…Ø") shows in full, wrapped if needed, never truncated                                                                       | FR-24               | S (Q1)   |        |      |
 | A10 | Review, keyboard only: the focus ring is visible on every SelectionBar control                                                                                                          | NFR-6               | S        |        |      |
 
+A1, A7, A8 and A9 are also run against the TV page, `/spill/[id]/tv`, with the Host view open in another window (Story 8.5). Record the TV page result in the same row.
+
 For A5, the axe DevTools browser extension or Chrome's Lighthouse (Accessibility only) is enough. Visit the Game page in all seven states: _draft_ and _collecting_ on an own Game, _grouping_ right after close, then _in review_, _ready_, _playing_ and _played_ on the sizing Game. The closed page is an old link after close, and the unknown page is `/svar/<any uuid>/x`. Note any serious or critical finding with its page.
 
 ## Timing (NFR-5)

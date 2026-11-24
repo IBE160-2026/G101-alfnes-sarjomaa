@@ -10,9 +10,11 @@ import { DownloadReport } from "@/components/DownloadReport";
 import { GroupingRefresh } from "@/components/GroupingRefresh";
 import { InviteLinkPanel } from "@/components/InviteLinkPanel";
 import { Notice } from "@/components/Notice";
+import { OpenTvLink } from "@/components/OpenTvLink";
 import { ProgressCount } from "@/components/ProgressCount";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
+import { ScoreList } from "@/components/ScoreList";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DomainError } from "@/lib/errors";
 import { REPORT_STATES } from "@/lib/game-state";
@@ -31,28 +33,13 @@ import * as questions from "@/server/questions";
 export const maxDuration = 300;
 
 const PRIMARY_LINK =
-  "mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover";
+  "inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover";
+
+const SECONDARY_LINK =
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-primary hover:bg-surface-sunken";
 
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
-
-// Each Team and its Score, on the playing and the played Game page.
-const scoreList = (teams: { id: string; name: string; score: number }[]) => (
-  <dl className="mt-4 max-w-md border-t border-line">
-    {teams.map((team) => (
-      <div
-        key={team.id}
-        className="flex items-baseline justify-between gap-4 border-b border-line py-3"
-      >
-        <dt className="min-w-0 break-words">{team.name}</dt>
-        <dd className="text-title tabular-nums">
-          {team.score}
-          <span className="sr-only"> poeng</span>
-        </dd>
-      </div>
-    ))}
-  </dl>
-);
 
 // cache(): generateMetadata and the page share one owner-checked read per request.
 const ownedGame = cache(async (gameId: string) => {
@@ -216,7 +203,10 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
             </div>
           ))}
         </dl>
-        <Link href={`/spill/${game.id}/gjennomgang`} className={PRIMARY_LINK}>
+        <Link
+          href={`/spill/${game.id}/gjennomgang`}
+          className={`mt-6 ${PRIMARY_LINK}`}
+        >
           Gå til gjennomgangen
         </Link>
       </section>,
@@ -233,7 +223,10 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <p className="mt-4">
           {n === 1 ? "1 spørsmål er klart." : `${n} spørsmål er klare.`}
         </p>
-        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+        <Link
+          href={`/spill/${game.id}/skjerm`}
+          className={`mt-6 ${PRIMARY_LINK}`}
+        >
           Start spillet
         </Link>
       </section>,
@@ -249,10 +242,21 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <p className="mt-4">
           Spørsmål {question.position} av {total}.
         </p>
-        {scoreList(teams)}
-        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
-          Fortsett spillet
-        </Link>
+        <ScoreList teams={teams} />
+        {/* One shared screen, or the TV page beside the Host view (Story 8.5). */}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+            Fortsett spillet
+          </Link>
+          <OpenTvLink gameId={game.id} className={SECONDARY_LINK} />
+          <Link href={`/spill/${game.id}/vert`} className={SECONDARY_LINK}>
+            Vertsvisning med fasit
+          </Link>
+        </div>
+        <p className="mt-2 text-body-sm text-ink-muted">
+          Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet
+          fasiten.
+        </p>
       </section>,
     ];
   } else if (game.state === "played") {
@@ -263,8 +267,11 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <h2 id="sluttstilling" className="text-heading">
           Sluttstilling
         </h2>
-        {scoreList(teams)}
-        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+        <ScoreList teams={teams} />
+        <Link
+          href={`/spill/${game.id}/skjerm`}
+          className={`mt-6 ${PRIMARY_LINK}`}
+        >
           Vis sluttstilling
         </Link>
         <Notice tone="info" live={false} className="mt-6 max-w-prose">

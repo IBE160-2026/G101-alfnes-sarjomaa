@@ -1,0 +1,81 @@
+# Story 8.5 impeccable audit (audit)
+
+Branch `epic-8-vertsvisning`, scope Story 8.5 (a separate TV page and a Host view with the answer key), `git diff main...epic-8-vertsvisning`. Mode: Operate. Contract: `DESIGN.md` and `EXPERIENCE.md` in `.docs/planning-artifacts/ux-designs/ux-Toppsvar-2026-11-21/`, including the 2026-11-24 amendments for Story 8.5. The launcher was unavailable, so the bundled detector did not run. This is a source audit checked against fresh screenshots. The app was started with `npm run demo` in a separate worktree on the branch head, with no model key, so it ran on the seeded PGlite database and the replay judge. Playwright logged in with the demo login, created a Game from the "Jobb og reise" Question set and opened `/vert` and `/tv` as two pages in one browser context. Team setup was filled in and started from `/vert`. Every move was then made from `/vert`: Reveal by button and by key, Bom, Angre, Neste lag, "Vis resten uten poeng" with an unscored Reveal, every slot revealed, Neste spørsmål, the last Question and Sluttstilling. Both pages were captured after each step. `/vert` was captured at 1280×800, 1440×900, 1024×768 and 360×780, and `/tv` at 1920×1080 and letterboxed at 1280×720 and 1280×800. The Game page in *playing* was captured at 1280 and 360 px, and "Åpne TV-visning" was clicked from both the Game page and `/vert`. A second probe ran two more Games to Sluttstilling with a fresh TV page, once without any key press on the TV and once after pressing F. The PNGs are kept outside the repo. File names are cited below.
+
+Files in scope: `src/components/HostPlay.tsx`, `src/components/TvBoard.tsx`, `src/components/OpenTvLink.tsx`, `src/components/ScoreList.tsx`, `src/components/usePlay.ts`, `src/components/PlayView.tsx` (the `tv` branches), `src/app/spill/[id]/play-page.tsx`, `src/app/spill/[id]/tv/page.tsx`, `src/app/spill/[id]/vert/page.tsx`, and the *playing* section of `src/app/spill/[id]/page.tsx`.
+
+## Scores
+
+| Dimension | Score | Key finding |
+|---|---|---|
+| Accessibility | 3 | Every control on `/vert` has a visible 3 px `ink` focus ring, a 44 px target, a name that contains its visible text, and a status word beside each colour. The one visible defect is on the TV, not for assistive tech: a focus ring the room sees on Sluttstilling (S1). |
+| Performance | 4 | The TV re-reads saved state on a channel message and on a 2 s poll, only while visible. It followed every move in 1 to 106 ms after the move was saved. The poll stops once the TV reaches Sluttstilling. |
+| Theming | 3 | `/vert` uses only light tokens and `/tv` only stage tokens, as the contract requires. The secondary-link styling is copied by hand in two places and has already drifted (N1). |
+| Responsive | 4 | Two columns at 1024, 1280 and 1440 px, with no horizontal scroll at any width. The TV canvas fills 1280×720 at scale 0.667 and letterboxes 1280×800 with 40 px bands. `/vert` works at 360 px, with the minor squeeze noted in N3. |
+| Implementation integrity | 3 | The split reuses the play view's hook and tiles rather than forking them, and the TV markup carries no hidden label. One Host-page behaviour leaks onto the room's screen (S1). |
+| **Total** | **17/20** | Good. No must-fix. One should-fix before the PR. |
+
+Verdict on integrity: pass. Story 8.5 adds two routes and no new component in the design-system sense. `/vert` is built from `Button`, `Notice`, `ScoreList` and the Host-page tokens. `/tv` is `PlayView` with `BoardTiles` and `BomPanel` and without the control bar, so the stage cannot drift from `/skjerm`. The play logic moved into `usePlay`, so the shortcuts, stale-tab handling and focus rules are the same code on both control surfaces. The page source on `/tv`, including the inline RSC payload, contained none of the eight hidden labels of the first Question before any Reveal (checked against the answer key read from `/vert`). The one defect is a focus behaviour that suits a Host page and was carried onto the room's screen.
+
+## Should
+
+### S1. [P2] The TV shows a 3 px white focus ring around "Sluttstilling" (`src/components/PlayView.tsx:124`)
+
+`FinalScores` always mounts `<FocusOnMount id="sluttstilling" />`, and the TV page renders the same component with `tv` set (`src/app/spill/[id]/play-page.tsx:76`). When the Host presses "Vis sluttstilling [N]" on `/vert`, the TV moves to Sluttstilling and focuses the heading. Chromium treats that programmatic focus as `:focus-visible`, so the room sees a white rectangle around the heading on the final screen, the moment the winner is shown (`18-sluttstilling-tv-1920.png`). The probe ruled out test noise: the ring appeared on a fresh TV page that had never received a key or a click (`19-tv-final-after-F-no-1920.png`), and also after the F key, the only key a Host presses there in real use (`19-tv-final-after-F-yes-1920.png`). Measured: `document.activeElement` is the `H1`, `:focus-visible` is true, and the outline is `solid rgb(255, 255, 255)`.
+
+Nobody operates the TV, so moving focus there helps no one. On `/skjerm` the same focus move is right, because the Host just used the keyboard on that page. `EXPERIENCE.md` (Two pages, TV page) describes the TV page as having no buttons and no Host parts, and a focus ring is Host feedback.
+
+Fix: render `FocusOnMount` only when `tv` is false. `FinalScores` already branches on `tv` at line 153 for the deletion line and the link back. Add a check to `tests/e2e/tv.spec.ts` that the TV's Sluttstilling heading is not the active element. Suggested command: `/impeccable harden`.
+
+## Nice
+
+### N1. [P3] The two new links on the Game page are heavier than every other secondary control (`src/app/spill/[id]/page.tsx:38-39`, `:251-252`)
+
+`SECONDARY_LINK` uses `text-title` (18 px, weight 600). `button-secondary` in `Button.tsx:13-14` uses the body style (16 px, weight 400), and so do "Slett spillet" on the same page and the hand-copied "Åpne TV-visning" link on `/vert` (`src/components/HostPlay.tsx:185`). The same link therefore looks different on the two pages (`16-game-page-playing-1280.png`, `02-start-vert-1280.png`), and on the Game page the two secondary links have the weight of the primary "Fortsett spillet" beside them, so the one primary action stands out less. `DESIGN.md` (Components, Button) gives no title weight to the secondary variant. Fix: drop `text-title` from `SECONDARY_LINK`, and have `HostPlay` use the same constant instead of its own copy, so the two cannot drift again. Suggested command: `/impeccable polish`.
+
+### N2. [P3] "Alle svarene er avslørt." is shown twice on `/vert` (`src/components/HostPlay.tsx:149-152`)
+
+Once every slot is revealed, `/vert` shows the plain line "Alle svarene er avslørt." and, right below it, the visible status line, which ends with the same sentence ("«Hjemmelaget mat og vin» er avslørt uten poeng. Alle svarene er avslørt.", `12-all-revealed-vert-1280.png`). On the stage the status line is `sr-only`, so the bar's hint is the only visible copy. On `/vert` the status line is visible, as `DESIGN.md` asks, so the extra line repeats it. A screen reader hears it once, which is correct. Fix: drop the line at 149. The status line already says it, and "Neste spørsmål [N]" turning primary is the visual cue. Suggested command: `/impeccable distill`.
+
+### N3. [P3] At 360 px the answer key squeezes its labels, and the Teams end up below the fold (`src/components/HostPlay.tsx:71`)
+
+The contract targets a laptop, but `/vert` opens on a phone, and a Host may hold one as the answer key. It works there with no horizontal scroll and 44 px targets (`03-vert-start-360.png`, `12-all-revealed-vert-360.png`). The fixed `7.5rem` last column holds a 78 px "Avslør" button or a shorter status word, which leaves the label 105 px. "Egen seng og eget hjem" wraps to three lines and the row grows to 93 px. The Teams, including "Svarer nå", start at y = 1141 in a 1593 px page. Fix if the group wants a usable phone key: use `auto` for the last column, which gives the label about 40 px back. Moving the Teams above the key below `lg` is optional. Suggested command: `/impeccable adapt`.
+
+### N4. [P3] In *ready*, the TV shows the Host's light Team setup form and top bar to the room (`src/app/spill/[id]/play-page.tsx:64-70`)
+
+A TV page opened before play starts shows "Hvem spiller?" with editable fields, "Start spillet", the top bar with "Mine spill" and "Logg ut", and the demo banner, all on `paper` (`01-ready-team-setup-tv-1920.png`). This is what `EXPERIENCE.md` decided ("*ready* shows Team setup", Two pages), and the page follows into play 34 ms after the Host starts from `/vert`, so nothing is broken. But the room's screen shows a second live form that can start the Game, and the TV moves from the light family to the stage family the moment play starts. If the group revisits it, a stage-family waiting screen with the Game title fits the TV page's "no Host parts" rule better. That would be a contract change, so it is noted, not recommended for this story. Suggested command: `/impeccable shape`.
+
+## Checks that passed
+
+- **The TV follows within about 1 s.** Measured in one browser context, from the moment the move was saved: start from Team setup 34 ms, Reveal 54 to 106 ms (144 ms from the click, including the Server Action), Bom 1 ms, Angre 81 ms, Neste lag 79 ms, Neste spørsmål 53 to 81 ms, Sluttstilling 1 ms. The staged Reveal and the Score count-up run on the TV for the newly revealed slot (`05-reveal-1-midanim-tv-1920.png`, `05-reveal-1-tv-1920.png`). The 2 s poll for a TV on another device was not driven, because both pages shared one context.
+- **FR-24 legibility on `/tv`.** At 1920×1080: Question 56 px, "Spørsmål N av M" and Team names 48 px, labels 48 px, Scores 80 px, credit 24 px (`12-all-revealed-tv-1920.png`). Letterboxed at 1280×720 the canvas scales by 0.667 and fills the window exactly: labels render at 32 px, Question at 37 px, credit at 16 px (`15-last-question-tv-1280x720.png`). At 1280×800 the canvas sits at y = 40 with even bands (`15-last-question-tv-1280x800.png`). The TV has no control bar row, so the list ends at the same y as on `/skjerm` and nothing reflows.
+- **No controls on `/tv`.** No button, link or tabbable element in the stage. The Host chrome links are in the DOM but not rendered (`getClientRects().length` 0). Hidden tiles are plain `div`s with no pending look and no unscored-mode preview (`10-uten-poeng-on-tv-1920.png`, where `/vert` has the toggle on and the TV tiles stay solid). The Bom panel shows on the TV (`07-bom-tv-1920.png`). Sluttstilling on the TV has no deletion line and no link back (`18-sluttstilling-tv-1920.png`).
+- **Host view layout.** Two columns of 848 + 320 px at 1280 and 1440 px, and 592 + 320 px at 1024 px. The Question is the page `<h1>` at 32 px with "Spørsmål N av M" under it. Rank, label and Count are in `title`, with `line` rules between rows (`02-start-vert-1280.png`, `03-vert-start-1440.png`, `03-vert-start-1024.png`). Only light tokens are used.
+- **Status never by colour alone.** "Avslørt" in `success` is 6.06:1 on `paper`, and "Uten poeng" in `ink-muted` is 6.89:1. Both are words (`12-all-revealed-vert-1280.png`). "Svarer nå" in `primary` on `primary-soft` is 7.39:1, and the current Team card also has the word. The pressed toggle changes its text ("Avslører uten poeng [U]"), its weight, its border and its fill, and carries `aria-pressed`.
+- **One primary action.** All `/vert` controls are secondary until every slot is revealed. Then "Neste spørsmål [N]" becomes `button-primary` (`12-all-revealed-vert-1280.png`). On the last Question it reads "Vis sluttstilling [N]" (`15-last-question-vert-1280.png`).
+- **Keyboard on `/vert`.** Tab goes through "Avslør plass 1" to "Avslør plass 8", then Bom, Neste lag, the toggle, Neste spørsmål, "?" and "Åpne TV-visning", with a 3 px `ink` ring on every stop and no trap (`04-vert-focus-reveal-1280.png`, `04-vert-focus-bom-1280.png`, `04-vert-focus-tvlink-1280.png`). Pressing `2` with focus on a button revealed slot 2 and moved focus to its row, which shows the ring (`06-reveal-2-keyboard-vert-1280.png`). After a mouse Reveal, focus goes to the revealed row as on the stage. After Angre, focus stays on "Angre [Z]". `?` opens "Hurtigtaster" with focus on "Lukk", it lists every shortcut except F, and Esc closes it (`13-hurtigtaster-vert-1280.png`).
+- **Live region.** The visible polite status line announces each result in full sentences: "«Egen seng og eget hjem», 23 poeng til Hyttegjengen.", "Bom.", "Angret. «Egen bil» er skjult igjen, 15 poeng trukket fra Hyttegjengen.", "Søskenbarna svarer nå.", "Spørsmål 2 av 5.".
+- **Final standing on `/vert`.** "Sluttstilling" takes focus. The list is highest Score first, followed by the deletion date and "Tilbake til spillet", on light tokens (`18-sluttstilling-vert-1280.png`, `18-sluttstilling-vert-360.png`).
+- **Game page links.** In *playing*, "Fortsett spillet" (primary), "Åpne TV-visning" and "Vertsvisning med fasit" sit on one row at 1280 px and stack at 360 px, all 44 px tall, with visible focus rings (`16-game-page-playing-1280.png`, `16-game-page-playing-360.png`, `16-game-page-focus-tvlink-1280.png`, `16-game-page-focus-vertlink-1280.png`).
+- **"Åpne TV-visning".** Its accessible name adds " i et nytt vindu", and the visible text is part of the name. The first click opens a named popup on `/tv` (`17-open-tv-popup.png`). A second click from `/vert` reuses that window and opens no new page.
+- **Titles.** "TV – Fredagsquiz – Toppsvar" and "Vertsvisning – Fredagsquiz – Toppsvar" in every state, so the two windows can be told apart.
+- **Reduced motion.** The TV uses the same reveal classes as `/skjerm`, which `globals.css` already makes instant under `prefers-reduced-motion`. Not re-measured for this story.
+
+Outside scope: `npm run demo` runs `next dev`, so the Next.js dev badge shows in the bottom-left corner of every page, including the TV, and at 1280 px it covers the rank "8" on `/vert` (`02-start-vert-1280.png`). This was already the case on `/skjerm` and is not new in Story 8.5.
+
+## Recommended order
+
+1. S1: skip `FocusOnMount` on the TV's Sluttstilling, and add the e2e assertion that proves it.
+2. N1 and N2: one shared secondary-link class without `text-title`, and drop the duplicate "Alle svarene er avslørt." line on `/vert`.
+3. N3 if the group wants the key usable on a phone. N4 only as a later contract decision.
+
+## Fixes
+
+Fix round on 2026-11-24, on `epic-8-vertsvisning`. `/vert` was checked again on screenshots at 1280×800 and 360×780.
+
+- **S1, fixed** in `e2feeb5`. `FinalScores` mounts `FocusOnMount` only when `tv` is false. The AC4 e2e test expects the Host view's Sluttstilling heading to be focused and the TV's not. `/skjerm` and `/vert` keep their focus behaviour.
+- **N1, partly fixed** in `7ff46bc`. `SECONDARY_LINK` on the Game page no longer has `text-title`, so both links match `button-secondary` and the hand-written link on `/vert`. **Not done: sharing one constant.** The Game page is a server component and `HostPlay` a client one. The codebase already writes this class string by hand in `DownloadReport`, `MarkReviewed` and `HostPlay`, and a shared module only for this string adds more than it saves. The strings are now equal.
+- **N2, fixed** in `7ff46bc`. The extra "Alle svarene er avslørt." line on `/vert` is gone. The status line still says it.
+- **N3, fixed** in `7ff46bc` and `410e6cb`. Below `sm` the last column of the key is a fixed `5rem` instead of `7.5rem`. That gives the label about 40 px back and still holds "Avslør" and "Uten poeng" on one line. **Not as proposed:** `auto` was tried first, but it put the Counts at different x positions from row to row, because the button and the status words are different widths. The Teams stay below the key on a phone.
+- **N4, not changed.** It is a contract decision, as the audit says.
+- **Also from the bmad review:** the current Team card now uses `primary` text, the key has an `sr-only` heading, and `/vert` has the line about an extended screen instead of a mirrored one (see the bmad review's Fixes).

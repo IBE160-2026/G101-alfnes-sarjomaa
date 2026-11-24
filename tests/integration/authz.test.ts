@@ -29,6 +29,8 @@ import ReviewPage, {
 } from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
 import ScreenPage from "@/app/spill/[id]/skjerm/page";
+import TvPage from "@/app/spill/[id]/tv/page";
+import HostViewPage from "@/app/spill/[id]/vert/page";
 import { createGame } from "@/app/spill/actions";
 import { submitAnswerSet } from "@/app/svar/[gameId]/actions";
 import GamesPage from "@/app/spill/page";
@@ -673,6 +675,37 @@ describe("Host B against Host A's Game", () => {
         }),
       ),
     ).toBeInstanceOf(NotFoundError);
+  });
+
+  it("FR-24 to FR-27, AD-5: B's play.answerKey and B's TV page and Host view of A's playing or played Game, a random UUID or a malformed ID give NOT_FOUND", async () => {
+    const db = await getDb();
+    const [{ id: playingOfA }, { id: playedOfA }] = await db
+      .insert(game)
+      .values([
+        { hostId: hosts.A, title: "As TV", state: "ready" },
+        { hostId: hosts.A, title: "As ferdige", state: "ready" },
+      ])
+      .returning({ id: game.id });
+    for (const gameId of [playingOfA, playedOfA]) {
+      await db
+        .insert(question)
+        .values({ id: randomUUID(), gameId, position: 1, text: "?" });
+      await play.start(hosts.A, { gameId, teams: ["Lag 1", "Lag 2"] });
+    }
+    await play.nextQuestion(hosts.A, { gameId: playedOfA, position: 1 });
+    as("B");
+    for (const id of [playingOfA, playedOfA, randomUUID(), "abc"]) {
+      expect(
+        ((await rejection(play.answerKey(hosts.B, id))) as DomainError).code,
+        id,
+      ).toBe("NOT_FOUND");
+      const props = {
+        params: Promise.resolve({ id }),
+        searchParams: Promise.resolve({}),
+      };
+      for (const Page of [TvPage, HostViewPage])
+        expect(await rejection(Page(props)), id).toBeInstanceOf(NotFoundError);
+    }
   });
 
   it("FR-2: listOwned(B) excludes A's Game, and listOwned(A) is newest first by created_at, not updated_at", async () => {
