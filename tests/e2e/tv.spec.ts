@@ -91,6 +91,36 @@ test("FR-24 to FR-27 (AC4), AD-17, NFR-5: every move on the Host view shows on t
   await expect(page.getByText("Tilbake til spillet")).toBeVisible();
 });
 
+test("FR-24, AD-17: a TV page in another browser (the same Host's login) follows a Reveal by polling within about 2 s, and its HTML never holds a hidden label", async ({
+  page,
+  context,
+  browser,
+}) => {
+  const gamePath = await playingOnHostView(page);
+  const labels = home.questions[0].groups.slice(0, 8).map((g) => g.label);
+  // A separate context shares no BroadcastChannel with the Host view, only the session.
+  const other = await browser.newContext({
+    storageState: await context.storageState(),
+  });
+  const tv = await other.newPage();
+  await tv.goto(`${gamePath}/tv`);
+  await expect(tv.locator("h1")).toHaveText(home.questions[0].text);
+  const html = await (await tv.request.get(`${gamePath}/tv`)).text();
+  for (const label of labels) expect(html).not.toContain(label);
+
+  await page.getByRole("button", { name: "Avslør plass 1" }).click();
+  await expect(
+    page.getByRole("list", { name: "Fasit" }).getByRole("listitem").first(),
+  ).toContainText("Avslørt");
+  await expect(tv.locator(".stage-canvas > ol")).toContainText(labels[0], {
+    timeout: 3_000,
+  });
+  const after = await (await tv.request.get(`${gamePath}/tv`)).text();
+  expect(after).toContain(labels[0]);
+  for (const label of labels.slice(1)) expect(after).not.toContain(label);
+  await other.close();
+});
+
 test("FR-24 (AC5): on the TV page the play keys do nothing and there is no button; F toggles fullscreen", async ({
   page,
 }) => {
