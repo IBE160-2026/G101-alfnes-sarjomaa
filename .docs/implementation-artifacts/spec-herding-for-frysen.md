@@ -26,7 +26,7 @@ Gates on every commit: `npx prettier --check .`, `npm run lint`, `npm run typech
 
 ## Migration
 
-`drizzle/0015_hard_terrax.sql`: three `CREATE INDEX` statements, no data change. It runs with `npm run db:migrate` and at app start like the earlier migrations.
+`drizzle/0015_hard_terrax.sql`: three `CREATE INDEX` statements, no data change. It runs at app start on PGlite (local, demo, tests). On Postgres it runs only with a manual `npm run db:migrate` against Neon's `DATABASE_URL_UNPOOLED` (AD-3); the orchestrator ran it on the pilot before merge. The code does not need the indexes to be correct, only to be fast.
 
 ## Verification
 

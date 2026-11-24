@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { DomainError } from "@/lib/errors";
 import { SCRYPT_CONCURRENCY, SCRYPT_QUEUE_MAX } from "@/lib/limits";
+import { log } from "@/server/log";
 
 const N = 131072; // 2^17
 const R = 8;
@@ -22,9 +23,11 @@ const waiting: (() => void)[] = [];
 // At most SCRYPT_CONCURRENCY runs per process; a finished run hands its slot to the next waiter.
 async function limited<T>(fn: () => Promise<T>): Promise<T> {
   if (active < SCRYPT_CONCURRENCY) active++;
-  else if (waiting.length >= SCRYPT_QUEUE_MAX)
+  else if (waiting.length >= SCRYPT_QUEUE_MAX) {
+    // The boundary passes DomainErrors through unlogged; this line backs the shortcut's trigger.
+    log({ module: "auth", op: "scrypt", code: "QUEUE_FULL" });
     throw new DomainError("INTERNAL");
-  else await new Promise<void>((resolve) => waiting.push(resolve));
+  } else await new Promise<void>((resolve) => waiting.push(resolve));
   try {
     return await fn();
   } finally {
