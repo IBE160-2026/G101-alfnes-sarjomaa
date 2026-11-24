@@ -26,12 +26,12 @@ function useTvSync(gameId: string) {
     const channel = new BroadcastChannel(playChannel(gameId));
     channel.onmessage = ({ data }: MessageEvent<PlayMessage>) => {
       if (data === "changed") return router.refresh();
+      // shortcut: Bom is not saved, so a TV on another device misses it; save it if that matters in play.
       if (data !== "bom") return;
       setMiss((n) => n + 1);
       clearTimeout(missTimer.current);
       missTimer.current = setTimeout(() => setMiss(0), BOM_MS);
     };
-    // shortcut: Bom is not saved, so a TV on another device misses it; save it if that matters in play.
     const poll = setInterval(() => {
       if (document.visibilityState === "visible") router.refresh();
     }, TV_POLL_MS);
