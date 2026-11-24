@@ -253,6 +253,10 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
             Vertsvisning med fasit
           </Link>
         </div>
+        <p className="mt-2 text-body-sm text-ink-muted">
+          Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet
+          fasiten.
+        </p>
       </section>,
     ];
   } else if (game.state === "played") {
