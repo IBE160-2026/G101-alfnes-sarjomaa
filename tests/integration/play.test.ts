@@ -1115,13 +1115,13 @@ describe("/spill/[id]/vert", () => {
     expect(html).not.toContain("Avslør plass 2");
     const shown = text(html);
     expect(shown).toContain(
-      "Spørsmål 1 av 3 1 Kari 5 poeng Avslør 2 Ola 3 poeng Avslørt 3 Per 2 poeng Uten poeng",
+      "Spørsmål 1 av 3 Fasit 1 Kari 5 poeng Avslør 2 Ola 3 poeng Avslørt 3 Per 2 poeng Uten poeng",
     );
     expect(shown).toContain(
       "Bom [M] Angre [Z] Neste lag [T] Vis resten uten poeng [U] Neste spørsmål [N]",
     );
     expect(shown).toContain(
-      "Lag Svarer nå Lag 1 3 poeng Lag 2 0 poeng Åpne TV-visning i et nytt vindu Trykk F i TV-vinduet for fullskjerm.",
+      "Lag Svarer nå Lag 1 3 poeng Lag 2 0 poeng Åpne TV-visning i et nytt vindu Trykk F i TV-vinduet for fullskjerm. Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten.",
     );
     expect(html).toContain(`href="/spill/${id}/tv"`);
     for (const later of ["Oslo", "Bergen", "Molde"])

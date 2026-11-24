@@ -57,9 +57,12 @@ export function HostPlay({
         <p className="mt-2 text-ink-muted">
           Spørsmål {question.position} av {total}
         </p>
+        <h2 id="fasit" className="sr-only">
+          Fasit
+        </h2>
         <ol
           ref={listRef}
-          aria-label="Fasit"
+          aria-labelledby="fasit"
           className="mt-6 border-t border-line"
         >
           {board.map((slot) => (
@@ -68,7 +71,8 @@ export function HostPlay({
               // A revealed row takes focus after its Reveal, as the stage tile does.
               data-slot={slot.revealed ? slot.id : undefined}
               tabIndex={slot.revealed ? -1 : undefined}
-              className="grid min-h-15 grid-cols-[2rem_minmax(0,1fr)_auto_7.5rem] items-center gap-x-4 border-b border-line py-2 focus-visible:rounded-sm"
+              // Below sm the last column shrinks to its content, so a 360 px phone keeps room for the label.
+              className="grid min-h-15 grid-cols-[2rem_minmax(0,1fr)_auto_auto] sm:grid-cols-[2rem_minmax(0,1fr)_auto_7.5rem] items-center gap-x-4 border-b border-line py-2 focus-visible:rounded-sm"
             >
               <span className="text-title tabular-nums text-ink-muted">
                 {slot.position}
@@ -146,7 +150,6 @@ export function HostPlay({
             {failure}
           </Notice>
         )}
-        {allRevealed && <p className="mt-4">Alle svarene er avslørt.</p>}
         <p role="status" className="mt-2 min-h-6 text-ink-muted">
           {said}
         </p>
@@ -162,7 +165,7 @@ export function HostPlay({
               aria-current={team.current || undefined}
               className={`rounded-md border px-4 py-3 ${
                 team.current
-                  ? "border-primary bg-primary-soft"
+                  ? "border-primary bg-primary-soft text-primary"
                   : "border-line bg-surface"
               }`}
             >
@@ -186,6 +189,10 @@ export function HostPlay({
           />
           <p className="mt-2 text-body-sm text-ink-muted">
             Trykk F i TV-vinduet for fullskjerm.
+          </p>
+          <p className="mt-1 text-body-sm text-ink-muted">
+            Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i
+            rommet fasiten.
           </p>
         </div>
       </section>

@@ -36,7 +36,7 @@ const PRIMARY_LINK =
   "inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover";
 
 const SECONDARY_LINK =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-title text-primary hover:bg-surface-sunken";
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-primary hover:bg-surface-sunken";
 
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
