@@ -1023,8 +1023,19 @@ describe("/spill/[id]/tv", () => {
       boardSlotId: slotIds[0][1],
       scored: true,
     });
+    // Counts long enough to search for, on the two hidden slots (Kari, Per).
+    const db = await getDb();
+    for (const [slot, count] of [
+      [slotIds[0][0], 37],
+      [slotIds[0][2], 29],
+    ] as const)
+      await db.update(boardSlot).set({ count }).where(eq(boardSlot.id, slot));
     const html = await tv(id);
     expect(html).toContain("data-stage");
+    // A Reveal made before the TV opened does not replay its animation.
+    expect(html).not.toContain("data-revealing");
+    for (const count of ["37", "29"])
+      expect(html, count).not.toMatch(new RegExp(`>${count}<|${count} poeng`));
     expect(html).toContain(`text-tv-question">${QUESTIONS[0]}</h1>`);
     expect(text(html)).toContain(
       "Spørsmål 1 av 3 Svarer nå Lag 1 3 poeng Lag 2 0 poeng 1 2 Ola 3 poeng 3",
