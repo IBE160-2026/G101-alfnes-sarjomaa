@@ -1126,7 +1126,7 @@ describe("/spill/[id]/vert", () => {
 });
 
 describe("Game page", () => {
-  it("FR-23: in ready it links Start spillet to the screen; in playing it shows Spillet er i gang, the Question, each Team with its Score and Fortsett spillet", async () => {
+  it("FR-23, FR-24: in ready it links Start spillet to the screen; in playing it shows Spillet er i gang, the Question, each Team with its Score, Fortsett spillet, Åpne TV-visning and Vertsvisning med fasit", async () => {
     const { id } = await gameIn();
     const link = (label: string) =>
       new RegExp(
@@ -1138,7 +1138,18 @@ describe("Game page", () => {
     expect(html).toMatch(link("Fortsett spillet"));
     expect(html).not.toContain("Start spillet");
     expect(text(html)).toContain(
-      "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Fortsett spillet",
+      "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Fortsett spillet Åpne TV-visning i et nytt vindu Vertsvisning med fasit",
+    );
+    // Story 8.5 (AC7): the TV page and the Host view beside the shared screen.
+    expect(html).toMatch(
+      new RegExp(
+        `<a href="/spill/${id}/tv" target="toppsvar-tv"[^>]*>Åpne TV-visning`,
+      ),
+    );
+    expect(html).toMatch(
+      new RegExp(
+        `<a class="[^"]*" href="/spill/${id}/vert">Vertsvisning med fasit</a>`,
+      ),
     );
   });
 });

@@ -10,6 +10,7 @@ import { DownloadReport } from "@/components/DownloadReport";
 import { GroupingRefresh } from "@/components/GroupingRefresh";
 import { InviteLinkPanel } from "@/components/InviteLinkPanel";
 import { Notice } from "@/components/Notice";
+import { OpenTvLink } from "@/components/OpenTvLink";
 import { ProgressCount } from "@/components/ProgressCount";
 import { QuestionEditor } from "@/components/QuestionEditor";
 import { RevokeLinkPanel } from "@/components/RevokeLinkPanel";
@@ -32,7 +33,10 @@ import * as questions from "@/server/questions";
 export const maxDuration = 300;
 
 const PRIMARY_LINK =
-  "mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover";
+  "inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-title text-on-primary hover:bg-primary-hover";
+
+const SECONDARY_LINK =
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-title text-primary hover:bg-surface-sunken";
 
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
@@ -199,7 +203,10 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
             </div>
           ))}
         </dl>
-        <Link href={`/spill/${game.id}/gjennomgang`} className={PRIMARY_LINK}>
+        <Link
+          href={`/spill/${game.id}/gjennomgang`}
+          className={`mt-6 ${PRIMARY_LINK}`}
+        >
           Gå til gjennomgangen
         </Link>
       </section>,
@@ -216,7 +223,10 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <p className="mt-4">
           {n === 1 ? "1 spørsmål er klart." : `${n} spørsmål er klare.`}
         </p>
-        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+        <Link
+          href={`/spill/${game.id}/skjerm`}
+          className={`mt-6 ${PRIMARY_LINK}`}
+        >
           Start spillet
         </Link>
       </section>,
@@ -233,9 +243,16 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           Spørsmål {question.position} av {total}.
         </p>
         <ScoreList teams={teams} />
-        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
-          Fortsett spillet
-        </Link>
+        {/* One shared screen, or the TV page beside the Host view (Story 8.5). */}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+            Fortsett spillet
+          </Link>
+          <OpenTvLink gameId={game.id} className={SECONDARY_LINK} />
+          <Link href={`/spill/${game.id}/vert`} className={SECONDARY_LINK}>
+            Vertsvisning med fasit
+          </Link>
+        </div>
       </section>,
     ];
   } else if (game.state === "played") {
@@ -247,7 +264,10 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           Sluttstilling
         </h2>
         <ScoreList teams={teams} />
-        <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
+        <Link
+          href={`/spill/${game.id}/skjerm`}
+          className={`mt-6 ${PRIMARY_LINK}`}
+        >
           Vis sluttstilling
         </Link>
         <Notice tone="info" live={false} className="mt-6 max-w-prose">
