@@ -12,7 +12,7 @@ Add the Stage 2 features on top of the finished Stage 1 loop. FR-33 (play a read
 - Story 8.2: Reorder Groups in Review (FR-22), gated by SM-1
 - Story 8.3: Assisted Guess matching (FR-28), gated by SM-1
 - Story 8.4: Strikes and steals (FR-29), gated by SM-1, rules decided by the group first
-- Story 8.5: Separate TV view and host view with answer key (surfaces for FR-23 to FR-27). Not in the epics file, sprint status or decision log yet; whether the SM-1 gate applies is not stated, so confirm with the group.
+- Story 8.5: Separate TV view and host view with answer key (surfaces for FR-23 to FR-27). Story 8.5 in `epics.md` and `sprint-status.yaml`, started before SM-1 passed by the group's decision of 2026-11-24 after the pilot test.
 
 ## Requirements & Constraints
 

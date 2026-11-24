@@ -7,7 +7,9 @@ Her ligger appen, og dokumentasjon av hvordan vi bygde, testet og kvalitetssikre
 
 **Toppsvar** er et Family Feud-aktig festspill. Verten lager spørsmål om sin egen gjeng, og
 deltakerne svarer anonymt i fritekst. En språkmodell grupperer like svar til rangerte topplister.
-Verten retter, og gjengen spiller fra én delt skjerm. Trinn 2: ferdige spørsmålssett, uten innsamling.
+Verten retter, og gjengen spiller fra én delt skjerm. En vert med to skjermer kan i stedet åpne
+TV-visningen, som bare viser brettet for rommet, og styre spillet fra vertsvisningen med fasit på
+sin egen skjerm. Trinn 2: ferdige spørsmålssett, uten innsamling.
 
 Pilot: <https://toppsvar.vercel.app>. Lokalt trengs verken nøkkel eller konto, se [Utvikling](#utvikling).
 
