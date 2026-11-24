@@ -171,6 +171,42 @@ test("FR-24, AD-17: a TV page in another browser (the same Host's login) follows
   await other.close();
 });
 
+test("AD-17: a TV page polls while it shows something new, rests after 10 minutes with no change, and focus wakes it", async ({
+  page,
+  context,
+}) => {
+  const gamePath = await playingOnHostView(page);
+  const tv = await context.newPage();
+  await tv.clock.install();
+  await tv.goto(`${gamePath}/tv`);
+  await expect(tv.locator("h1")).toHaveText(home.questions[0].text);
+  await tv.waitForFunction(() =>
+    Object.keys(document.querySelector(".stage-canvas > ol")!).some((k) =>
+      k.startsWith("__reactFiber"),
+    ),
+  );
+  // router.refresh() fetches the page's RSC payload.
+  let refreshes = 0;
+  tv.on("request", (r) => {
+    if (r.headers()["rsc"] === "1") refreshes++;
+  });
+  const polled = async () => {
+    const before = refreshes;
+    await tv.clock.runFor(2_000);
+    await tv.waitForTimeout(1_000); // real time for a request to go out
+    return refreshes > before;
+  };
+
+  await tv.clock.pauseAt(Date.now() + 1_000);
+  expect(await polled()).toBe(true);
+  // fastForward fires the poll once at the end: nothing changed for 10 minutes, so no refresh.
+  await tv.clock.fastForward(10 * 60_000);
+  expect(await polled()).toBe(false);
+  expect(await polled()).toBe(false);
+  await tv.evaluate(() => window.dispatchEvent(new Event("focus")));
+  expect(await polled()).toBe(true);
+});
+
 test("FR-24 (AC5): on the TV page the play keys do nothing and there is no button; F toggles fullscreen", async ({
   page,
 }) => {

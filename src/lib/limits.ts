@@ -37,6 +37,8 @@ export const JUDGE_CONCURRENCY = 5;
 export const GROUPING_POLL_MS = 3_000;
 // AD-17: the TV page re-reads saved play state this often while it is visible.
 export const TV_POLL_MS = 2_000;
+// ...and rests after this long with nothing new, until the TV gets focus or is shown again.
+export const TV_IDLE_MS = 10 * 60_000;
 
 export const ANSWER_TEXT_MAX = 80;
 export const ANSWER_COUNTER_FROM = 60;

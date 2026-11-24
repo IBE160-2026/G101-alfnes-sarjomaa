@@ -88,7 +88,11 @@ export function PlayView({
           </ol>
         </div>
         {tv ? (
-          <TvBoard gameId={gameId} board={board} />
+          <TvBoard
+            gameId={gameId}
+            board={board}
+            version={JSON.stringify([question.position, teams, board])}
+          />
         ) : (
           <Board
             gameId={gameId}
