@@ -13,6 +13,8 @@ export const LOCKOUT_BASE_MS = 60 * 1000;
 export const LOCKOUT_MAX_MS = 24 * HOUR_MS;
 
 export const SCRYPT_CONCURRENCY = 2;
+// Waiters beyond the running scrypt derivations; one more is refused with INTERNAL.
+export const SCRYPT_QUEUE_MAX = 8;
 
 export const GAME_TITLE_MAX = 80;
 export const GAME_TITLE_COUNTER_FROM = 60;
