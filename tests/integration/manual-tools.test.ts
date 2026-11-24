@@ -70,14 +70,16 @@ describe("the manual checklist's tools", () => {
   });
 });
 
+// Node with tsx's entry, not node_modules/.bin/tsx: that is a shell script Windows cannot spawn.
+const TSX = "node_modules/tsx/dist/cli.mjs";
 const temp = mkdtempSync(join(tmpdir(), "db-dump-"));
 afterAll(() => rmSync(temp, { recursive: true, force: true }));
 
 // No --env-file flag, as in npm run db:dump, so no .env file is read here.
 function dumpCli(url: string, ...args: string[]) {
   return spawnSync(
-    "node_modules/.bin/tsx",
-    ["--conditions=react-server", "src/cli/db-dump.ts", ...args],
+    process.execPath,
+    [TSX, "--conditions=react-server", "src/cli/db-dump.ts", ...args],
     {
       encoding: "utf8",
       env: { ...process.env, DATABASE_URL: url },
