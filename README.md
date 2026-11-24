@@ -245,7 +245,7 @@ til `.env.local` for å endre noe.
 | Variabel | Standard | Hva den gjør |
 |---|---|---|
 | `DATABASE_URL` | `pglite://.data/local` | `pglite://<mappe>`, `pglite://:memory:` eller `postgres://…` |
-| `PORT` | `3000` | Porten appen lytter på |
+| `PORT` | `3000` | Porten appen lytter på. For `npm run dev` og `npm start` settes den i skallet (`PORT=4000 npm run dev`), fordi Next leser porten før `.env.local`. Bare `npm run demo` tar den fra `.env.local` |
 | `APP_BASE_URL` | `http://localhost:<PORT>` | Adressen i lenkene. `https` slår på sikre informasjonskapsler |
 | `OPENROUTER_API_KEY` | tom | Slår på live gruppering gjennom OpenRouter |
 | `JUDGE_PROVIDER` | `openrouter` med nøkkel, ellers `replay` | `openrouter`, `replay` eller `mock` |
