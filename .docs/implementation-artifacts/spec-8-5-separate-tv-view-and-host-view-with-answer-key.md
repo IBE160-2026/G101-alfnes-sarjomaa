@@ -2,10 +2,10 @@
 title: 'Story 8.5: Separate TV view and host view with answer key'
 type: 'feature'
 created: '2026-11-24'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '7f5d408f1b576a7ee456e36fa2395fbd1a27e608'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 context:
   - '{project-root}/.docs/implementation-artifacts/epic-8-context.md'
 warnings: ['oversized']
@@ -95,6 +95,52 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-24 — Review pass
+- verdicts: 42 findings — high 0, medium 9, low 28, false 5, maybe-false 0 (20 patched, 22 rejected, 0 deferred)
+- findings:
+  - `[medium]` `[patch]` (intent) TV page in *ready* shows Team setup but never follows a start made on /vert — fixed: `TvRefresh` (shared `useTvSync`) mounted beside Team setup on /tv, and Team setup posts `changed` after a successful start; e2e starts with the TV on Team setup.
+  - `[low]` `[patch]` (intent) sync from /skjerm to /tv untested — fixed: AC6 e2e presses "2" on /skjerm and sees it on the open TV within 1.5 s.
+  - `[false]` `[reject]` (intent) 1 s in Behaviour vs 1.5 s in tests — the intent's Tests section sets 1.5 s, which is what the e2e asserts.
+  - `[low]` `[reject]` (intent) other-device e2e allows 3 s against "about 2 s" — the bound is the 2 s poll plus one render; 3 s is that bound with margin, not a looser promise.
+  - `[medium]` `[patch]` (intent) /vert keyboard path barely exercised — fixed: AC4 drives z, m, t, n and → on /vert besides the buttons.
+  - `[medium]` `[patch]` (intent) uten-poeng toggle on /vert never used — fixed: AC4 toggles it, reveals, checks "Uten poeng", unchanged Scores and the TV tile.
+  - `[low]` `[patch]` (intent) "Åpne TV-visning" never clicked — fixed: AC6 takes the popup and checks it lands on /tv.
+  - `[low]` `[reject]` (intent) refresh RSC responses not fetched separately — every refresh re-runs `play.load`, which strips hidden slots; the e2e fetches the full HTML with inline RSC data before and after a reveal.
+  - `[false]` `[reject]` (intent) /skjerm refactored and now posts channel messages — the intent asks for /skjerm moves to reach the TV; its tests are unchanged and pass.
+  - `[low]` `[patch]` (intent) axe on /vert in one state only — fixed: also with the shortcut dialog open and uten poeng pressed.
+  - `[low]` `[patch]` (intent) sprint-status still in-progress — set to done at finalize.
+  - `[medium]` `[patch]` (verification-gap) focus after Reveal/Angre on /vert untested — fixed: AC4 asserts the revealed row and then "Avslør plass 3" are focused.
+  - `[medium]` `[patch]` (verification-gap) same-browser sync test cannot tell the channel from the poll — fixed: the TV page reports itself hidden (init script), so its poll never refreshes and only the channel can move it; a fake clock also froze React's Suspense reveal, so it was not used.
+  - `[medium]` `[patch]` (verification-gap) uten-poeng toggle unused — same fix as the intent row above.
+  - `[medium]` `[patch]` (verification-gap) TV in *ready* does not follow the start — same fix as the first row.
+  - `[low]` `[patch]` (verification-gap) OpenTvLink not clicked — same fix as above.
+  - `[medium]` `[patch]` (blind) TV stuck on Team setup — same fix as the first row.
+  - `[low]` `[reject]` (blind) TV in *ready* shows the Host's form to the room — the intent says a *ready* Game "shows the team-setup path as now" on both pages.
+  - `[low]` `[reject]` (blind) no way into two-page mode before play starts — the intent puts the links in *playing*; a Host starts on /skjerm or the Game page and switches; adding links in *ready* is new UI nobody asked for.
+  - `[low]` `[reject]` (blind) /vert does not follow other tabs — not asked for; a stale move refreshes the page through the existing STALE path.
+  - `[low]` `[patch]` (blind) README and manual checklist not updated — fixed: two README sentences and a checklist note for A1, A7, A8, A9 on /tv.
+  - `[low]` `[reject]` (blind) group decision not logged in the wiki — the intent forbids touching wiki/.
+  - `[low]` `[patch]` (blind) status fields disagree and epic-8-context line 15 stale — fixed: context line updated; status set at finalize.
+  - `[low]` `[reject]` (blind) 3 s vs about 2 s, no refresh on visibilitychange — the TV window is visible in use; the bound is poll plus render.
+  - `[false]` `[reject]` (blind) Score check can pass trivially — the first Question's top Count is 43, which the TV card cannot show before the update ("0").
+  - `[low]` `[patch]` (blind) all three pages share one title — fixed: "TV – {tittel}" and "Vertsvisning – {tittel}", /skjerm unchanged, EXPERIENCE.md updated.
+  - `[low]` `[patch]` (blind) literal U+00A0 in the Bom text — fixed: `"Bom.\u00a0"` escape restored.
+  - `[low]` `[reject]` (blind) poll load on the pilot not assessed — the intent sets the 2 s poll; it runs only while a TV page is open and visible.
+  - `[low]` `[reject]` (blind) account risk of a logged-in TV on another device — the intent decides "a TV on another logged-in device" and owner-only pages.
+  - `[low]` `[patch]` (blind) AC4 title claims NFR-5 but asserts 1.5 s — fixed: NFR-5 dropped from the title.
+  - `[medium]` `[patch]` (edge) TV in *ready* not following the start — same fix as the first row.
+  - `[low]` `[reject]` (edge) `post` throws without BroadcastChannel — every supported browser has it (Safari 15.4+); a guard adds branches for a case nobody meets.
+  - `[low]` `[reject]` (edge) a failed poll refresh hands the TV to error.tsx and stops polling — same as any page's refresh on a server error; a local boundary adds complexity for a rare transient failure.
+  - `[low]` `[reject]` (edge) TvBoard effect throws without BroadcastChannel — same reason as above.
+  - `[low]` `[reject]` (edge) lost response after a saved move posts nothing — the poll shows it within 2 s and the host view shows "Mistet forbindelsen."
+  - `[low]` `[reject]` (edge) stale state up to 2 s after the TV becomes visible — the TV window stays visible in use.
+  - `[low]` `[reject]` (edge) overlapping refreshes on a slow server — router.refresh supersedes the earlier one; a guard is complexity for a cold start.
+  - `[low]` `[reject]` (edge) undo then re-reveal of the same slot between two TV renders skips the animation — the channel refreshes after each move, so both renders happen; rare and cosmetic.
+  - `[low]` `[reject]` (edge) Ctrl/Cmd/Shift-click opens a popup — rare on this button; the popup is still the TV page.
+  - `[low]` `[patch]` (edge) a second click reloads the TV window and drops fullscreen — fixed: open the named window without a URL, navigate only if it is not already on this /tv, then focus.
+  - `[false]` `[reject]` (edge, claim) /skjerm now breaks without BroadcastChannel — the stage already needed modern browsers; see the guard row above.
+  - `[false]` `[reject]` (edge, claim) a committed move whose response is lost is never posted — the claim holds but is covered by the poll; recorded above as a rejected low.
+
 ## Design Notes
 
 - **Sync.** Channel name `toppsvar-spill-{gameId}`; messages `"changed"` and `"bom"`. A channel never delivers to its own sender, so the posting page does not refresh twice. The TV answers `"changed"` with `router.refresh()`; the poll is `setInterval(TV_POLL_MS)` that refreshes only when `document.visibilityState === "visible"`. Bom is not saved, so a TV on another device misses it (`shortcut:` comment).
@@ -109,3 +155,29 @@ deferred: []
 
 **Manual checks (if no CLI):**
 - Screenshots of `/tv` at 1920×1080 and `/vert` at 1280×800 look like the stage and a Host page.
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** Two owner-only play pages beside the unchanged `/spill/[id]/skjerm`: `/spill/[id]/tv` (the room's Board on the stage canvas, no controls, only F) and `/spill/[id]/vert` (answer key with every slot's label and Count, Teams and Scores, the same moves as buttons and shortcuts, "Åpne TV-visning"). The client play logic moved from `Board` to `usePlay`, shared by both control pages. After every saved move and on Bom, the hook posts on the `BroadcastChannel` `toppsvar-spill-{gameId}`; the TV answers by re-reading saved state and also polls every 2 s while visible. No migration, no new action, no change to `play`'s mutations.
+
+**Files.**
+- `src/server/play/index.ts` -- `readPlay` shared by `load` (hidden slots stripped) and the new `answerKey`.
+- `src/lib/play.ts`, `src/lib/limits.ts` -- `playChannel`, `PlayMessage`, `TV_POLL_MS`.
+- `src/components/usePlay.ts` -- play moves, shortcuts, focus, `postToTv`.
+- `src/components/Board.tsx` -- stage rendering on the hook; exports `BoardTiles`, `BomPanel`.
+- `src/components/TvBoard.tsx` -- `useTvSync`, `TvRefresh`, `TvBoard` (new-reveal animation, Bom, hidden F key).
+- `src/components/HostPlay.tsx`, `OpenTvLink.tsx`, `ScoreList.tsx` -- host view, reusable TV window link, shared score list.
+- `src/components/PlayView.tsx` -- `tv` variants of the stage and Sluttstilling.
+- `src/components/TeamSetup.tsx` -- posts `changed` after a successful start.
+- `src/app/spill/[id]/play-page.tsx`, `skjerm|tv|vert/page.tsx` -- one state switch and titles.
+- `src/app/spill/[id]/page.tsx` -- "Åpne TV-visning" and "Vertsvisning med fasit" in *playing*.
+- Tests: `tests/integration/play.test.ts`, `tests/integration/authz.test.ts`, `tests/e2e/tv.spec.ts`, `tests/TRACE.md`, `tests/manual/checklist.md`.
+- Docs: PRD (FR-24 to FR-27, §11) and `PRD.md`, EXPERIENCE.md, DESIGN.md, ARCHITECTURE-SPINE.md (AD-15, AD-16, AD-17, routes, limits), epics.md, sprint-status, README.
+
+**Review.** 42 findings: 20 patched (9 medium, 11 low rows; several rows share one root cause), 0 deferred, 22 rejected with reasons in the triage log. Follow-up review recommended: true. Patched at medium: 9 rows over 4 root causes (TV in *ready*, focus test, toggle test, channel-vs-poll test). The unverified risk: the patches themselves (`TvRefresh` beside Team setup, the reused TV window in `OpenTvLink`, the hidden-document trick in the e2e) were not seen by a fresh reviewer.
+
+**Verification.** Before every commit: `npx prettier --check .`, `npm run lint`, `npm run typecheck`, `npm run test` (831 passed, 1 skipped). `npm run test:e2e` with a scratch config that moves the dev server off port 3101 (to 3105): 102 of 104 passed, the 2 failures were the `next dev` specs (`demo.spec.ts`, `server-output.spec.ts`, a navigation during cold compile); both passed on a rerun. The TV specs were also run 8 times in a row by the implementer. Screenshots of `/tv` at 1920×1080 and `/vert` at 1280×800 were inspected.
+
+**Residual risks.** A TV on another device does not show Bom (not saved; `shortcut:` in `TvBoard.tsx`). `/vert` re-renders after a move because Next re-renders the calling page on any `revalidatePath`, not because the actions name `/vert`. Whether the SM-1 gate applies to 8.5 is the group's call (recorded as started before SM-1).
