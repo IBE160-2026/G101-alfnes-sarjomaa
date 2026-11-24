@@ -22,6 +22,7 @@ import {
   QUESTION_TEXT_MAX,
   QUESTIONS_MAX,
 } from "@/lib/limits";
+import { newQuestionId } from "@/lib/question";
 
 type Question = { id: string; text: string };
 type Status = {
@@ -102,8 +103,7 @@ export function QuestionEditor({
       .map(areaOf)
       .find((area) => area && !area.value.trim());
     if (empty) return empty.focus();
-    // shortcut: crypto.randomUUID needs a secure context (https or localhost), which every supported setup is; generate the id another way if plain-http LAN hosting is ever supported.
-    const id = crypto.randomUUID();
+    const id = newQuestionId();
     setDrafts((current) => [...current, id]);
     focusAfter.current = { before: null, apply: () => areaOf(id)?.focus() };
   }
