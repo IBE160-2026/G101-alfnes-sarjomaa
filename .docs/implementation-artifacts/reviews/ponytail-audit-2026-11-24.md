@@ -139,3 +139,25 @@ Verdict: Healthy for Stage 1, with no Must findings. Fix first: finding 1 (three
 Lean: -100 lines, -1 dependency possible (findings 9 to 12, 17, 18 and 20).
 
 Not checked: the e2e suite and anything visual or runtime in a browser (ports 3000, 3101 and 3200 were off limits); the CI `postgres` job itself and native Postgres timings (the index numbers in finding 1 are from PGlite); live OpenRouter behaviour; Windows behaviour (finding 6 is inferred from the spawn call); pilot environment values and Neon connection limits; `wiki/`, `prompting/` and the BMAD planning artifacts beyond the PRD, the architecture spine and the earlier reviews; the manual checklist rows, which are still unfilled and are stated as such in the README.
+
+## Fixes
+
+Applied on the branch `herding-for-frysen` on 2026-11-24, one commit per theme. The full trail, with the reason for each item left out, is in `../spec-herding-for-frysen.md`. After the last code commit `npm run test` gave 824 passed and 1 skipped, and `npm run test:e2e` gave 100 passed.
+
+| Finding | Result | Commit |
+|---|---|---|
+| 1 | Fixed: three indexes in migration `drizzle/0015_hard_terrax.sql`, a `pg_index` test, and the `purgeExpired` shortcut reworded (debt row 10) | `fd3d0c0` |
+| 2 | Fixed: `newQuestionId()` from `crypto.getRandomValues`, with a unit test (debt row 5) | `3f16f24` |
+| 3 | Fixed: README and `.env.example` say `PORT` is set in the shell for dev and start | `1a2bf14` |
+| 4 | Left for the group: it changes AD-15 and an anonymity test | none |
+| 5 | Fixed: a queue cap of 8 that refuses with `INTERNAL` and is never counted as a wrong password, with a unit test; shortcut reworded (debt row 8) | `903184d` |
+| 6 | Fixed: the three CLI test files spawn `process.execPath` with tsx's `dist/cli.mjs`; not run on Windows | `8ed1398` |
+| 7 | Fixed: a duplicate `token_hash` is refused with 23505, plus the FR-5 TRACE line | `1e1d379` |
+| 8 | TRACE reworded to say what is and is not proven (debt row 14); the CI experiment was not run | `1db68ab` |
+| 9 | Skipped: the replacement reader is private or state-guarded, so not a small change | none |
+| 14 | Fixed: `live={false}` on the three static Notices; three tests now find the deletion notice by text | `eca02f3` |
+| 18 | Rejected: `typescript-eslint` is a deliberate exact pin recorded in the architecture spine | none |
+| 10 to 13, 15 to 17, 19, 20 | Not in scope for this pass | none |
+
+Debt row 7 (`src/lib/limits.ts`, Team name width) was reworded in `1db68ab` so its trigger names the real condition.
+
