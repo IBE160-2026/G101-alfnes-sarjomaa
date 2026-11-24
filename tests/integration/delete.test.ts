@@ -250,6 +250,23 @@ describe("cascade", () => {
     );
   });
 
+  it("FR-3: the cascade's foreign keys into the Answer tables lead an index, so a delete or purge does not scan every Answer once per Group", async () => {
+    const indexed = sqlRows<{ col: string }>(
+      await (
+        await getDb()
+      ).execute(sql`
+        select (i.indrelid::regclass::text || '.' || a.attname::text) as col
+        from pg_index i
+        join pg_attribute a on a.attrelid = i.indrelid and a.attnum = i.indkey[0]`),
+    ).map((r) => r.col);
+    for (const col of [
+      "answer.question_id",
+      "answer.group_id",
+      "answer_group.question_id",
+    ])
+      expect(indexed, col).toContain(col);
+  });
+
   it("FR-3: the same catalog query finds session and game referencing host, both cascading", async () => {
     const fks = await direct("host");
     expect(fks.map((fk) => fk.tbl).sort()).toEqual(["game", "session"]);
