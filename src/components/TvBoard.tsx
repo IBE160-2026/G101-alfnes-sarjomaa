@@ -15,29 +15,12 @@ const revealedIds = (board: PlayView["board"]) =>
     .map((s) => s.id)
     .join(" ");
 
-// The TV page's list: no controls, only F. It follows the Host view by re-reading saved
-// state on a channel message and on a poll (AD-16, AD-17); nothing on the channel is state.
-export function TvBoard({
-  gameId,
-  board,
-}: {
-  gameId: string;
-  board: PlayView["board"];
-}) {
+// The TV page follows the Host view by re-reading saved state on a channel message and on
+// a poll (AD-16, AD-17); nothing on the channel is state. Returns the Bom count.
+function useTvSync(gameId: string) {
   const router = useRouter();
   const [miss, setMiss] = useState(0);
   const missTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // Slots revealed since the previous render animate until the revealed set changes again,
-  // so a poll mid-animation does not cut it. Nothing animates on the first render.
-  const ids = revealedIds(board);
-  const [seen, setSeen] = useState({ ids, revealing: new Set<string>() });
-  if (seen.ids !== ids) {
-    const before = new Set(seen.ids.split(" "));
-    setSeen({
-      ids,
-      revealing: new Set(ids.split(" ").filter((id) => id && !before.has(id))),
-    });
-  }
 
   useEffect(() => {
     const channel = new BroadcastChannel(playChannel(gameId));
@@ -58,6 +41,36 @@ export function TvBoard({
       clearTimeout(missTimer.current);
     };
   }, [gameId, router]);
+
+  return miss;
+}
+
+// On the TV page beside Team setup, so it moves into play once the Host starts.
+export function TvRefresh({ gameId }: { gameId: string }) {
+  useTvSync(gameId);
+  return null;
+}
+
+// The TV page's list: no controls, only F.
+export function TvBoard({
+  gameId,
+  board,
+}: {
+  gameId: string;
+  board: PlayView["board"];
+}) {
+  const miss = useTvSync(gameId);
+  // Slots revealed since the previous render animate until the revealed set changes again,
+  // so a poll mid-animation does not cut it. Nothing animates on the first render.
+  const ids = revealedIds(board);
+  const [seen, setSeen] = useState({ ids, revealing: new Set<string>() });
+  if (seen.ids !== ids) {
+    const before = new Set(seen.ids.split(" "));
+    setSeen({
+      ids,
+      revealing: new Set(ids.split(" ").filter((id) => id && !before.has(id))),
+    });
+  }
 
   return (
     <>

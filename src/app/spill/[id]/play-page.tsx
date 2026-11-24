@@ -7,6 +7,7 @@ import { FinalScores, PlayView, StageLoading } from "@/components/PlayView";
 import { FocusOnMount } from "@/components/RouteFocus";
 import { ScoreList } from "@/components/ScoreList";
 import { TeamSetup } from "@/components/TeamSetup";
+import { TvRefresh } from "@/components/TvBoard";
 import { DomainError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { QUESTION_SET_CREDIT } from "@/lib/question-sets";
@@ -27,13 +28,21 @@ const ownedGame = cache(async (gameId: string) => {
   return { hostId, ...(await games.getOwned(hostId, gameId)) };
 });
 
+// The TV and Host view titles tell the two windows apart when the Host drags or shares one.
+const TITLE_PREFIX: Record<View, string> = {
+  skjerm: "",
+  tv: "TV – ",
+  vert: "Vertsvisning – ",
+};
+
 // A foreign Game gets the not-found title too, so its title never leaks (AD-5).
 export async function playMetadata(
   params: Promise<{ id: string }>,
+  view: View,
 ): Promise<Metadata> {
   const { id } = await params;
   try {
-    return { title: (await ownedGame(id)).title };
+    return { title: TITLE_PREFIX[view] + (await ownedGame(id)).title };
   } catch (error) {
     if (isNotFound(error)) return { title: "Vi finner ikke dette spillet" };
     throw error;
@@ -52,7 +61,13 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
     if (isNotFound(error)) notFound();
     throw error;
   }
-  if (game.state === "ready") return <TeamSetup gameId={game.id} />;
+  if (game.state === "ready")
+    return (
+      <>
+        <TeamSetup gameId={game.id} />
+        {view === "tv" && <TvRefresh gameId={game.id} />}
+      </>
+    );
   if (game.state === "played") {
     const final = await play.finalScores(game.hostId, game.id);
     return view === "vert" ? (

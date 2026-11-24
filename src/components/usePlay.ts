@@ -38,7 +38,7 @@ export const SHORTCUTS = [
 ];
 
 // Tells the TV page in this browser to re-read saved state, or to show Bom (AD-17).
-function post(gameId: string, message: PlayMessage) {
+export function postToTv(gameId: string, message: PlayMessage) {
   const channel = new BroadcastChannel(playChannel(gameId));
   channel.postMessage(message);
   channel.close();
@@ -99,7 +99,7 @@ export function usePlay({
       const result = await callAction(call);
       busy.current = false;
       if (result?.ok) {
-        post(gameId, "changed");
+        postToTv(gameId, "changed");
         return onOk(result.data);
       }
       // Not revealed by this tab, so no animation when a refresh shows it revealed.
@@ -184,10 +184,10 @@ export function usePlay({
   }
 
   function bom() {
-    post(gameId, "bom");
+    postToTv(gameId, "bom");
     setMiss((n) => n + 1);
     // A trailing no-break space on every other miss, so a repeat is announced again.
-    setSaid((said) => (said === "Bom." ? "Bom. " : "Bom."));
+    setSaid((said) => (said === "Bom." ? "Bom.\u00a0" : "Bom."));
     clearTimeout(missTimer.current);
     missTimer.current = setTimeout(() => setMiss(0), BOM_MS);
   }

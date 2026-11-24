@@ -1046,10 +1046,13 @@ describe("/spill/[id]/tv", () => {
       expect(html, hidden).not.toContain(hidden);
   });
 
-  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows Sluttstilling with no deletion line or link, and a missing or malformed id is not-found; titled by the Game", async () => {
+  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows Sluttstilling with no deletion line or link, and a missing or malformed id is not-found; titled TV – the Game", async () => {
     const { id } = await gameIn();
     expect(await tv(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
-    expect(await tvMetadata(props(id))).toEqual({ title: "Hyttetur" });
+    expect(await tvMetadata(props(id))).toEqual({ title: "TV – Hyttetur" });
+    expect(await tvMetadata(props(randomUUID()))).toEqual({
+      title: "Vi finner ikke dette spillet",
+    });
     const draft = await gameIn("draft");
     await expect(tv(draft.id)).rejects.toEqual(
       new RedirectError(`/spill/${draft.id}`),
@@ -1099,7 +1102,9 @@ describe("/spill/[id]/vert", () => {
     expect(html).toContain(`href="/spill/${id}/tv"`);
     for (const later of ["Oslo", "Bergen", "Molde"])
       expect(html, later).not.toContain(later);
-    expect(await hostViewMetadata(props(id))).toEqual({ title: "Hyttetur" });
+    expect(await hostViewMetadata(props(id))).toEqual({
+      title: "Vertsvisning – Hyttetur",
+    });
   });
 
   it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows the final standing with the deletion date and Tilbake til spillet, and a missing or malformed id is not-found", async () => {

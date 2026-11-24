@@ -1,7 +1,7 @@
 import { playMetadata, playPage } from "@/app/spill/[id]/play-page";
 
 export function generateMetadata({ params }: PageProps<"/spill/[id]/skjerm">) {
-  return playMetadata(params);
+  return playMetadata(params, "skjerm");
 }
 
 // FR-23 to FR-27: the one shared screen, controls included.
