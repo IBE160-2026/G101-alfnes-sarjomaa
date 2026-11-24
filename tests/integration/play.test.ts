@@ -15,6 +15,9 @@ import GamePage from "@/app/spill/[id]/page";
 import ScreenPage, {
   generateMetadata as screenMetadata,
 } from "@/app/spill/[id]/skjerm/page";
+import TvPage, {
+  generateMetadata as tvMetadata,
+} from "@/app/spill/[id]/tv/page";
 import { DomainError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import type { GameState } from "@/lib/game-state";
@@ -34,7 +37,12 @@ import {
 } from "@/server/db/schema";
 import * as games from "@/server/games";
 import * as play from "@/server/play";
-import { cookieJar, nextCache, RedirectError } from "./next-mocks";
+import {
+  cookieJar,
+  nextCache,
+  NotFoundError,
+  RedirectError,
+} from "./next-mocks";
 import { sqlRows } from "./driver";
 
 vi.mock("next/headers", () =>
@@ -203,6 +211,10 @@ const screen = async (id: string) => prerender(await ScreenPage(props(id)));
 // The first flush: only the Suspense fallback of the play view.
 const screenShell = async (id: string) =>
   renderToStaticMarkup(await ScreenPage(props(id)));
+const tv = async (id: string) => prerender(await TvPage(props(id)));
+// The TV page keeps F with its hint display:none, so the room never sees it.
+const visible = (html: string) =>
+  html.replace('<p class="hidden">Trykk F for fullskjerm.</p>', "");
 const gamePage = async (id: string) =>
   renderToStaticMarkup(await GamePage(props(id)));
 
@@ -996,6 +1008,57 @@ describe("/spill/[id]/skjerm", () => {
       );
     },
   );
+});
+
+describe("/spill/[id]/tv", () => {
+  it("FR-24, FR-25 (AC1): a playing Game with one revealed slot shows the Question, the revealed label and Count, the Teams and Scores and rank-only hidden tiles, with no control and no hidden label or Count in the markup", async () => {
+    const { id, slotIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][1],
+      scored: true,
+    });
+    const html = await tv(id);
+    expect(html).toContain("data-stage");
+    expect(html).toContain(`text-tv-question">${QUESTIONS[0]}</h1>`);
+    expect(text(html)).toContain(
+      "Spørsmål 1 av 3 Svarer nå Lag 1 3 poeng Lag 2 0 poeng 1 2 Ola 3 poeng 3",
+    );
+    expect(html).not.toContain("<button");
+    for (const control of [
+      "Avslør plass",
+      "Bom",
+      "Angre",
+      "Neste lag",
+      "uten poeng [U]",
+      "Neste spørsmål",
+      "Hurtigtaster",
+      "Trykk F",
+    ])
+      expect(visible(html), control).not.toContain(control);
+    // Hidden slots of this Question (Kari 5, Per 2) and every later Question's Board.
+    for (const hidden of ["Kari", "Per", "Oslo", "Bergen", "Molde"])
+      expect(html, hidden).not.toContain(hidden);
+  });
+
+  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows Sluttstilling with no deletion line or link, and a missing or malformed id is not-found; titled by the Game", async () => {
+    const { id } = await gameIn();
+    expect(await tv(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
+    expect(await tvMetadata(props(id))).toEqual({ title: "Hyttetur" });
+    const draft = await gameIn("draft");
+    await expect(tv(draft.id)).rejects.toEqual(
+      new RedirectError(`/spill/${draft.id}`),
+    );
+    const played = await playing();
+    await finishGame(played.id);
+    const html = await tv(played.id);
+    expect(html).toMatch(/<h1 id="sluttstilling"[^>]*>Sluttstilling<\/h1>/);
+    expect(text(html)).toContain("Sluttstilling Uavgjort Lag 1 0 poeng");
+    for (const host of ["slettes", "Tilbake til spillet", "Trykk F", "<a "])
+      expect(visible(html), host).not.toContain(host);
+    for (const missing of [randomUUID(), "abc"])
+      await expect(tv(missing)).rejects.toBeInstanceOf(NotFoundError);
+  });
 });
 
 describe("Game page", () => {

@@ -1,85 +1,12 @@
-import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
-import { cache, Suspense } from "react";
-import { FinalScores, PlayView, StageLoading } from "@/components/PlayView";
-import { TeamSetup } from "@/components/TeamSetup";
-import { DomainError } from "@/lib/errors";
-import { QUESTION_SET_CREDIT } from "@/lib/question-sets";
-import * as auth from "@/server/auth";
-import * as games from "@/server/games";
-import * as play from "@/server/play";
+import { playMetadata, playPage } from "@/app/spill/[id]/play-page";
 
-const isNotFound = (error: unknown) =>
-  error instanceof DomainError && error.code === "NOT_FOUND";
-
-// cache(): generateMetadata and the page share one owner-checked read per request.
-const ownedGame = cache(async (gameId: string) => {
-  const { hostId } = await auth.requireHost();
-  return { hostId, ...(await games.getOwned(hostId, gameId)) };
-});
-
-// A foreign Game gets the not-found title too, so its title never leaks (AD-5).
-export async function generateMetadata({
-  params,
-}: PageProps<"/spill/[id]/skjerm">): Promise<Metadata> {
-  const { id } = await params;
-  try {
-    return { title: (await ownedGame(id)).title };
-  } catch (error) {
-    if (isNotFound(error)) return { title: "Vi finner ikke dette spillet" };
-    throw error;
-  }
+export function generateMetadata({ params }: PageProps<"/spill/[id]/skjerm">) {
+  return playMetadata(params);
 }
 
-// FR-23, FR-27: Team setup in ready, the play view in playing, the final Scores in
-// played, the Game page otherwise.
-export default async function ScreenPage({
+// FR-23 to FR-27: the one shared screen, controls included.
+export default function ScreenPage({
   params,
 }: PageProps<"/spill/[id]/skjerm">) {
-  const { id } = await params;
-  let game;
-  try {
-    game = await ownedGame(id);
-  } catch (error) {
-    // Missing, foreign and malformed IDs all land on one page (AD-5).
-    if (isNotFound(error)) notFound();
-    throw error;
-  }
-  if (game.state === "ready") return <TeamSetup gameId={game.id} />;
-  if (game.state === "played")
-    return (
-      <FinalScores
-        gameId={game.id}
-        {...await play.finalScores(game.hostId, game.id)}
-      />
-    );
-  if (game.state !== "playing") redirect(`/spill/${game.id}`);
-  return (
-    <Suspense fallback={<StageLoading />}>
-      <PlayStage
-        hostId={game.hostId}
-        gameId={game.id}
-        credit={game.questionSet ? QUESTION_SET_CREDIT : undefined}
-      />
-    </Suspense>
-  );
-}
-
-// credit: the FR-33 source credit, for a Game made from a Question set only.
-async function PlayStage({
-  hostId,
-  gameId,
-  credit,
-}: {
-  hostId: string;
-  gameId: string;
-  credit?: string;
-}) {
-  return (
-    <PlayView
-      gameId={gameId}
-      credit={credit}
-      {...await play.load(hostId, gameId)}
-    />
-  );
+  return playPage(params, "skjerm");
 }
