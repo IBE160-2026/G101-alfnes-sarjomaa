@@ -41,3 +41,8 @@ export const nextQuestionSchema = z.object({
   gameId: z.string(),
   position: z.number().int(),
 });
+
+// AD-17: the same-origin channel a play page posts "changed" (after a saved move) and
+// "bom" on; the TV page answers by re-reading saved state, so no state travels on it.
+export const playChannel = (gameId: string) => `toppsvar-spill-${gameId}`;
+export type PlayMessage = "changed" | "bom";
