@@ -18,6 +18,9 @@ import ScreenPage, {
 import TvPage, {
   generateMetadata as tvMetadata,
 } from "@/app/spill/[id]/tv/page";
+import HostViewPage, {
+  generateMetadata as hostViewMetadata,
+} from "@/app/spill/[id]/vert/page";
 import { DomainError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import type { GameState } from "@/lib/game-state";
@@ -212,6 +215,8 @@ const screen = async (id: string) => prerender(await ScreenPage(props(id)));
 const screenShell = async (id: string) =>
   renderToStaticMarkup(await ScreenPage(props(id)));
 const tv = async (id: string) => prerender(await TvPage(props(id)));
+const hostView = async (id: string) =>
+  renderToStaticMarkup(await HostViewPage(props(id)));
 // The TV page keeps F with its hint display:none, so the room never sees it.
 const visible = (html: string) =>
   html.replace('<p class="hidden">Trykk F for fullskjerm.</p>', "");
@@ -1058,6 +1063,65 @@ describe("/spill/[id]/tv", () => {
       expect(visible(html), host).not.toContain(host);
     for (const missing of [randomUUID(), "abc"])
       await expect(tv(missing)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("/spill/[id]/vert", () => {
+  it("FR-24 to FR-27, AD-15 (AC2): a playing Game shows the Question, Spørsmål 1 av 3, every slot's label and Count with Avslør or Avslørt / Uten poeng, the Teams and Scores, and the TV link", async () => {
+    const { id, slotIds } = await playing();
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][1],
+      scored: true,
+    });
+    await play.reveal(hostId, {
+      gameId: id,
+      boardSlotId: slotIds[0][2],
+      scored: false,
+    });
+    const html = await hostView(id);
+    expect(html).toMatch(
+      new RegExp(`<h1[^>]*>${QUESTIONS[0].replace("?", "\\?")}</h1>`),
+    );
+    expect(html).not.toContain("data-stage");
+    expect(html).toContain('aria-label="Avslør plass 1"');
+    expect(html).not.toContain("Avslør plass 2");
+    const shown = text(html);
+    expect(shown).toContain(
+      "Spørsmål 1 av 3 1 Kari 5 poeng Avslør 2 Ola 3 poeng Avslørt 3 Per 2 poeng Uten poeng",
+    );
+    expect(shown).toContain(
+      "Bom [M] Angre [Z] Neste lag [T] Vis resten uten poeng [U] Neste spørsmål [N]",
+    );
+    expect(shown).toContain(
+      "Lag Svarer nå Lag 1 3 poeng Lag 2 0 poeng Åpne TV-visning i et nytt vindu Trykk F i TV-vinduet for fullskjerm.",
+    );
+    expect(html).toContain(`href="/spill/${id}/tv"`);
+    for (const later of ["Oslo", "Bergen", "Molde"])
+      expect(html, later).not.toContain(later);
+    expect(await hostViewMetadata(props(id))).toEqual({ title: "Hyttetur" });
+  });
+
+  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows the final standing with the deletion date and Tilbake til spillet, and a missing or malformed id is not-found", async () => {
+    const { id } = await gameIn();
+    expect(await hostView(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
+    const draft = await gameIn("draft");
+    await expect(hostView(draft.id)).rejects.toEqual(
+      new RedirectError(`/spill/${draft.id}`),
+    );
+    const played = await tiedGame();
+    const html = await hostView(played);
+    expect(html).not.toContain("data-stage");
+    expect(html).toMatch(
+      new RegExp(
+        `<a [^>]*href="/spill/${played}"[^>]*>Tilbake til spillet</a>`,
+      ),
+    );
+    expect(text(html)).toContain(
+      `Sluttstilling Lag 2 7 poeng Lag 3 7 poeng Lag 1 3 poeng Spillet slettes automatisk ${await deleteDate(played)}. Tilbake til spillet`,
+    );
+    for (const missing of [randomUUID(), "abc"])
+      await expect(hostView(missing)).rejects.toBeInstanceOf(NotFoundError);
   });
 });
 

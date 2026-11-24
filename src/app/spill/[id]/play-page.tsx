@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cache, Suspense } from "react";
+import { HostPlay } from "@/components/HostPlay";
 import { FinalScores, PlayView, StageLoading } from "@/components/PlayView";
+import { FocusOnMount } from "@/components/RouteFocus";
+import { ScoreList } from "@/components/ScoreList";
 import { TeamSetup } from "@/components/TeamSetup";
 import { DomainError } from "@/lib/errors";
+import { formatDate } from "@/lib/format";
 import { QUESTION_SET_CREDIT } from "@/lib/question-sets";
 import * as auth from "@/server/auth";
 import * as games from "@/server/games";
 import * as play from "@/server/play";
 
-// skjerm: the one shared screen with controls; tv: the room's Board only.
-type View = "skjerm" | "tv";
+// skjerm: the one shared screen with controls; tv: the room's Board only; vert: the
+// Host view with the answer key and the controls.
+type View = "skjerm" | "tv" | "vert";
 
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
@@ -47,15 +53,22 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
     throw error;
   }
   if (game.state === "ready") return <TeamSetup gameId={game.id} />;
-  if (game.state === "played")
+  if (game.state === "played") {
+    const final = await play.finalScores(game.hostId, game.id);
+    return view === "vert" ? (
+      <HostFinal gameId={game.id} {...final} />
+    ) : (
+      <FinalScores gameId={game.id} tv={view === "tv"} {...final} />
+    );
+  }
+  if (game.state !== "playing") redirect(`/spill/${game.id}`);
+  if (view === "vert")
     return (
-      <FinalScores
+      <HostPlay
         gameId={game.id}
-        tv={view === "tv"}
-        {...await play.finalScores(game.hostId, game.id)}
+        {...await play.answerKey(game.hostId, game.id)}
       />
     );
-  if (game.state !== "playing") redirect(`/spill/${game.id}`);
   return (
     <Suspense fallback={<StageLoading />}>
       <PlayStage
@@ -87,5 +100,30 @@ async function PlayStage({
       tv={tv}
       {...await play.load(hostId, gameId)}
     />
+  );
+}
+
+// FR-27: the Host view's final standing, highest Score first, on the light Host page.
+function HostFinal({
+  gameId,
+  teams,
+  deleteAfter,
+}: play.FinalScores & { gameId: string }) {
+  return (
+    <>
+      <h1 id="sluttstilling" className="text-display">
+        Sluttstilling
+      </h1>
+      {/* The answer key and its controls unmounted with the last move. */}
+      <FocusOnMount id="sluttstilling" />
+      <ScoreList teams={teams} />
+      <p className="mt-6">{`Spillet slettes automatisk ${formatDate(deleteAfter)}.`}</p>
+      <Link
+        href={`/spill/${gameId}`}
+        className="mt-6 inline-flex min-h-11 items-center text-primary underline"
+      >
+        Tilbake til spillet
+      </Link>
+    </>
   );
 }
