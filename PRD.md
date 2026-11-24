@@ -356,7 +356,7 @@ The shared screen shows one Question at a time, with its Groups hidden and the n
 - The TV page carries no hidden Group's label or Count, in what it shows or in what it is sent. (Amended 2026-11-24, group decision after the pilot test: new consequence.)
 
 #### FR-25: Mark a match or a miss — Stage 1
-For the current Team, the Host clicks the Group a Guess matches, which makes a scored Reveal, or marks a miss. The Guess itself is not typed in Stage 1. (Amended 2026-11-24, group decision after the pilot test: the Host can make the same Reveal or miss from the Host page, by button or key, and the TV page shows the result without a manual reload.)
+For the current Team, the Host clicks the Group a Guess matches, which makes a scored Reveal, or marks a miss. The Guess itself is not typed in Stage 1. (Amended 2026-11-24, group decision after the pilot test: the Host can make the same Reveal or miss from the Host page, by button or key, and the TV page shows the result without a manual reload. A miss is not saved, so only a TV page in the same browser shows it; a TV page on another device shows saved state only.)
 
 **Consequences (testable):**
 - A scored Reveal shows the Group's label and Count and adds the Count to the current Team's Score.
