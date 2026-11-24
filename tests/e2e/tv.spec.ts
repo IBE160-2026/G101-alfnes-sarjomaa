@@ -137,6 +137,9 @@ test("FR-23 to FR-27 (AC4), AD-17: with the TV page reported hidden, so its poll
   await page.getByRole("button", { name: "Vis sluttstilling [N]" }).click();
   await expect(page.locator("h1")).toHaveText("Sluttstilling");
   await expect(tv.locator("h1")).toHaveText("Sluttstilling", SYNC);
+  // The Host view moves focus to its heading; the TV shows the room no focus ring.
+  await expect(page.locator("h1")).toBeFocused();
+  await expect(tv.locator("h1")).not.toBeFocused();
   await expect(tv.getByText("Tilbake til spillet")).toHaveCount(0);
   await expect(page.getByText("Tilbake til spillet")).toBeVisible();
 });

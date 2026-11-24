@@ -125,7 +125,8 @@ export function FinalScores({
           <h1 id="sluttstilling" className="text-tv-question">
             Sluttstilling
           </h1>
-          <FocusOnMount id="sluttstilling" />
+          {/* Nobody operates the TV, so it shows no focus ring to the room. */}
+          {!tv && <FocusOnMount id="sluttstilling" />}
           <ol aria-label="Sluttstilling" className="mt-12 flex flex-col gap-4">
             {teams.map((team) => {
               const best = team.score === top;
