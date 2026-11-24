@@ -68,7 +68,7 @@ export function HostPlay({
               // A revealed row takes focus after its Reveal, as the stage tile does.
               data-slot={slot.revealed ? slot.id : undefined}
               tabIndex={slot.revealed ? -1 : undefined}
-              className="grid min-h-15 grid-cols-[2rem_minmax(0,1fr)_auto_7.5rem] items-center gap-x-4 border-b border-line py-2"
+              className="grid min-h-15 grid-cols-[2rem_minmax(0,1fr)_auto_7.5rem] items-center gap-x-4 border-b border-line py-2 focus-visible:rounded-sm"
             >
               <span className="text-title tabular-nums text-ink-muted">
                 {slot.position}
@@ -133,7 +133,7 @@ export function HostPlay({
               : "Neste spørsmål [N]"}
           </Button>
           <Button
-            variant="ghost"
+            variant="secondary"
             aria-label="Hurtigtaster"
             className="min-w-11"
             onClick={() => helpRef.current?.showModal()}
@@ -182,7 +182,7 @@ export function HostPlay({
         <div className="mt-8 border-t border-line pt-6">
           <OpenTvLink
             gameId={gameId}
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-title text-primary hover:bg-surface-sunken"
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-primary hover:bg-surface-sunken"
           />
           <p className="mt-2 text-body-sm text-ink-muted">
             Trykk F i TV-vinduet for fullskjerm.
