@@ -2,7 +2,7 @@
 name: Toppsvar
 status: final
 created: 2026-11-21
-updated: 2026-11-22
+updated: 2026-11-24
 sources:
   - ../../prds/prd-Toppsvar-2026-10-12/prd.md
   - ../../briefs/brief-Toppsvar-2026-09-14/brief.md
@@ -16,7 +16,7 @@ sources:
 
 ## Foundation
 
-- **Three surfaces, one Next.js app, Tailwind CSS.** (1) The **answer form**, on a Participant's phone at 360 px. (2) **Host pages**, on a laptop, with **Review** as the most demanding screen. (3) The **play view**, on a 1920×1080 TV or projector mirrored from the Host's laptop.
+- **Three surfaces, one Next.js app, Tailwind CSS.** (1) The **answer form**, on a Participant's phone at 360 px. (2) **Host pages**, on a laptop, with **Review** as the most demanding screen. (3) The **play view**, on a 1920×1080 TV or projector mirrored from the Host's laptop. *Amended 2026-11-24 (Story 8.5, group decision after the pilot test):* the play view can also be split in two, a **TV page** for the room and a **Host view** with the answer key on the laptop (see Surface: Play view).
 - **No UI library.** Thirteen small components (`DESIGN.md` → Components) on native HTML: `<dialog>`, `<fieldset>`, checkboxes, `<select>`. No toast system, no drag-and-drop, no animation library.
 - **Interface language:** Norwegian bokmål (NFR-7), `<html lang="nb">`. Every microcopy example here is the literal string to ship unless marked as a pattern.
 - **Scope:** Stage 1 only. Stage 2 hooks are noted where a Stage 1 choice must leave room for them.
@@ -32,7 +32,9 @@ sources:
 | `/spill` | Game list ("Mine spill") | Host | List own Games with StatusBadge; create a Game (FR-2) |
 | `/spill/[id]` | Game page | Host | State-driven hub: Questions, Invite links, progress, revoke, close, start play, delete (FR-3 to FR-10) |
 | `/spill/[id]/gjennomgang` | Review | Host | Correct the Grouping and confirm the Board (FR-19 to FR-21) |
-| `/spill/[id]/skjerm` | Team setup → play view → final Scores | Host, shown to the room | FR-23 to FR-27. For a *played* Game it shows the final Scores |
+| `/spill/[id]/skjerm` | Team setup → play view → final Scores | Host, shown to the room | FR-23 to FR-27. For a *played* Game it shows the final Scores. *Amended 2026-11-24 (Story 8.5):* this is now the one-screen mode, with the controls on the screen the room sees. It is unchanged |
+| `/spill/[id]/tv` | Team setup → TV page → final Scores | Host's login, shown to the room | FR-23 to FR-27. *Amended 2026-11-24 (Story 8.5):* new route. Only the audience's Board, no controls and no answer key |
+| `/spill/[id]/vert` | Team setup → Host view → final standing | Host | FR-23 to FR-27. *Amended 2026-11-24 (Story 8.5):* new route. The answer key, Teams with Scores and the controls |
 | Invite link (shape owned by architecture) | Answer form | Participant | Answer, return, change (FR-6, FR-7) |
 
 **Navigation.** Host pages share a top bar: wordmark "Toppsvar" (links to `/spill`), "Mine spill", "Logg ut". Game pages show a breadcrumb `Mine spill › {Game title}`. There is no sidebar. The play view has no top bar; it is a full-window canvas with its own control bar. Participant pages have no navigation at all and no link to any Host page.
@@ -46,7 +48,7 @@ sources:
 | *grouping* | Grupperer | Grouping status | — (waits) |
 | *in review* | Til gjennomgang | Summary: Questions, Groups proposed, any fallback | "Gå til gjennomgangen" |
 | *ready* | Klar | "Brettet er låst." Question count | "Start spillet" |
-| *playing* | Spilles | Current Question and Scores | "Fortsett spillet" |
+| *playing* | Spilles | Current Question and Scores | "Fortsett spillet". *Amended 2026-11-24 (Story 8.5):* two more links beside it, "Åpne TV-visning" and "Vertsvisning med fasit" |
 | *played* | Ferdig | Final Scores; auto-deletion date | — |
 
 Every state shows "Slett spillet" at the bottom of the page (FR-3).
@@ -311,6 +313,20 @@ The wireframe abbreviates the instruction and helper lines (marked "…"); the l
 - **Stage 2 room:** the control bar's right end is reserved for the FR-33 source credit, so it can arrive without a layout change.
   - *Amended 2026-11-24 (Story 8.1):* the credit does not go in the bar. Even on two lines the bar's right end grew past 64 px with other font metrics (the Linux CI), so any TV or laptop could clip it. For a Game from a Question set, the credit "Spørsmål fra ProtoQA (CC BY 4.0), oversatt og tilpasset" sits in the Team column, 8 px under "Spørsmål N av M", in `{typography.tv-control}` 24 px `stage-muted` (8.3:1 on `stage`), and may wrap. It is attribution, not something the room plays from, so it takes the 24 px style. The control bar is the same for every Game.
 
+### Two pages: TV page and Host view
+
+*Amended 2026-11-24 (Story 8.5, group decision after the pilot test; resolves Open Question 4).* The play view above is the one-screen mode and stays as it is at `/spill/[id]/skjerm`. A Host with a second display can instead run play as two owner-only pages that follow each other. Both use the same state switch as `/skjerm`: a missing, foreign or malformed id is not-found; *ready* shows Team setup; *playing* shows the page; *played* shows "Sluttstilling" on `/tv` (no deletion line and no link back, because the room sees it) and the final standing on `/vert`; any other state redirects to the Game page. There is no token-based access, so a TV on another device needs the Host's login.
+
+- **TV page** (`/spill/[id]/tv`): the same 1920×1080 canvas, grid and stage tokens as the play view. It shows the Question, "Spørsmål N av M", the FR-33 credit for a Game from a Question set, the Board tiles, the Teams with Scores and the active Team card. The tiles are not buttons. It has no control bar, no shortcut hint, no `?` overlay and no buttons; the only key is `F`, which toggles fullscreen. The staged Reveal and the Score count-up run for slots that became revealed since the previous render. The "Bom" panel shows when the Host view sends Bom. It shows no preview of the unscored mode, because that toggle belongs to the Host and the TV shows only the result. Its markup and payload never carry a hidden slot's label or Count.
+- **Host view** (`/spill/[id]/vert`): a light Host page that uses the Host-page tokens and never the stage tokens, usable at 1280 px, in two columns from 1024 px.
+  - *Left column:* the Question as the page `<h1>`, "Spørsmål N av M", the answer key, the action row and a visible polite status line.
+  - *Answer key:* every slot of the current Question with its rank, label and Count. A hidden row has a secondary button named "Avslør plass N" (visible text "Avslør"), which makes the same Reveal as a click on a stage tile, scored or unscored. A revealed row shows a status word, "Avslørt" in `success` or "Uten poeng" in `ink-muted`, so state is never carried by colour alone. Focus moves to the revealed row after a Reveal, as it does on a stage tile. The key holds Board content only: nothing from Review and no raw Answer.
+  - *Action row:* "Bom [M]", "Angre [Z]", "Neste lag [T]", "Vis resten uten poeng [U]" (an `aria-pressed` toggle) and "Neste spørsmål [N]", which reads "Vis sluttstilling" on the last Question. Bom shows on the TV page and is not saved.
+  - *Right column:* the Teams with Scores, the current Team on `primary-soft` with the words "Svarer nå"; a link "Åpne TV-visning" that opens the TV page in a new window; and the line "Trykk F i TV-vinduet for fullskjerm.", since fullscreen belongs to the TV window.
+  - *Keys and stale tabs:* the same shortcuts as the play view (`1`–`8`, `M`, `Z`, `T`, `U`, `N`/`→`, `?`, `Esc`), ignored in text fields. The same stale-tab handling: `NOT_FOUND`, `WRONG_STATE`, `WRONG_QUESTION`, `ALREADY_REVEALED` and `NOTHING_TO_UNDO` refresh the view from the server and show saved state, never a retry.
+- **Staying in step:** every saved move posts "changed" to a same-origin `BroadcastChannel` named `toppsvar-spill-{gameId}`, and Bom posts "bom". The TV page answers "changed" by re-reading saved state from the server, and also polls every 2 s while the page is visible. A message or a poll only triggers a re-read and never carries state (AD-16). Either page can be reloaded and shows saved state.
+- **Another device:** a `BroadcastChannel` reaches only windows of the same browser. A TV on another device, logged in as the Host, follows within about 2 s by polling, but it does not show "Bom", because Bom is not saved.
+
 ## Voice and Tone
 
 Microcopy only; brand posture is in `DESIGN.md` → Brand & Style. Norwegian bokmål, "du" form, short complete sentences. Errors say what happened, then what to do. No exclamation marks on Host and Participant pages, no emoji, no blame.
@@ -389,7 +405,7 @@ Every surface has its loading, empty and error states defined here. Loading stat
 - **Confirmation** only for the five actions listed under ConfirmDialog. Discard, rename, merge and move are not confirmed, because they are reversible.
 - **Focus management:** after route change, focus goes to the page `<h1>`; after Review operations, to the affected Group heading; after dialogs, back to the trigger.
 - **Live regions:** one polite region per page announces the results listed in the Review operations table and the play view rules.
-- **Keyboard shortcuts:** only in the play view (`1`–`8`, `M`, `Z`, `T`, `U`, `N`/`→`, `F`, `?`, `Esc`), shown in the control bar and the `?` overlay, ignored while focus is in a text field. Review uses Tab, Space, Enter and Esc only.
+- **Keyboard shortcuts:** only in the play view (`1`–`8`, `M`, `Z`, `T`, `U`, `N`/`→`, `F`, `?`, `Esc`), shown in the control bar and the `?` overlay, ignored while focus is in a text field. Review uses Tab, Space, Enter and Esc only. *Amended 2026-11-24 (Story 8.5):* the Host view has the same shortcuts without `F`, and the TV page has only `F`.
 - **Motion:** CSS only, no animation library. Reveal = the staged sequence in the play view rules (about 700 ms); Score counts up over 400 ms; "Bom" fades in and out (150 ms in, 1.2 s hold, 150 ms out). No tile flips. `prefers-reduced-motion: reduce` makes all of it instant.
 - **Sound:** none in Stage 1.
 - **Banned:** sticky bottom bars on the phone form, infinite scroll, toasts that disappear, modals on top of modals, autoplay sound, anything that shows which Invite link has answered.
@@ -423,13 +439,17 @@ Behavioral rules; contrast pairs are verified in `DESIGN.md` → Colors.
 | A10 | Review, keyboard only: the focus ring is visible on every SelectionBar control | NFR-6 |
 | A7 | Play view: no raw Answer, discarded Group or below-limit Group is visible at any point of a full round | FR-24 |
 
+*Amended 2026-11-24 (Story 8.5):* A1, A7, A8 and A9 are also run against the TV page. It has no control bar, so A8 checks that every Score is visible.
+
 ## Responsive & Platform
 
 | Surface | Target | Behavior across sizes |
 |---|---|---|
 | Answer form | 360 px phone, current mobile Safari and Chrome (NFR-4) | One column always; content max 560 px centred on tablets and laptops. |
 | Host pages | Laptop, ≥1280 px | Usable down to 1024 px. Review below 1280: rail narrows to 240 px. Below 1024: the rail becomes a `<select>` "Spørsmål 3 av 9 – Ikke gjennomgått" above the main pane, with "Lås brettet" at the bottom of the page. Below 768: Review shows `notice-info` "Gjennomgangen er laget for større skjerm. Den virker her, men blir trang." |
-| Play view | 1920×1080 TV or projector, mirrored from the laptop | Fixed canvas scaled to the window; letterboxed on other aspect ratios. On a laptop screen alone it is simply smaller. Mirroring means the room sees the control bar, which is why it is quiet. |
+| Play view | 1920×1080 TV or projector, mirrored from the laptop | Fixed canvas scaled to the window; letterboxed on other aspect ratios. On a laptop screen alone it is simply smaller. Mirroring means the room sees the control bar, which is why it is quiet. *Amended 2026-11-24 (Story 8.5):* this is the one-screen mode, and it stays. |
+| TV page | 1920×1080 TV or projector used as an extended display, or a TV on another device | Same fixed canvas as the play view. It follows the Host view through a same-browser `BroadcastChannel` and by polling every 2 s while visible, so a TV on another device (logged in as the Host) follows within about 2 s. It does not show "Bom" there, because Bom is not saved. *Amended 2026-11-24 (Story 8.5)* |
+| Host view | Laptop, ≥1280 px | Usable at 1280 px, in two columns from 1024 px. *Amended 2026-11-24 (Story 8.5)* |
 
 ## Anonymity in the Interface
 
@@ -522,7 +542,7 @@ Failure path: if the stored rulings were missing for a Question, that Question w
 1. **Visual direction.** The palette (berry, forest stage, mint) and the display face (Bricolage Grotesque) were chosen in a headless run. They meet every constraint, but the group should confirm or swap them before implementation. Swapping is cheap while tokens are only names in a Tailwind theme. The 2026-11-21 impeccable critique noted Bricolage Grotesque as a common display face and suggested showing a second option; the font is kept and the note acknowledged.
 2. **A Question with no Group on the Board.** Decided: marking it reviewed is blocked, as AD-15 `NO_GROUPS_ON_BOARD` (the UX memlog resolved it the same way). The PRD is silent.
 3. **Host preview of the answer form.** Not in the PRD. Today a Host cannot see the form without creating an Invite link, which opens Collection and locks the Questions. A read-only preview in *draft* would reuse the AnswerFieldset with no submit and would help SM-6 (Host autonomy). Stage 1 nice-to-have or Stage 2?
-4. **Extended display.** Stage 1 assumes the TV mirrors the laptop, so the room sees the control bar. A two-window mode (controls on the laptop, clean board on the TV) is a Stage 2 candidate.
+4. **Extended display.** Stage 1 assumes the TV mirrors the laptop, so the room sees the control bar. A two-window mode (controls on the laptop, clean board on the TV) is a Stage 2 candidate. *Resolved 2026-11-24 (Story 8.5, group decision after the pilot test):* built as two owner-only pages, a TV page for the room and a Host view with the answer key and the controls. `/spill/[id]/skjerm` stays as the one-screen mode. See Surface: Play view.
 
 ## Notes for Architecture
 

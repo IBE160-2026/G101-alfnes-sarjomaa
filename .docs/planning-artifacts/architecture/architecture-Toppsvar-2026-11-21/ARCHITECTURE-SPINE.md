@@ -7,7 +7,7 @@ paradigm: 'modular monolith, layered (routes -> server modules -> db) in one Nex
 scope: 'Toppsvar Stage 1, the whole system in one deployable Next.js app, with Stage 2 (FR-22, FR-28, FR-29, FR-33) kept possible'
 status: final
 created: '2026-11-21'
-updated: '2026-11-23'
+updated: '2026-11-24'
 binds: [FR-1, FR-2, FR-3, FR-4, FR-5, FR-6, FR-7, FR-8, FR-9, FR-10, FR-11, FR-12, FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-20, FR-21, FR-23, FR-24, FR-25, FR-26, FR-27, FR-30, FR-31, FR-32, NFR-1, NFR-2, NFR-3, NFR-4, NFR-5, NFR-6, NFR-7, NFR-8]
 sources:
   - .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md
@@ -321,6 +321,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Marking reviewed** is refused with `NO_GROUPS_ON_BOARD` while a Question has no non-discarded Group.
   - **`review.confirmBoard`** requires every Question to be reviewed. It writes `board_slot(id, question_id, position 1..8, label, count, group_id nullable)` from `boardCut(rankGroups(...))`, calls `grouping.clearContributorData`, and moves the Game to `ready`. *Amended in Story 5.5:* a Question left unreviewed is refused with the new code `QUESTIONS_UNREVIEWED` ("Gjennomgå alle spørsmålene først."), since neither `WRONG_STATE` nor `NOT_FOUND` describes a Board that another tab un-reviewed. A Question whose Board would be empty is refused with `NO_GROUPS_ON_BOARD`, as marking is. The Counts are read before `clearContributorData`, because they are computed from the Contributor keys it clears. `review.setReviewed` marks and unmarks (AD-4) with no counter or `edit_count` change; the UI only marks.
   - **Play** reads only `board_slot`, through `review.getBoard`.
+  - *Amended 2026-11-24 in Story 8.5:* two-page play reads that snapshot in two shapes. `play.load` still strips hidden slots, so the TV page's markup and payload never carry a hidden slot's label or Count. `play.answerKey(hostId, gameId)` returns the `board_slot` label and Count of every slot of the current Question, from the same `review.getBoard` read, and only the Host view uses it. Neither reads Answers; the answer key is Board content, not a way to show Review data. A missing or foreign Game gives `NOT_FOUND`, as for every play read (AD-5).
   - *Amended in Story 8.1:* `review.createFromQuestionSet` writes the Board of a Question-set Game at creation, with no Grouping or Review. Each Question's `board_slot` rows come from `boardCut(rankGroups(...))` over the set's Groups (`customLabel` the Norwegian label, `rank1Count` 0 for all, `groupId` the source cluster id), so equal Counts are ordered by the Norwegian label in `nb` collation, with the cluster id as the final tie key. The stored `board_slot.group_id` is null, since a set Game has no Group rows. Play and the Score are unchanged. The set data is `data/question-sets/protoqa-nb.json`, read through `src/lib/question-sets.ts`, and the nullable `game.question_set` names the set (null for a Host-written Game); the play view shows the source credit only when it is set.
 
 ### AD-16 — Play state is saved as a reveal log
@@ -337,6 +338,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Undo** deletes the highest-`seq` reveal on the current Question.
   - **Next Question** is the one with the smallest greater position. When there is none, `finish` moves the Game to `played`, sets `played_at` and returns `deleteAfter = played_at + 30 days`.
   - **Reload.** The play view renders from this saved state on the server.
+  - *Amended 2026-11-24 in Story 8.5:* either page of two-page play (`/spill/[id]/tv` and `/spill/[id]/vert`) can be reloaded and shows saved state. A channel message or a poll only triggers a re-read of saved state. It never carries state, and no page trusts it as state. No mutation, schema or error code of `play` changes, and the Score is unchanged.
 
 ### AD-17 — Mutations, reads and the error boundary
 
@@ -350,6 +352,7 @@ Stage 2 adds `match({ question, guess, labels }, signal)` to the same interface.
   - **Error boundary.** Entry points and `after()` tasks convert any error that is not a `DomainError` into `DomainError('INTERNAL')`, with no cause and no original message. `src/server/log.ts` receives only `{ module, op, code, sqlstate }`. Actions never throw to Next.
   - **Route Handlers** are limited to `GET /api/health` (no side effects), `GET /api/purge` (requires `CRON_SECRET`, AD-23) and `GET /api/spill/[gameId]/rapport` (the AD-18 export).
   - **Polling.** Host pages poll with `router.refresh()` every 3 s while the Game is `grouping`, and every 30 s while it is `collecting` (ProgressCount). There are no websockets.
+  - *Amended 2026-11-24 in Story 8.5:* play adds a poll and a channel. The TV page (`/spill/[id]/tv`) polls with `router.refresh()` every 2 s (`TV_POLL_MS` in `src/lib/limits.ts`) while the document is visible. Both play pages also use a same-origin `BroadcastChannel` named `toppsvar-spill-{gameId}`, with the messages `changed` (after every saved move) and `bom`. The TV answers `changed` with `router.refresh()` and shows Bom on `bom`. A `BroadcastChannel` reaches only windows of the same browser, so a TV on another device follows by polling within about 2 s and does not show Bom, which is not saved. Still no websockets, no new Route Handler and no client data library. Both pages are owner-only (AD-5), so a TV on another device needs the Host's login; there is no token-based access.
 
 ### AD-18 — Usage counters are content-free and written through one function
 
@@ -509,11 +512,11 @@ There are no backups beyond Neon's short history, and the pilot database is dele
 | Concern | Convention |
 | --- | --- |
 | Language | Code, file names, DB names and comments in English. User-facing text and URL segments in bokmål ASCII. `<html lang="nb">`, with bokmål `not-found.tsx`, `error.tsx` and `global-error.tsx`. No i18n library (NFR-7). |
-| Routes | As in `EXPERIENCE.md`: `/`, `/registrer`, `/logg-inn`, `/spill`, `/spill/[id]`, `/spill/[id]/gjennomgang`, `/spill/[id]/skjerm`, plus `/svar/[gameId]` (AD-7) and the AD-17 API routes. |
+| Routes | As in `EXPERIENCE.md`: `/`, `/registrer`, `/logg-inn`, `/spill`, `/spill/[id]`, `/spill/[id]/gjennomgang`, `/spill/[id]/skjerm`, plus `/svar/[gameId]` (AD-7) and the AD-17 API routes. *Amended 2026-11-24 in Story 8.5:* `/spill/[id]/tv` and `/spill/[id]/vert` join `/skjerm`, all three owner-only and sharing one state switch. |
 | Domain names | PRD glossary terms used as written: `game`, `question`, `inviteLink`, `answerSet`, `answer`, `contributorKey`, `group` (table `answer_group`), `boardSlot`, `team`, `reveal`, `score`, `count`. |
 | DB naming | `snake_case`, singular. Primary key `id uuid default gen_random_uuid()`. Exceptions: `invite_link`, `session` and `submission` (keyed by `token_hash`); `game_counter` and `play_state` (keyed by `game_id`). Foreign keys are `<entity>_id`, `ON DELETE CASCADE` toward `game`. |
 | Files | Components are `PascalCase.tsx`, everything else `kebab-case.ts`. Each module is one folder, with `index.ts` as its public surface. |
-| Limits | Only in `src/lib/limits.ts`, with the values from PRD §11 plus: minimum 3 Answer sets, retention 30/90 days, Judge 30 s and concurrency 5, grouping lease 180 s, poll 3 s, collecting refresh 30 s, Team name 14, password at most 256. |
+| Limits | Only in `src/lib/limits.ts`, with the values from PRD §11 plus: minimum 3 Answer sets, retention 30/90 days, Judge 30 s and concurrency 5, grouping lease 180 s, poll 3 s, collecting refresh 30 s, TV poll 2 s (Story 8.5), Team name 14, password at most 256. |
 | Time and IDs | UTC `timestamptz`, only on `host`, `session` and `game`. IDs are random UUID v4, never time-ordered. |
 | Logging | Only through `src/server/log.ts` (ESLint `no-console` elsewhere). It accepts `{ module, op, code, sqlstate }`, never request objects, arguments or `error.message`. |
 | Transactions | A multi-row change is one transaction, opened by the entry point. The Judge is never called inside one. |
@@ -634,7 +637,7 @@ flowchart LR
 | FR-15 to FR-17 Grouping, ranking, fallback | `server/grouping`, `server/judge`, `lib` | AD-11 to AD-14 |
 | FR-18 Usage counters | `server/games`, `api/spill/[gameId]/rapport` | AD-18 |
 | FR-19 to FR-21 Review, confirm | `server/review` via `grouping` writers | AD-10, AD-11, AD-15 |
-| FR-23 to FR-27 Play | `server/play` | AD-15, AD-16 |
+| FR-23 to FR-27 Play | `server/play` | AD-15, AD-16, AD-17 |
 | FR-30, FR-31 No key, Demo mode | `judge` replay, `cli/demo.ts` | AD-13, AD-19 |
 | FR-32 Judge evaluation | `cli/judge-eval.ts`, `data/protoqa` | AD-14, AD-20 |
 | NFR-1 to NFR-3, NFR-8 | `db/client.ts`, `env.ts`, CI | AD-2, AD-3, AD-21, AD-22, AD-24 |
