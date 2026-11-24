@@ -71,8 +71,8 @@ export function HostPlay({
               // A revealed row takes focus after its Reveal, as the stage tile does.
               data-slot={slot.revealed ? slot.id : undefined}
               tabIndex={slot.revealed ? -1 : undefined}
-              // Below sm the last column shrinks to its content, so a 360 px phone keeps room for the label.
-              className="grid min-h-15 grid-cols-[2rem_minmax(0,1fr)_auto_auto] sm:grid-cols-[2rem_minmax(0,1fr)_auto_7.5rem] items-center gap-x-4 border-b border-line py-2 focus-visible:rounded-sm"
+              // 5rem below sm still holds "Avslør" and "Uten poeng", so a 360 px phone keeps room for the label.
+              className="grid min-h-15 grid-cols-[2rem_minmax(0,1fr)_auto_5rem] sm:grid-cols-[2rem_minmax(0,1fr)_auto_7.5rem] items-center gap-x-4 border-b border-line py-2 focus-visible:rounded-sm"
             >
               <span className="text-title tabular-nums text-ink-muted">
                 {slot.position}
