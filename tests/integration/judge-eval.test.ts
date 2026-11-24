@@ -63,8 +63,9 @@ function run(
   ...args: string[]
 ) {
   return spawnSync(
-    join(ROOT, "node_modules/.bin/tsx"),
+    process.execPath,
     [
+      join(ROOT, "node_modules/tsx/dist/cli.mjs"),
       "--tsconfig",
       join(ROOT, "tsconfig.json"),
       "--conditions=react-server",

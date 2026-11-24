@@ -326,7 +326,7 @@ export function deleteOwned(
 
 // FR-3 retention: 30 days after played, 90 days after the last Host change otherwise.
 // Long-expired sessions go in the same run.
-// shortcut: one unbatched DELETE with no index on played_at/updated_at, fine at pilot scale; batch it and add an index if Games reach tens of thousands.
+// shortcut: one unbatched DELETE whose cascade relies on the answer/answer_group indexes, and no index on played_at/updated_at; batch it if a purge run nears the serverless time limit, and index the dates if Games reach tens of thousands.
 export function purgeExpired(): Promise<{ deleted: number }> {
   return withBoundary("games", "purgeExpired", async () => {
     const now = Date.now();

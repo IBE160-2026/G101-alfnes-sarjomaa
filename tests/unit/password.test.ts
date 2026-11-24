@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { DomainError } from "@/lib/errors";
+import { SCRYPT_CONCURRENCY, SCRYPT_QUEUE_MAX } from "@/lib/limits";
 import {
   DUMMY_HASH,
   hashPassword,
@@ -73,5 +75,24 @@ describe("password hashing", () => {
     expect(hashes).toHaveLength(5);
     expect(inFlight.max).toBe(2);
     expect(inFlight.now).toBe(0);
+  });
+
+  it("FR-1: refuses a scrypt run with INTERNAL once SCRYPT_QUEUE_MAX are waiting, rather than as a wrong password, and the queue still drains", async () => {
+    // N=16 keeps each derivation instant; verify reads the parameters from the string.
+    const cheap = `scrypt$16$8$1$c2FsdHNhbHRzYWx0c2FsdA==$${Buffer.alloc(32).toString("base64")}`;
+    const results = await Promise.allSettled(
+      Array.from({ length: SCRYPT_CONCURRENCY + SCRYPT_QUEUE_MAX + 1 }, () =>
+        verifyPassword(PASSWORD, cheap),
+      ),
+    );
+    const refused = results.filter((r) => r.status === "rejected");
+    expect(refused).toHaveLength(1);
+    expect((refused[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+      DomainError,
+    );
+    expect((refused[0] as PromiseRejectedResult).reason.code).toBe("INTERNAL");
+    expect(results.at(-1)).toBe(refused[0]);
+    expect(inFlight.now).toBe(0);
+    expect(await verifyPassword(PASSWORD, cheap)).toBe(false);
   });
 });

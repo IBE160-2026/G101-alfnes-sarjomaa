@@ -4,14 +4,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
+// Node with tsx's entry, not node_modules/.bin/tsx: that is a shell script Windows cannot spawn.
+const TSX = "node_modules/tsx/dist/cli.mjs";
 const temp = mkdtempSync(join(tmpdir(), "judge-cli-"));
 afterAll(() => rmSync(temp, { recursive: true, force: true }));
 
 // No --env-file flag, so a developer's .env or .env.local is never read here.
 function cli(script: string, key: string, ...args: string[]) {
   return spawnSync(
-    "node_modules/.bin/tsx",
-    ["--conditions=react-server", `src/cli/${script}`, ...args],
+    process.execPath,
+    [TSX, "--conditions=react-server", `src/cli/${script}`, ...args],
     {
       encoding: "utf8",
       env: { ...process.env, OPENROUTER_API_KEY: key },

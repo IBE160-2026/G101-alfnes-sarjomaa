@@ -137,6 +137,8 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
   await expect(page.locator("h1")).toHaveText("Sluttstilling");
   await page.goto(gamePath);
   await expect(
-    page.getByRole("region", { name: "Sluttstilling" }).getByRole("status"),
-  ).toHaveText(/^Spillet slettes automatisk /);
+    page
+      .getByRole("region", { name: "Sluttstilling" })
+      .getByText(/^Spillet slettes automatisk /),
+  ).toBeVisible();
 });

@@ -7,6 +7,7 @@ import GamePage from "@/app/spill/[id]/page";
 import type { GameState } from "@/lib/game-state";
 import { sha256 } from "@/lib/token";
 import * as auth from "@/server/auth";
+import { sqlstateOf } from "@/server/boundary";
 import { getDb } from "@/server/db/client";
 import { game, inviteLink, question } from "@/server/db/schema";
 import { cookieJar, RedirectError } from "./next-mocks";
@@ -213,6 +214,23 @@ describe("createInviteLinks", () => {
       await db.execute(sql`drop function fail_state_update`);
     }
     expect(await snapshot(gameId)).toEqual(before);
+  });
+
+  it("FR-5: Tokens are unique across all Games: a second invite_link row with the same token_hash, even for another Game, is refused (23505)", async () => {
+    const [first, second] = [await newGame(), await newGame()];
+    const [link] = await ok(first, 1);
+    const tokenHash = sha256(tokenOf(link));
+    const error = await (
+      await getDb()
+    )
+      .insert(inviteLink)
+      .values({ tokenHash, gameId: second })
+      .then(
+        () => null,
+        (e: unknown) => e,
+      );
+    expect(sqlstateOf(error)).toBe("23505");
+    expect((await snapshot(second)).hashes).toEqual([]);
   });
 
   it("FR-1, FR-5: logged out it redirects to /logg-inn and writes nothing", async () => {

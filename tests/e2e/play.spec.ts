@@ -978,7 +978,7 @@ test("FR-3, FR-27 (AC2, AC3), UX-DR21, NFR-5, NFR-6: Neste spørsmål by N and �
   await expect(page.getByText("Ferdig", { exact: true })).toBeVisible();
   const played = page.getByRole("region", { name: "Sluttstilling" });
   await expect(played).toContainText(/Lag 1\s*3 poeng\s*Lag 2\s*2 poeng/);
-  const notice = played.getByRole("status");
+  const notice = played.getByText(/^Spillet og alle svarene slettes /);
   expect(
     dates.map((d) =>
       d.replace("Spillet slettes", "Spillet og alle svarene slettes"),

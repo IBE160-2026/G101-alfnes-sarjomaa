@@ -97,11 +97,11 @@ export default async function ReviewPage({
       <h1 className="sr-only">Gjennomgang</h1>
 
       {notice && (
-        <Notice tone="warning" className="mt-4">
+        <Notice tone="warning" live={false} className="mt-4">
           {notice}
         </Notice>
       )}
-      <Notice tone="info" className="mt-4 md:hidden">
+      <Notice tone="info" live={false} className="mt-4 md:hidden">
         Gjennomgangen er laget for større skjerm. Den virker her, men blir
         trang.
       </Notice>

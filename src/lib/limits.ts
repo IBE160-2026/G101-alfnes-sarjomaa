@@ -13,6 +13,8 @@ export const LOCKOUT_BASE_MS = 60 * 1000;
 export const LOCKOUT_MAX_MS = 24 * HOUR_MS;
 
 export const SCRYPT_CONCURRENCY = 2;
+// Waiters beyond the running scrypt derivations; one more is refused with INTERNAL.
+export const SCRYPT_QUEUE_MAX = 32;
 
 export const GAME_TITLE_MAX = 80;
 export const GAME_TITLE_COUNTER_FROM = 60;
@@ -51,7 +53,7 @@ export const LABEL_MAX = 40;
 
 // FR-23, AD-16: two to four Teams. 14 characters: four names of wide letters ("WWW…")
 // fit the Team column at 48 px with the Score beside each name and Scores up to two digits.
-// shortcut: three-digit Scores with four such names overflow, raise only if a real round gets there.
+// shortcut: four near-14-character wide-letter names with three-digit Scores overflow, though three-digit Scores alone are normal; re-check the column if four long names and Scores over 99 occur together in the pilot.
 export const TEAMS_MIN = 2;
 export const TEAMS_MAX = 4;
 export const TEAM_NAME_MAX = 14;

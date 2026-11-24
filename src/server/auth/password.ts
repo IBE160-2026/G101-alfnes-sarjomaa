@@ -1,6 +1,8 @@
 import "server-only";
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
-import { SCRYPT_CONCURRENCY } from "@/lib/limits";
+import { DomainError } from "@/lib/errors";
+import { SCRYPT_CONCURRENCY, SCRYPT_QUEUE_MAX } from "@/lib/limits";
+import { log } from "@/server/log";
 
 const N = 131072; // 2^17
 const R = 8;
@@ -14,14 +16,18 @@ const MAXMEM = 256 * 1024 * 1024;
 export const DUMMY_HASH =
   "scrypt$131072$8$1$pr8Gvias7EtgRgTFwuZYaA==$o3Ic1wRDfIml6CE/QhYNOVuzmTqySBU5keQfgD/LY+U=";
 
-// shortcut: the wait queue is unbounded and there is no rate limit, so a login flood delays real Hosts; add a queue cap or per-IP limit before a public pilot
+// shortcut: the queue cap is per process and there is no per-IP rate limit, so a flood on one serverless instance refuses real Hosts there instead of delaying them; add a per-IP limit if Hosts in the pilot report "Prøv igjen om litt" at login.
 let active = 0;
 const waiting: (() => void)[] = [];
 
 // At most SCRYPT_CONCURRENCY runs per process; a finished run hands its slot to the next waiter.
 async function limited<T>(fn: () => Promise<T>): Promise<T> {
   if (active < SCRYPT_CONCURRENCY) active++;
-  else await new Promise<void>((resolve) => waiting.push(resolve));
+  else if (waiting.length >= SCRYPT_QUEUE_MAX) {
+    // The boundary passes DomainErrors through unlogged; this line backs the shortcut's trigger.
+    log({ module: "auth", op: "scrypt", code: "QUEUE_FULL" });
+    throw new DomainError("INTERNAL");
+  } else await new Promise<void>((resolve) => waiting.push(resolve));
   try {
     return await fn();
   } finally {
@@ -82,7 +88,8 @@ export async function verifyPassword(
       expected.length,
     );
     return timingSafeEqual(actual, expected);
-  } catch {
+  } catch (error) {
+    if (error instanceof DomainError) throw error; // a full queue is not a wrong password
     return false; // invalid parameters in the stored string
   }
 }

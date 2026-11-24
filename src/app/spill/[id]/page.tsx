@@ -267,7 +267,7 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
           Vis sluttstilling
         </Link>
-        <Notice tone="info" className="mt-6 max-w-prose">
+        <Notice tone="info" live={false} className="mt-6 max-w-prose">
           {game.questionSet ? "Spillet" : "Spillet og alle svarene"} slettes
           automatisk {formatDate(deleteAfter)}.
         </Notice>

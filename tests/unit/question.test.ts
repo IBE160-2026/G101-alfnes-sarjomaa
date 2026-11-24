@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { webcrypto } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DomainError, validate } from "@/lib/errors";
-import { saveQuestionSchema } from "@/lib/question";
+import { newQuestionId, saveQuestionSchema } from "@/lib/question";
 
 const MESSAGE = "Spørsmålet må ha 1–200 tegn.";
 const input = (text: string, questionId: string = randomUUID()) => ({
@@ -38,5 +39,27 @@ describe("saveQuestionSchema", () => {
 
   it("FR-4: refuses a questionId that is not a UUID", () => {
     expect(fieldErrorsOf(input("Hva?", "abc"))).toHaveProperty("questionId");
+  });
+});
+
+describe("newQuestionId", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("FR-4: gives a version-4 UUID that saveQuestionSchema accepts, without crypto.randomUUID (plain http://<LAN-IP>)", () => {
+    vi.stubGlobal("crypto", {
+      getRandomValues: <T extends Uint8Array>(a: T) =>
+        webcrypto.getRandomValues(a),
+    });
+    expect(crypto.randomUUID).toBeUndefined();
+    const ids = Array.from({ length: 200 }, newQuestionId);
+    for (const id of ids) {
+      expect(id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+      expect(validate(saveQuestionSchema, input("Hva?", id)).questionId).toBe(
+        id,
+      );
+    }
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

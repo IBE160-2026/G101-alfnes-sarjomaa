@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -135,18 +136,23 @@ export const fallbackReason = pgEnum("fallback_reason", [
 
 // Written only by the grouping module. Client UUIDv4 ids and no timestamp, serial or
 // identity, so nothing shows when a Group was made (AD-10).
-export const answerGroup = pgTable("answer_group", {
-  id: uuid("id").primaryKey(),
-  questionId: uuid("question_id")
-    .notNull()
-    .references(() => question.id, { onDelete: "cascade" }),
-  origin: groupOrigin("origin").notNull(),
-  // Review edits of this Group (Epic 5); the usage report reads it (AD-18).
-  editCount: integer("edit_count").notNull().default(0),
-  // The Host's rename; null means the default label (AD-11).
-  customLabel: text("custom_label"),
-  discarded: boolean("discarded").notNull().default(false),
-});
+export const answerGroup = pgTable(
+  "answer_group",
+  {
+    id: uuid("id").primaryKey(),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => question.id, { onDelete: "cascade" }),
+    origin: groupOrigin("origin").notNull(),
+    // Review edits of this Group (Epic 5); the usage report reads it (AD-18).
+    editCount: integer("edit_count").notNull().default(0),
+    // The Host's rename; null means the default label (AD-11).
+    customLabel: text("custom_label"),
+    discarded: boolean("discarded").notNull().default(false),
+  },
+  // Serves the delete cascade from question and the Review reads by Question.
+  (t) => [index("answer_group_question_id_idx").on(t.questionId)],
+);
 
 // One per Question once the Judge or the fallback has grouped it (AD-12, AD-14).
 export const groupingResult = pgTable("grouping_result", {
@@ -183,6 +189,9 @@ export const answer = pgTable(
     }),
   },
   (t) => [
+    // Without these, each cascaded delete of a Group or Question scans every Answer.
+    index("answer_question_id_idx").on(t.questionId),
+    index("answer_group_id_idx").on(t.groupId),
     check(
       "answer_rank_range",
       sql`${t.rank} between 1 and ${sql.raw(String(ANSWERS_PER_QUESTION_MAX))}`,
