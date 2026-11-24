@@ -248,3 +248,26 @@
   - one copy decision about mirrored screens (15);
   - one deferred test (16).
 - **Before the PR:** patch finding 1 and decide finding 2. Findings 3 to 14 are each a one-line change or one test step.
+
+## Fixes
+
+Fix round on 2026-11-24, on `epic-8-vertsvisning`. Each finding was checked against the code before it was acted on. Gates before every commit: lint, typecheck, `npx prettier --check .` and `npm run test` (832 passed, 1 skipped). `npm run test:e2e` at the end: the first run had 103 passed and failed only the known next-dev navigation flake in `demo.spec.ts` and `server-output.spec.ts` ("Execution context was destroyed"); the rerun passed all 105.
+
+| # | Outcome | Commit |
+|---|---|---|
+| 1 | **Fixed.** `playPage` wraps `play.load`, `play.answerKey` and `play.finalScores` in `orReread`, which turns `WRONG_STATE` or `NOT_FOUND` into a redirect to the same path. The next render reads the new state and shows Sluttstilling or the not-found page. It covers `/tv`, `/vert` and `/skjerm`, because they share the switch. An integration test renders `/tv`, finishes or deletes the Game between the two reads and expects the redirect. It fails without the fix. | `93328df` |
+| 2 | **Fixed, option A as decided.** The poll rests once what the TV shows (Question, Teams, Board) has not changed for 10 minutes (`TV_IDLE_MS` next to `TV_POLL_MS`). It wakes on `focus`, on `visibilitychange` to visible and on a channel message. A `shortcut:` comment and an AD-17 amendment record that a TV on another device stops following after 10 minutes without a move until it is woken. An e2e test with Playwright's fake clock shows the poll running, resting after 10 minutes and waking on focus. It fails with a longer idle limit. | `4961856` |
+| 3 | **Fixed.** The AC6 test aborts a Reveal POST on `/vert` and expects the alert "Mistet forbindelsen." with "Avslør plass 2" still there. | `1878f17` |
+| 4 | **Fixed.** The `/skjerm` key Reveal moved into the AC4 test, where the TV is reported hidden, on the last Question before "Vis sluttstilling". | `1878f17` |
+| 5 | **Fixed.** The `/tv` integration test asserts no `data-revealing` on a first render with an earlier Reveal. | `1878f17` |
+| 6 | **Fixed.** The `/tv` integration test gives the hidden slots the Counts 37 and 29 and asserts that neither appears as markup text. The e2e asserts that the RSC data holds no `count` key before the first Reveal, and one after it as a positive control. | `1878f17` |
+| 7 | **Fixed.** The AC4 test clicks "Angre [Z]", "Bom [M]" and "Neste lag [T]" next to the key steps. | `1878f17` |
+| 8 | **Fixed.** The AC4 test expects the TV's Bom panel to be gone within 3 s. | `1878f17` |
+| 9 | **Fixed.** The TRACE row now names "TV – {title}" and "Vertsvisning – {title}". | `d1ac617` |
+| 10 | **Fixed.** The current Team card on `/vert` has `text-primary`. | `7ff46bc` |
+| 11 | **Fixed.** An `sr-only` `<h2 id="fasit">` labels the list through `aria-labelledby`. | `7ff46bc` |
+| 12 | **Fixed.** The FR-25 amendment now says that a miss is not saved, so only a TV page in the same browser shows it. `PRD.md` was regenerated with `./scripts/sync-brief.sh`. | `d1ac617` |
+| 13 | **Not in this round.** `wiki/` is not edited on this branch. The orchestrator records the decision on `main`. | |
+| 14 | **Fixed.** The README's Stage 2 bullet mentions the TV view and the Host view with the answer key (Story 8.5). | `d1ac617` |
+| 15 | **Fixed, as decided: on `/vert`, not on the Game page.** The line "Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten." sits under the TV link's hint, and DESIGN.md and EXPERIENCE.md now include it. Note: the line is on the page that shows the key, so a Host with a mirrored screen reads it after the room has seen the key. The Game page link would be the preventive place, if the group wants that later. | `7ff46bc` |
+| 16 | **Deferred, as the review proposed.** The fake-clock pattern from finding 2 would make it about ten lines, but it is not needed for the cost risk, which finding 2 now limits. | |

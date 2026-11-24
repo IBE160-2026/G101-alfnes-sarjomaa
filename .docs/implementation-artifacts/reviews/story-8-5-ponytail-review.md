@@ -42,3 +42,10 @@ Verdict: Ship. Finding 1 is a test cleanup worth doing before the PR. Finding 2 
 Lean: -20 lines possible (all in duplicated integration checks).
 
 Not checked: the Vitest and Playwright runs (other reviewers share this working copy), the TV page on a real TV and a second device, and how robust the e2e hydration wait on React's internal `__reactFiber` key is across React upgrades.
+
+## Fixes
+
+Fix round on 2026-11-24, on `epic-8-vertsvisning`. Both findings were checked and accepted.
+
+1. **Fixed** in `0348bf8`. `authz.test.ts` already covers a foreign Game, a random UUID and `abc` for `play.answerKey`, `TvPage` and `HostViewPage`. The answerKey test's `toMatchObject` and Team checks, the `live` NOT_FOUND loop and the two `missing` loops in the `/tv` and `/vert` page tests were deleted. The tests were renamed, and the FR-23 and FR-24 bullets in `tests/TRACE.md` now point to `authz.test.ts`. The `/tv` metadata test still checks the not-found title.
+2. **Fixed** in `eaf2527`. The `shortcut:` comment about Bom now sits above `if (data !== "bom") return;`. The poll has its own `shortcut:` comment now, about the 10-minute idle stop added in `4961856` after the bmad review.

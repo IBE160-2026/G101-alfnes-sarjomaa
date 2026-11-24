@@ -68,3 +68,14 @@ Outside scope: `npm run demo` runs `next dev`, so the Next.js dev badge shows in
 1. S1: skip `FocusOnMount` on the TV's Sluttstilling, and add the e2e assertion that proves it.
 2. N1 and N2: one shared secondary-link class without `text-title`, and drop the duplicate "Alle svarene er avslørt." line on `/vert`.
 3. N3 if the group wants the key usable on a phone. N4 only as a later contract decision.
+
+## Fixes
+
+Fix round on 2026-11-24, on `epic-8-vertsvisning`. `/vert` was checked again on screenshots at 1280×800 and 360×780.
+
+- **S1, fixed** in `e2feeb5`. `FinalScores` mounts `FocusOnMount` only when `tv` is false. The AC4 e2e test expects the Host view's Sluttstilling heading to be focused and the TV's not. `/skjerm` and `/vert` keep their focus behaviour.
+- **N1, partly fixed** in `7ff46bc`. `SECONDARY_LINK` on the Game page no longer has `text-title`, so both links match `button-secondary` and the hand-written link on `/vert`. **Not done: sharing one constant.** The Game page is a server component and `HostPlay` a client one. The codebase already writes this class string by hand in `DownloadReport`, `MarkReviewed` and `HostPlay`, and a shared module only for this string adds more than it saves. The strings are now equal.
+- **N2, fixed** in `7ff46bc`. The extra "Alle svarene er avslørt." line on `/vert` is gone. The status line still says it.
+- **N3, fixed** in `7ff46bc` and `410e6cb`. Below `sm` the last column of the key is a fixed `5rem` instead of `7.5rem`. That gives the label about 40 px back and still holds "Avslør" and "Uten poeng" on one line. **Not as proposed:** `auto` was tried first, but it put the Counts at different x positions from row to row, because the button and the status words are different widths. The Teams stay below the key on a phone.
+- **N4, not changed.** It is a contract decision, as the audit says.
+- **Also from the bmad review:** the current Team card now uses `primary` text, the key has an `sr-only` heading, and `/vert` has the line about an extended screen instead of a mirrored one (see the bmad review's Fixes).
