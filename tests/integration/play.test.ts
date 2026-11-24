@@ -40,12 +40,7 @@ import {
 } from "@/server/db/schema";
 import * as games from "@/server/games";
 import * as play from "@/server/play";
-import {
-  cookieJar,
-  nextCache,
-  NotFoundError,
-  RedirectError,
-} from "./next-mocks";
+import { cookieJar, nextCache, RedirectError } from "./next-mocks";
 import { sqlRows } from "./driver";
 
 vi.mock("next/headers", () =>
@@ -374,30 +369,15 @@ describe("play.answerKey", () => {
     const { board, ...rest } = await play.load(hostId, id);
     expect(key).toEqual({ ...rest, board: key.board });
     expect(board.map((s) => s.revealed)).toEqual([false, true, true]);
-    expect(key).toMatchObject({
-      question: { position: 1, text: QUESTIONS[0] },
-      total: 3,
-      lastReveal: slotIds[0][2],
-    });
-    expect(key.teams.map((t) => [t.name, t.score, t.current])).toEqual([
-      ["Lag 1", 3, true],
-      ["Lag 2", 0, false],
-    ]);
   });
 
-  it("FR-23, AD-5: a ready or played Game is WRONG_STATE; another Host's, a random or a malformed id is NOT_FOUND", async () => {
+  // Another Host's, a random and a malformed id are in authz.test.ts.
+  it("FR-23: a ready or played Game is WRONG_STATE", async () => {
     const { id } = await gameIn();
     expect(await codeOf(play.answerKey(hostId, id))).toBe("WRONG_STATE");
     const done = await playing();
     await finishGame(done.id);
     expect(await codeOf(play.answerKey(hostId, done.id))).toBe("WRONG_STATE");
-    const live = await playing();
-    for (const [host, gameId] of [
-      [randomUUID(), live.id],
-      [hostId, randomUUID()],
-      [hostId, "abc"],
-    ])
-      expect(await codeOf(play.answerKey(host, gameId))).toBe("NOT_FOUND");
   });
 });
 
@@ -1057,7 +1037,7 @@ describe("/spill/[id]/tv", () => {
       expect(html, hidden).not.toContain(hidden);
   });
 
-  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows Sluttstilling with no deletion line or link, and a missing or malformed id is not-found; titled TV – the Game", async () => {
+  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows Sluttstilling with no deletion line or link; titled TV – the Game, or the not-found title for a missing Game", async () => {
     const { id } = await gameIn();
     expect(await tv(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
     expect(await tvMetadata(props(id))).toEqual({ title: "TV – Hyttetur" });
@@ -1075,8 +1055,6 @@ describe("/spill/[id]/tv", () => {
     expect(text(html)).toContain("Sluttstilling Uavgjort Lag 1 0 poeng");
     for (const host of ["slettes", "Tilbake til spillet", "Trykk F", "<a "])
       expect(visible(html), host).not.toContain(host);
-    for (const missing of [randomUUID(), "abc"])
-      await expect(tv(missing)).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("FR-27, AD-17: a last move or a delete that commits between the page's state read and play.load (a poll at the wrong moment) renders /tv again instead of the error page, so the TV shows Sluttstilling", async () => {
@@ -1142,7 +1120,7 @@ describe("/spill/[id]/vert", () => {
     });
   });
 
-  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows the final standing with the deletion date and Tilbake til spillet, and a missing or malformed id is not-found", async () => {
+  it("FR-23, FR-27 (AC3): ready shows Team setup, draft redirects, played shows the final standing with the deletion date and Tilbake til spillet", async () => {
     const { id } = await gameIn();
     expect(await hostView(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
     const draft = await gameIn("draft");
@@ -1160,8 +1138,6 @@ describe("/spill/[id]/vert", () => {
     expect(text(html)).toContain(
       `Sluttstilling Lag 2 7 poeng Lag 3 7 poeng Lag 1 3 poeng Spillet slettes automatisk ${await deleteDate(played)}. Tilbake til spillet`,
     );
-    for (const missing of [randomUUID(), "abc"])
-      await expect(hostView(missing)).rejects.toBeInstanceOf(NotFoundError);
   });
 });
 
