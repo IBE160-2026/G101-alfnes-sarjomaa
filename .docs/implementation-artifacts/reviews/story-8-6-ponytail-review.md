@@ -59,3 +59,19 @@ Verdict: Ship. Findings 1 to 3 are test cleanups worth doing before the PR. Find
 Lean: -70 lines possible (about 60 in duplicated tests, about 10 in duplicated test helpers).
 
 Not checked: the Vitest and Playwright runs (other reviewers share this working copy), and a waiting TV on a second real device.
+
+## Fixes
+
+Fix round on 2026-11-25, on `epic-8-to-skjermer`. Every finding was checked against the tests it names before it was changed. None was rejected.
+
+| # | Finding | Result | Commit |
+|---|---|---|---|
+| 1 | TV sync e2e repeats moves that `play.spec.ts` proves | Fixed. The Angre, Bom-leaves, Bom-button, Neste lag and unscored blocks are gone from the first `tv.spec.ts` test, and its title is shorter. The waiting screen, the start, Reveals by button and by key, one Bom and the walk to Sluttstilling are kept. TRACE points to `play.spec.ts` for the rest. | `c5f59f8` |
+| 2 | Axe test repeats checks made elsewhere | Fixed. The test ends after the F loop on the waiting TV page and is named after it. TRACE points to `play.spec.ts` and `play.test.ts` for `/lag`, the Game page, the two-window line and the redirects. | `c5f59f8` |
+| 3 | TV Sluttstilling checked twice in integration | Fixed. The *played* part is gone, and the test covers only the *draft* redirect and the titles. | `c5f59f8` |
+| 4 | Comments still describe the stage | Fixed, together with the bmad review's finding 6. | `8f58a3b` |
+| 5 | Duplicated e2e helpers | Fixed. `hydrated`, `keyRows` and `fontSize` live in `tests/e2e/fixtures.ts`, and `tv.spec.ts` uses `hydrated` instead of its three inline waits. | `c5f59f8` |
+
+Net result of 1 to 3 and 5, with TRACE and the hydration wait: 107 lines deleted and 46 added in `tests/`.
+
+Gates after the last commit: lint, typecheck and `npx prettier --check .` are clean. `npm run test` gives 833 passed and 1 skipped, and `npm run test:e2e` gives 106 of 106.

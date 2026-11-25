@@ -195,3 +195,29 @@ The layers raised 23 findings, counting the two halves of the Acceptance Auditor
   - one diagram label (10);
   - one older screenshot (13, deferred).
 - **Before the PR:** patch findings 1, 2, 3 and 5. Each of them closes a gap between what the spec or TRACE says is checked and what is actually checked. Findings 4 and 6 to 11 are one-line changes each.
+
+## Fixes
+
+Fix round on 2026-11-25, on `epic-8-to-skjermer`. Every finding was checked against the code before it was changed. None was rejected.
+
+| # | Finding | Result | Commit |
+|---|---|---|---|
+| 1 | Foreign Game in *ready* on `/lag`, `/tv` and `/vert` | Fixed. The B-against-A loop in `authz.test.ts` has a third Game of A's that stays *ready*, and TRACE says so. | `3820a66` |
+| 2 | T9 has no idle-rest step | Fixed. T9 now checks that a TV on a second device left waiting more than 10 minutes does not follow until it is clicked or brought to the front, and then follows within about 2 s. | `8ba1865` |
+| 3 | AC3's 1.5 s not timed from the start | Fixed. The TV assertion starts right after the click on "Start spillet" and runs in `Promise.all` with the Host's own assertions. | `3820a66` |
+| 4 | Test labels use Story 8.5's AC numbers | Fixed. The first `tv.spec.ts` test says "Story 8.5 AC4; Story 8.6 AC1–AC3", and the comments and the axe test say "Story 8.6". | `3820a66` |
+| 5 | No check that F with a modifier does nothing | Fixed. The AC5 test on the TV page presses `Control+f` and `Shift+F` first and expects `document.fullscreenElement` to stay `null`. | `3820a66` |
+| 6 | Stale stage comments and a check that cannot fail | Fixed. The comments in `globals.css`, `usePlay.ts` and `RouteFocus.tsx` now name `TvBoard.tsx`, the Host view and the pending Avslør button. The `f` press and the fullscreen assertion in the shortcut-dialog step of `play.spec.ts` are gone. | `8f58a3b`, `3820a66` |
+| 7 | `epic-8-context.md` says "Upcoming Story 8.6" | Fixed: "Story 8.6 made". | `8ba1865` |
+| 8 | Missed places in `EXPERIENCE.md` and `epics.md` | Fixed with dated notes: the *played* row in the Game page's state table, Story 6.1 AC2 and Story 8.5 AC7. | `8ba1865` |
+| 9 | README does not say what a second device needs | Fixed. A short `<details>` block under "Spillet på TV-en" says that the device must be signed in as the Host, never shows Bom, and rests after ten minutes without a move. | `8ba1865` |
+| 10 | Host-flow diagram says "én skjerm" | Fixed. The label reads "2–4 lag, to vinduer", and `vertsflyt.excalidraw` and `vertsflyt.png` were generated again. | `15a814e` |
+| 11 | T7 and T8 do not say which window to time | Fixed. Both start with "On the Host view", and T7 says that Bom is timed on the TV window in the same browser. | `8ba1865` |
+| 12 | Lost response after a start that went through | Deferred, as the review recommends. | |
+| 13 | "Brettet er låst" screenshot without "Start spillet" | Deferred, as the review recommends. `lagoppsett.png` also predates the new breadcrumb on `/lag` and can be retaken in the same pass. | |
+
+Dismissed item 4 (no breadcrumb on `/lag`) was overruled by the impeccable audit's S1, and `/lag` now has the breadcrumb (`c9f1c4b`).
+
+While the e2e tests were being checked, one more problem turned up. The Bom/Angre test in `play.spec.ts` sometimes pressed rank keys right after a reload, before the Host view had hydrated. It now waits for hydration first (`c5f59f8`).
+
+Gates after the last commit: lint, typecheck and `npx prettier --check .` are clean. `npm run test` gives 833 passed and 1 skipped, and `npm run test:e2e` gives 106 of 106.

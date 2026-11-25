@@ -56,3 +56,10 @@ Outside scope: `npm run demo` runs `next dev`, so the Next.js dev badge shows in
 
 1. S1: add the Game breadcrumb to `/lag`.
 2. N1: rewrite the two-window line in the "du" form, naming which view goes where.
+
+## Fixes
+
+Fix round on 2026-11-25, on `epic-8-to-skjermer`. None was rejected.
+
+- **S1, fixed in `c9f1c4b`.** `/lag` renders the breadcrumb `Mine spill › {Game title} › Lagoppsett` above "Hvem spiller?". It uses the same markup as Review: the Game title links back to the Game page, and "Lagoppsett" is the current page. The `/lag` row in `EXPERIENCE.md` records it, and the `/lag` integration test checks the breadcrumb and the link. The page was checked at 1280×800 and 360×780. At 360 px the breadcrumb wraps the same way it does on Review, and focus after the client-side move still lands on the `<h1>`.
+- **N1, fixed in `c9f1c4b`.** The line on the Game page in *playing* now reads "Åpne vertsvisningen på PC-en og TV-visningen på TV-en eller en annen enhet." The mirroring warning is unchanged. The Playing row in `EXPERIENCE.md` and the tests that assert the text were updated.
