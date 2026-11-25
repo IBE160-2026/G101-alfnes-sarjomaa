@@ -12,7 +12,8 @@ Ferdigskrevne beskrivelser for PR-ene, én per branch. Mergerekkefølge (branche
 8. `epic-7-demo-og-levering`
 9. `epic-8-trinn-2`
 10. `herding-for-frysen` (PR #19)
-11. `epic-8-vertsvisning`
+11. `epic-8-vertsvisning` (PR #20)
+12. `epic-8-to-skjermer`
 
 Hver tekst oppsummerer storiene, reviewene av hele epicen (`bmad-code-review`, `ponytail-review`,
 `impeccable`) og hva som ble rettet, slik CLAUDE.md krever.
