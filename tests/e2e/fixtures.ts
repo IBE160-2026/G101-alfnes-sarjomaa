@@ -6,6 +6,7 @@ import {
   test as base,
   type Browser,
   type BrowserContext,
+  type Locator,
   type Page,
 } from "@playwright/test";
 
@@ -234,3 +235,20 @@ export async function closeAndOpenReview(page: Page, gamePath: string) {
   await page.getByRole("link", { name: "Gå til gjennomgangen" }).click();
   await expect(page).toHaveURL(`${gamePath}/gjennomgang`);
 }
+
+// Hydrated: React owns the element, so a key or channel listener in its tree is up.
+export const hydrated = (page: Page, selector: string) =>
+  page.waitForFunction(
+    (s) =>
+      Object.keys(document.querySelector(s) ?? {}).some((k) =>
+        k.startsWith("__react"),
+      ),
+    selector,
+  );
+
+// The Host view's answer key rows.
+export const keyRows = (page: Page) =>
+  page.getByRole("list", { name: "Fasit" }).getByRole("listitem");
+
+export const fontSize = (locator: Locator) =>
+  locator.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));

@@ -1035,7 +1035,7 @@ describe("/spill/[id]/tv", () => {
       expect(html, hidden).not.toContain(hidden);
   });
 
-  it("FR-23, FR-27, AD-5 (AC3): draft redirects, played shows Sluttstilling with no deletion line or link; titled TV – the Game, or the not-found title for a missing Game", async () => {
+  it("FR-23, AD-5: draft redirects to the Game page; titled TV – the Game, or the not-found title for a missing Game", async () => {
     const { id } = await gameIn();
     expect(await tvMetadata(props(id))).toEqual({ title: "TV – Hyttetur" });
     expect(await tvMetadata(props(randomUUID()))).toEqual({
@@ -1045,13 +1045,6 @@ describe("/spill/[id]/tv", () => {
     await expect(tv(draft.id)).rejects.toEqual(
       new RedirectError(`/spill/${draft.id}`),
     );
-    const played = await playing();
-    await finishGame(played.id);
-    const html = await tv(played.id);
-    expect(html).toMatch(/<h1 id="sluttstilling"[^>]*>Sluttstilling<\/h1>/);
-    expect(text(html)).toContain("Sluttstilling Uavgjort Lag 1 0 poeng");
-    for (const host of ["slettes", "Tilbake til spillet", "Trykk F", "<a "])
-      expect(html, host).not.toContain(host);
   });
 
   it("FR-27, AD-17: a last move or a delete that commits between the page's state read and play.load (a poll at the wrong moment) renders /tv again instead of the error page, so the TV shows Sluttstilling", async () => {

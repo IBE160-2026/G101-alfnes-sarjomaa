@@ -3,6 +3,9 @@ import {
   closeAndOpenReview,
   collectingGame,
   expect,
+  fontSize,
+  hydrated,
+  keyRows,
   QUESTION,
   seriousViolations,
   SETS,
@@ -14,15 +17,6 @@ import {
 // The play pages of a Game (spec 8.6): the Host view and the TV page, side by side in one
 // browser, as two windows on one PC.
 const SYNC = { timeout: 1_500 };
-// Hydrated: React owns the element, so a key or channel listener in its tree is up.
-const hydrated = (page: Page, selector: string) =>
-  page.waitForFunction(
-    (s) =>
-      Object.keys(document.querySelector(s) ?? {}).some((k) =>
-        k.startsWith("__react"),
-      ),
-    selector,
-  );
 async function openTv(page: Page, gamePath: string) {
   const tv = await page.context().newPage();
   await tv.setViewportSize({ width: 1920, height: 1080 });
@@ -32,9 +26,7 @@ async function openTv(page: Page, gamePath: string) {
   await hydrated(page, `[aria-labelledby="fasit"]`);
   return tv;
 }
-// The Host view's answer key rows and Teams.
-const keyRows = (page: Page) =>
-  page.getByRole("list", { name: "Fasit" }).getByRole("listitem");
+// The Host view's Teams.
 const hostTeams = (page: Page) =>
   page.getByRole("region", { name: "Lag" }).getByRole("listitem");
 // The TV page's tile with rank n (a hidden tile has no data-slot).
@@ -282,8 +274,6 @@ test("FR-24, FR-25, FR-27 (AC1, AC2, AC4, AC5), UX-DR13, UX-DR14, UX-DR21, NFR-5
     width: 1920,
     height: 1080,
   });
-  const fontSize = (locator: Locator) =>
-    locator.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(await fontSize(question)).toBe(48);
   const teamList = stage.getByRole("list", { name: "Lag" });
   for (const name of ["Lag 1", "Lag 2", "Svarer nå"])
@@ -791,6 +781,8 @@ test("FR-25, FR-26, FR-27 (AC1, AC4), UX-DR21, NFR-5, NFR-6: Bom on the Host vie
   await page.reload();
   await expect(reveals).toHaveCount(8);
   await expect(teams).toHaveText(lag1);
+  // The keys below need the reloaded page's listener.
+  await hydrated(page, `[aria-labelledby="fasit"]`);
 
   // Every slot revealed, the last one unscored: one live region says both sentences, and
   // the next move becomes the primary button.

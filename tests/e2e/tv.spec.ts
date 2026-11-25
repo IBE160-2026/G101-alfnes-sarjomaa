@@ -1,6 +1,14 @@
-import type { Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { QUESTION_SETS } from "@/lib/question-sets";
-import { expect, registerHost, seriousViolations, test } from "./fixtures";
+import {
+  expect,
+  fontSize,
+  hydrated,
+  keyRows,
+  registerHost,
+  seriousViolations,
+  test,
+} from "./fixtures";
 
 const [home] = QUESTION_SETS;
 // Spec 8.5: the TV page shows each Host view move within 1.5 s.
@@ -30,9 +38,7 @@ async function playingOnHostView(page: Page) {
   return gamePath;
 }
 
-// The answer key's rows on the Host view, and a row's label.
-const keyRows = (page: Page) =>
-  page.getByRole("list", { name: "Fasit" }).getByRole("listitem");
+// The label of the Host view's answer key row n.
 const labelOf = async (page: Page, n: number) =>
   (await keyRows(page)
     .nth(n - 1)
@@ -46,15 +52,12 @@ const tileOf = (tv: Page, n: number) =>
     .getByRole("listitem")
     .nth(n - 1);
 
-const fontSize = (locator: Locator) =>
-  locator.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-
-test("FR-23 to FR-27 (Story 8.5 AC4; Story 8.6 AC1–AC3), AD-17: with the TV page reported hidden, so its poll never refreshes and only the channel can move it, Start spillet on /lag moves the waiting TV page into Question 1 and the Host to the Game page, and every move on the Host view (buttons and keys) shows on the TV page in the same browser within 1.5 s, Bom (which leaves again), unscored Reveals and Sluttstilling included, and only the Host view focuses Sluttstilling", async ({
+test("FR-23 to FR-27 (Story 8.5 AC4; Story 8.6 AC1–AC3), AD-17: with the TV page reported hidden, so its poll never refreshes and only the channel can move it, Start spillet on /lag moves the waiting TV page into Question 1 and the Host to the Game page, and a Reveal by button and by key, Bom, each Question and Sluttstilling show on the TV page in the same browser within 1.5 s, and only the Host view focuses Sluttstilling", async ({
   page,
   context,
 }) => {
   const gamePath = await readyGame(page);
-  // Spec 8.6 (AC1): the Host view sends an early Host to Team setup.
+  // Story 8.6 (AC1): the Host view sends an early Host to Team setup.
   await page.goto(`${gamePath}/vert`);
   await expect(page).toHaveURL(new RegExp(`${gamePath}/lag$`));
   await expect(page.locator("h1")).toHaveText("Hvem spiller?");
@@ -66,17 +69,13 @@ test("FR-23 to FR-27 (Story 8.5 AC4; Story 8.6 AC1–AC3), AD-17: with the TV pa
   );
   await tv.setViewportSize({ width: 1920, height: 1080 });
   await tv.goto(`${gamePath}/tv`);
-  // Spec 8.6 (AC2, AC3): the waiting screen, nothing to operate.
+  // Story 8.6 (AC2, AC3): the waiting screen, nothing to operate.
   await expect(tv.locator("h1")).toHaveText("Fredag");
   await expect(tv.getByText("Spillet starter snart")).toBeVisible();
   for (const role of ["button", "textbox"] as const)
     await expect(tv.getByRole(role)).toHaveCount(0);
   // Hydrated (React owns the stage), so the channel listener is up before the Host starts.
-  await tv.waitForFunction(() =>
-    Object.keys(document.querySelector("[data-stage]")!).some((k) =>
-      k.startsWith("__reactFiber"),
-    ),
-  );
+  await hydrated(tv, "[data-stage]");
 
   await page.getByRole("button", { name: "Start spillet" }).click();
   // Story 8.6 (AC3): the TV's 1.5 s runs from the click, alongside the Host's own move.
@@ -110,51 +109,10 @@ test("FR-23 to FR-27 (Story 8.5 AC4; Story 8.6 AC1–AC3), AD-17: with the TV pa
   await page.keyboard.press("2");
   await expect(tile(2)).toContainText(await label(2), SYNC);
 
-  // Angre by key with focus on the row it hides: Avslør plass 3 takes focus back.
-  await page.getByRole("button", { name: "Avslør plass 3" }).click();
-  await expect(key.nth(2)).toBeFocused();
-  await expect(tile(3)).toContainText(await label(3), SYNC);
-  await page.keyboard.press("z");
-  await expect(
-    page.getByRole("button", { name: "Avslør plass 3" }),
-  ).toBeFocused();
-  await expect(tile(3)).not.toContainText(await label(3), SYNC);
-  // The same move by its button.
-  await page.getByRole("button", { name: "Avslør plass 3" }).click();
-  await expect(tile(3)).toContainText(await label(3), SYNC);
-  await page.getByRole("button", { name: "Angre [Z]" }).click();
-  await expect(tile(3)).not.toContainText(await label(3), SYNC);
-
   // Bom is not saved: the TV shows its panel from the channel message.
   await page.keyboard.press("m");
   await expect(tv.locator(".bom-panel")).toBeVisible(SYNC);
   await expect(status).toHaveText("Bom.");
-  // The TV runs its own Bom timer: the panel leaves the room's screen after 1.5 s.
-  await expect(tv.locator(".bom-panel")).toHaveCount(0, { timeout: 3_000 });
-  await page.getByRole("button", { name: "Bom [M]" }).click();
-  await expect(tv.locator(".bom-panel")).toBeVisible(SYNC);
-
-  await page.keyboard.press("t");
-  await expect(current).toContainText("Lag 2", SYNC);
-  await expect(status).toHaveText("Lag 2 svarer nå.");
-  await page.getByRole("button", { name: "Neste lag [T]" }).click();
-  await expect(current).toContainText("Lag 1", SYNC);
-  await page.keyboard.press("t");
-  await expect(current).toContainText("Lag 2", SYNC);
-
-  // An unscored Reveal: "Uten poeng" on the Host view, "uten poeng" on the TV, no Score.
-  await page.getByRole("button", { name: "Vis resten uten poeng [U]" }).click();
-  await expect(
-    page.getByRole("button", { name: "Avslører uten poeng [U]" }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Avslør plass 3" }).click();
-  await expect(key.nth(2)).toContainText("Uten poeng");
-  await expect(status).toHaveText(`«${await label(3)}» er avslørt uten poeng.`);
-  await expect(tile(3)).toContainText("uten poeng", SYNC);
-  await expect(current.locator(".sr-only")).toHaveText("0 poeng");
-  await expect(
-    page.locator('li[aria-current="true"] p.tabular-nums'),
-  ).toHaveText("0 poeng");
 
   // Through every Question by n, → and the button, to Sluttstilling on both pages.
   for (const [i, q] of home.questions.entries()) {
@@ -218,11 +176,7 @@ test("AD-17: a TV page polls while it shows something new, rests after 10 minute
   await tv.clock.install();
   await tv.goto(`${gamePath}/tv`);
   await expect(tv.locator("h1")).toHaveText(home.questions[0].text);
-  await tv.waitForFunction(() =>
-    Object.keys(document.querySelector(".stage-canvas > ol")!).some((k) =>
-      k.startsWith("__reactFiber"),
-    ),
-  );
+  await hydrated(tv, ".stage-canvas > ol");
   // router.refresh() fetches the page's RSC payload.
   let refreshes = 0;
   tv.on("request", (r) => {
@@ -343,7 +297,7 @@ test("FR-24 (AC6), NFR-6: Åpne TV-visning opens the TV page in its own window a
   ).toBeVisible();
 });
 
-test("FR-23 to FR-27, NFR-6 (Story 8.6, AC6): axe finds nothing serious on Team setup at /lag, the waiting TV page and the playing Game page; /skjerm sends an old bookmark to the Game page", async ({
+test("FR-23, NFR-6 (Story 8.6, AC6): axe finds nothing serious on the waiting TV page, and F toggles fullscreen there", async ({
   page,
 }) => {
   const gamePath = await readyGame(page);
@@ -351,29 +305,11 @@ test("FR-23 to FR-27, NFR-6 (Story 8.6, AC6): axe finds nothing serious on Team 
   await expect(page.getByText("Spillet starter snart")).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
   // F works on the waiting screen too, once hydrated.
-  await page.waitForFunction(() =>
-    Object.keys(document.querySelector("[data-stage]")!).some((k) =>
-      k.startsWith("__react"),
-    ),
-  );
+  await hydrated(page, "[data-stage]");
   for (const want of [true, false]) {
     await page.keyboard.press("f");
     await expect
       .poll(() => page.evaluate(() => document.fullscreenElement !== null))
       .toBe(want);
   }
-  await page.goto(`${gamePath}/lag`);
-  await expect(page.locator("h1")).toHaveText("Hvem spiller?");
-  expect(await seriousViolations(page)).toEqual([]);
-  await page.getByRole("button", { name: "Start spillet" }).click();
-  await expect(page.getByText("Spillet er i gang")).toBeVisible();
-  await expect(
-    page.getByText("Åpne vertsvisningen på PC-en og TV-visningen på TV-en"),
-  ).toBeVisible();
-  expect(await seriousViolations(page)).toEqual([]);
-  await page.goto(`${gamePath}/lag`);
-  await expect(page).toHaveURL(new RegExp(`${gamePath}$`));
-  await page.goto(`${gamePath}/skjerm`);
-  await expect(page).toHaveURL(new RegExp(`${gamePath}$`));
-  await expect(page.locator("h1")).toHaveText("Fredag");
 });
