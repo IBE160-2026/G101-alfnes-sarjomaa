@@ -855,7 +855,7 @@ describe("Score property", () => {
 });
 
 describe("/spill/[id]/lag", () => {
-  it("FR-23, UX-DR22 (AC1): a ready Game shows Team setup with Hvem spiller?, Lag 1 and Lag 2, no Fjern, Legg til lag and Start spillet on a light Host page, titled by the Game", async () => {
+  it("FR-23, UX-DR22 (AC1): a ready Game shows Team setup with Hvem spiller?, Lag 1 and Lag 2, no Fjern, Legg til lag and Start spillet on a light Host page, titled Lagoppsett – the Game", async () => {
     const { id } = await gameIn();
     const html = await lag(id);
     expect(html).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
@@ -868,7 +868,9 @@ describe("/spill/[id]/lag", () => {
     expect(shown).toContain("Legg til lag");
     expect(shown).toContain("Start spillet");
     expect(shown).not.toContain("Fjern");
-    expect(await lagMetadata(props(id))).toEqual({ title: "Hyttetur" });
+    expect(await lagMetadata(props(id))).toEqual({
+      title: "Lagoppsett – Hyttetur",
+    });
     expect(await lagMetadata(props(randomUUID()))).toEqual({
       title: "Vi finner ikke dette spillet",
     });

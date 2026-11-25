@@ -73,7 +73,7 @@ test("FR-23 (AC1, AC2), UX-DR22, NFR-6: a collecting Game's Team setup redirects
   // Team setup: two prefilled fields and no Fjern.
   await page.getByRole("link", { name: "Start spillet" }).click();
   await expect(page).toHaveURL(`${gamePath}/lag`);
-  await expect(page).toHaveTitle("Hyttetur – Toppsvar");
+  await expect(page).toHaveTitle("Lagoppsett – Hyttetur – Toppsvar");
   await expect(page.locator("h1")).toHaveText("Hvem spiller?");
   await expect(page.locator("h1")).toBeFocused();
   const field = (n: number) => page.getByLabel(`Navn på lag ${n}`);
@@ -997,6 +997,14 @@ test("FR-3, FR-27 (AC2, AC3), UX-DR21, NFR-5, NFR-6: Neste spørsmål by N and �
   expect(await seriousViolations(tv)).toEqual([]);
   await tv.reload();
   await expect(tv.locator("h1")).toHaveText("Sluttstilling");
+  // F works on Sluttstilling too, once hydrated.
+  await hydrated(tv, ".stage-canvas");
+  for (const want of [true, false]) {
+    await tv.keyboard.press("f");
+    await expect
+      .poll(() => tv.evaluate(() => document.fullscreenElement !== null))
+      .toBe(want);
+  }
 
   // The Host view's final standing: the deletion date and the way back.
   await expect(teams).toHaveCount(0);

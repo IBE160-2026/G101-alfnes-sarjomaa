@@ -25,11 +25,11 @@ valgt. Dommeren hadde alt slått sammen «Ullsokker», «ullsokker» og «ullsok
 ![Gjennomgangen med to grupper valgt og valglinja nederst](docs-assets/skjermbilder/gjennomgang-valg.png)
 
 **Spillet på TV-en.** Spillet spilles alltid med to vinduer eller to enheter. «Start spillet»
-åpner lagoppsettet. Når lagene er navngitt, havner verten på spillsiden og åpner «Vertsvisning
-med fasit» på PC-en og «Åpne TV-visning» på TV-en. Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle fasiten. I
-vertsvisningen avslører tall plasser, `M` gir bom, `Z` angrer, `T` gir neste lag, `U` avslører
-uten poeng og `N` går til neste spørsmål. `F` i TV-vinduet gir fullskjerm. Lagene ser bare brett
-og poeng.
+åpner lagoppsettet. Når lagene er navngitt, havner verten på spillsiden og åpner «Vertsvisning med
+fasit» på PC-en og «Åpne TV-visning» på TV-en. Bruk TV-en som utvidet skjerm, ikke speilet, ellers
+ser alle fasiten. I vertsvisningen avslører tall plasser, `M` gir bom, `Z` angrer, `T` gir neste
+lag, `U` avslører uten poeng og `N` går til neste spørsmål. `F` i TV-vinduet gir fullskjerm.
+Lagene ser bare brett og poeng.
 
 ![TV-visningen med to avslørte svar, kilden til spørsmålssettet og poengene til tre lag](docs-assets/skjermbilder/spill-brett.png)
 
@@ -195,7 +195,7 @@ Promptene arkiveres i [`prompting/`](prompting/README.md).
 
 ## Status
 
-Per 23. november. Trinn 1 fryses 1. desember.
+Per 25. november. Trinn 1 fryses 1. desember.
 
 - **Trinn 1 er ikke godkjent ennå (SM-1).** Testene og [sporingen](tests/TRACE.md) er grønne. De
   [manuelle sjekkene](tests/manual/checklist.md) og
@@ -205,8 +205,9 @@ Per 23. november. Trinn 1 fryses 1. desember.
   ikke kjørt. Det som ikke er ferdig ved frysen, flyttes til trinn 2.
 - **Trinn 2 er startet** før trinn 1 er godkjent, etter gruppens valg. [Ferdige
   spørsmålssett](#ferdige-spørsmålssett) (FR-33) er på plass, og det samme er TV-visning og
-  vertsvisning med fasit (story 8.5), som siden story 8.6 er den eneste måten å spille på. Egen rekkefølge på brettet (FR-22),
-  hjelp til gjetninger (FR-28) og strikes og steals (FR-29) gjenstår.
+  vertsvisning med fasit (story 8.5), som siden story 8.6 er den eneste måten å spille på. Egen
+  rekkefølge på brettet (FR-22), hjelp til gjetninger (FR-28) og strikes og steals (FR-29)
+  gjenstår.
 - **Dommeren mot ProtoQA (SM-2): B-cubed F1 0.6849**, under målet på 0.70. Spørsmål med mange
   ulike svar faller tilbake til én gruppe per svar, og verten slår sammen i gjennomgangen.
   ProtoQA er engelsk. `npm run judge:eval` gjentar tallet uten nett.

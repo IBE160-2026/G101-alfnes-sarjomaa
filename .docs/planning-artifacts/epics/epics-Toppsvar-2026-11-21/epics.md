@@ -1587,12 +1587,12 @@ So that I always have the answer key and the room never sees my controls.
 **When** it renders in *ready*, *playing* and *played*
 **Then** "Start spillet" links to `/spill/[id]/lag`; in *playing* "Vertsvisning med fasit" is the primary link and "Åpne TV-visning" the secondary one, with the two-window line and the mirroring warning, and no "Fortsett spillet"; in *played* "Åpne TV-visning" shows the final Scores on the TV page
 
-**AC5 (FR-24 · integration)**
+**AC5 (FR-23 · integration)**
 **Given** any Game id
 **When** `/spill/[id]/skjerm` is requested
 **Then** it redirects to `/spill/[id]` and renders no stage
 
-**AC6 (FR-24 to FR-27, NFR-6 · e2e)**
+**AC6 (FR-23 to FR-27, NFR-6 · e2e)**
 **Given** the end-to-end tests that ran through the one-screen stage
 **When** they run through `/spill/[id]/vert` and `/spill/[id]/tv` instead
 **Then** every FR-24 to FR-27 criterion still has a passing test, and axe finds no serious violation on `/lag`, the waiting TV page and the *playing* Game page

@@ -73,6 +73,7 @@ function useTvSync(gameId: string, version = "") {
 }
 
 // On the TV's waiting screen, so it moves into play once the Host starts.
+// shortcut: a waiting TV on another device stops polling after TV_IDLE_MS and follows the start only once focused or visible again; poll until play starts if TVs wait that long.
 export function TvRefresh({ gameId }: { gameId: string }) {
   useTvSync(gameId);
   return null;

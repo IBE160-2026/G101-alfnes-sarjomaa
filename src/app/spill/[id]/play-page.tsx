@@ -50,7 +50,7 @@ const ownedGame = cache(async (gameId: string) => {
 
 // The TV and Host view titles tell the two windows apart when the Host drags or shares one.
 const TITLE_PREFIX: Record<View, string> = {
-  lag: "",
+  lag: "Lagoppsett – ",
   tv: "TV – ",
   vert: "Vertsvisning – ",
 };

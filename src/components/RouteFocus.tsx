@@ -21,7 +21,7 @@ export function FocusOnMount({ id }: { id: string }) {
 
 // Focuses the page's <h1>; behind a loading state (which has no <h1>) it waits for the
 // heading to stream in. Returns a cleanup that stops waiting.
-export function focusPageHeading(): () => void {
+function focusPageHeading(): () => void {
   const h1 = document.querySelector("h1");
   if (h1) {
     focusHeading(h1);

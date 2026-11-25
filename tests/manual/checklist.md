@@ -42,16 +42,17 @@ For A5, the axe DevTools browser extension or Chrome's Lighthouse (Accessibility
 
 Measured by hand on the sizing Game (S) in Review and play, on a laptop against `npm run start` as prepared above. Time each action from the click to the result on screen, five times, and note the slowest try, the date and the machine.
 
-| #   | Check                                                                                                                       | Covers                     | Run on | Result | Date |
-| --- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------ | ------ | ---- |
-| T1  | Merge two Groups: from the click on "Slå sammen 2 grupper" to the re-sorted list, within one second                         | NFR-5, FR-20               | S      |        |      |
-| T2  | Move Answers: from the click on "Flytt" (and on "Ny gruppe") to the refreshed list with focus moved, within one second      | NFR-5, FR-20               | S      |        |      |
-| T3  | Rename (Enter to the closed field with the new label), "Forkast fra brettet" and "Angre forkasting": each within one second | NFR-5, FR-20               | S      |        |      |
-| T4  | "Marker som gjennomgått": from the click to the next Question with focus on its heading, within one second                  | NFR-5, FR-21               | S      |        |      |
-| T5  | "Lås brettet" in the dialog: from the click to the Game page showing "Brettet er låst", within one second                   | NFR-5, FR-21               | S      |        |      |
-| T6  | Avslør a tile: from the click (or rank key) to the revealed label and Score, within one second                              | NFR-5, FR-25               | S      |        |      |
-| T7  | Bom, Angre, Neste lag and the uten-poeng toggle each show their result within one second                                    | NFR-5, FR-25, FR-26, FR-27 | S      |        |      |
-| T8  | "Neste spørsmål" to the next Question, and "Vis sluttstilling" to "Sluttstilling", each within one second                   | NFR-5, FR-27               | S      |        |      |
+| #   | Check                                                                                                                                                                                                                                                                           | Covers                     | Run on | Result | Date |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------ | ------ | ---- |
+| T1  | Merge two Groups: from the click on "Slå sammen 2 grupper" to the re-sorted list, within one second                                                                                                                                                                             | NFR-5, FR-20               | S      |        |      |
+| T2  | Move Answers: from the click on "Flytt" (and on "Ny gruppe") to the refreshed list with focus moved, within one second                                                                                                                                                          | NFR-5, FR-20               | S      |        |      |
+| T3  | Rename (Enter to the closed field with the new label), "Forkast fra brettet" and "Angre forkasting": each within one second                                                                                                                                                     | NFR-5, FR-20               | S      |        |      |
+| T4  | "Marker som gjennomgått": from the click to the next Question with focus on its heading, within one second                                                                                                                                                                      | NFR-5, FR-21               | S      |        |      |
+| T5  | "Lås brettet" in the dialog: from the click to the Game page showing "Brettet er låst", within one second                                                                                                                                                                       | NFR-5, FR-21               | S      |        |      |
+| T6  | On the Host view, Avslør a slot: from the click (or rank key) to the revealed label and Score there, within one second                                                                                                                                                          | NFR-5, FR-25               | S      |        |      |
+| T7  | Bom, Angre, Neste lag and the uten-poeng toggle each show their result within one second                                                                                                                                                                                        | NFR-5, FR-25, FR-26, FR-27 | S      |        |      |
+| T8  | "Neste spørsmål" to the next Question, and "Vis sluttstilling" to "Sluttstilling", each within one second                                                                                                                                                                       | NFR-5, FR-27               | S      |        |      |
+| T9  | Two views on real hardware (Story 8.6): the TV as an extended display, the TV window dragged to it and `F` on the waiting screen gives fullscreen; Start spillet moves it into play at once; a TV signed in on a second device follows the start and each move within about 2 s | NFR-5, FR-23 to FR-27      | S, TV  |        |      |
 
 **Supporting evidence, not a result.** On 2026-11-23 a Playwright script timed six Host actions on the pilot (Vercel functions in `fra1`, Neon Postgres, one invented Game of 5 Questions and 5 Answer sets): merge 0.82 s, rename 0.29 s, discard 0.31 s, mark reviewed 0.81 to 0.83 s, Board lock 1.18 s including the redirect to the Game page, and saving a Question 0.18 s. See "Pilot measurements" in `.docs/planning-artifacts/architecture/architecture-Toppsvar-2026-11-21/delivery-notes.md`. It was a smaller Game, a scripted run and a hosted database, so it fills no T row. It does show that T5 is the row most likely to miss one second.
 
@@ -102,12 +103,12 @@ SM-1 counts every testable Stage 1 consequence, except slip-list items the READM
 Open items:
 
 - Accessibility rows without a result: A1, A2, A3, A4, A5, A6, A7, A8, A9, A10.
-- Timing rows without a result: T1, T2, T3, T4, T5, T6, T7, T8.
+- Timing rows without a result: T1, T2, T3, T4, T5, T6, T7, T8, T9.
 - Demo content: D1.
 - Fresh clone: F1 was run by the AI on the developer's machine (Story 7.4); a group member still runs it once on a machine without the repository.
 - SM-3 anonymity audit: `tests/manual/anonymity-audit.md` has no recorded run.
 - Pilot: P1, P2 and P3 have no result, and the monthly Cron has not been confirmed with "Run" yet (see "Pilot", step 3). If the pilot is cut (moved to Stage 2 under PRD §6.5, and named so in the README), these rows leave the count.
-- README: the "Status" section is dated 23 November. Update it at the freeze (1 December) and before hand-in, so it states what slipped.
+- README: the "Status" section is dated 25 November. Update it at the freeze (1 December) and before hand-in, so it states what slipped.
 
 SM-2 is reported, not gated. The live ProtoQA figure, recorded 2026-11-23 with prompt version 1 and `deepseek/deepseek-v4.1-flash`, is B-cubed F1 0.6849 (precision 0.9809, recall 0.5261), 1.40 calls per Question, with 15 of 52 Questions falling back on `INVALID_OUTPUT`. Reasoning was tried and rejected (see `.docs/implementation-artifacts/spec-7-2-judge-evaluation-against-protoqa.md`). The figure is below 0.70, which does not fail SM-1. The README reports it, with every version tried, in its "Status" section.
 

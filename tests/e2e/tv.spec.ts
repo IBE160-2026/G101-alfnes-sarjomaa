@@ -336,13 +336,25 @@ test("FR-24 (AC6), NFR-6: Åpne TV-visning opens the TV page in its own window a
   ).toBeVisible();
 });
 
-test("FR-23, NFR-6 (spec 8.6, AC6): axe finds nothing serious on Team setup at /lag, the waiting TV page and the playing Game page; /skjerm sends an old bookmark to the Game page", async ({
+test("FR-23 to FR-27, NFR-6 (spec 8.6, AC6): axe finds nothing serious on Team setup at /lag, the waiting TV page and the playing Game page; /skjerm sends an old bookmark to the Game page", async ({
   page,
 }) => {
   const gamePath = await readyGame(page);
   await page.goto(`${gamePath}/tv`);
   await expect(page.getByText("Spillet starter snart")).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
+  // F works on the waiting screen too, once hydrated.
+  await page.waitForFunction(() =>
+    Object.keys(document.querySelector("[data-stage]")!).some((k) =>
+      k.startsWith("__react"),
+    ),
+  );
+  for (const want of [true, false]) {
+    await page.keyboard.press("f");
+    await expect
+      .poll(() => page.evaluate(() => document.fullscreenElement !== null))
+      .toBe(want);
+  }
   await page.goto(`${gamePath}/lag`);
   await expect(page.locator("h1")).toHaveText("Hvem spiller?");
   expect(await seriousViolations(page)).toEqual([]);
