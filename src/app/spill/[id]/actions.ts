@@ -144,29 +144,29 @@ export async function confirmBoard(
 }
 
 export async function startPlay(input: unknown): Promise<ActionResult<void>> {
-  return hostAction(play.start, input, "skjerm");
+  return hostAction(play.start, input, "vert");
 }
 
 export async function revealSlot(
   input: unknown,
 ): Promise<ActionResult<play.RevealResult>> {
-  return hostAction(play.reveal, input, "skjerm");
+  return hostAction(play.reveal, input, "vert");
 }
 
 export async function undoReveal(
   input: unknown,
 ): Promise<ActionResult<play.UndoResult>> {
-  return hostAction(play.undo, input, "skjerm");
+  return hostAction(play.undo, input, "vert");
 }
 
 export async function passTurn(
   input: unknown,
 ): Promise<ActionResult<{ team: string }>> {
-  return hostAction(play.nextTeam, input, "skjerm");
+  return hostAction(play.nextTeam, input, "vert");
 }
 
 export async function nextQuestion(
   input: unknown,
 ): Promise<ActionResult<play.NextQuestionResult>> {
-  return hostAction(play.nextQuestion, input, "skjerm");
+  return hostAction(play.nextQuestion, input, "vert");
 }

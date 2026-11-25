@@ -3,11 +3,15 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cache, Suspense } from "react";
 import { HostPlay } from "@/components/HostPlay";
-import { FinalScores, PlayView, StageLoading } from "@/components/PlayView";
+import {
+  FinalScores,
+  PlayView,
+  StageLoading,
+  TvWaiting,
+} from "@/components/PlayView";
 import { FocusOnMount } from "@/components/RouteFocus";
 import { ScoreList } from "@/components/ScoreList";
 import { TeamSetup } from "@/components/TeamSetup";
-import { TvRefresh } from "@/components/TvBoard";
 import { DomainError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { QUESTION_SET_CREDIT } from "@/lib/question-sets";
@@ -15,9 +19,9 @@ import * as auth from "@/server/auth";
 import * as games from "@/server/games";
 import * as play from "@/server/play";
 
-// skjerm: the one shared screen with controls; tv: the room's Board only; vert: the
-// Host view with the answer key and the controls.
-type View = "skjerm" | "tv" | "vert";
+// lag: Team setup; tv: the room's Board only; vert: the Host view with the answer key
+// and the controls.
+type View = "lag" | "tv" | "vert";
 
 const isNotFound = (error: unknown) =>
   error instanceof DomainError && error.code === "NOT_FOUND";
@@ -46,7 +50,7 @@ const ownedGame = cache(async (gameId: string) => {
 
 // The TV and Host view titles tell the two windows apart when the Host drags or shares one.
 const TITLE_PREFIX: Record<View, string> = {
-  skjerm: "",
+  lag: "Lagoppsett – ",
   tv: "TV – ",
   vert: "Vertsvisning – ",
 };
@@ -65,8 +69,9 @@ export async function playMetadata(
   }
 }
 
-// FR-23, FR-27: the play pages' one switch. Team setup in ready, the view in playing,
-// the final Scores in played, the Game page otherwise.
+// FR-23, FR-27: the play pages' one switch. Team setup only on /lag in ready; in ready the
+// TV waits and the Host view sends the Host to /lag; the view in playing, the final Scores
+// in played, the Game page otherwise.
 export async function playPage(params: Promise<{ id: string }>, view: View) {
   const { id } = await params;
   let game;
@@ -78,19 +83,25 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
     throw error;
   }
   const path = `/spill/${game.id}/${view}`;
-  if (game.state === "ready")
+  if (view === "lag") {
+    if (game.state !== "ready") redirect(`/spill/${game.id}`);
     return (
       <>
+        <LagBreadcrumb gameId={game.id} title={game.title} />
         <TeamSetup gameId={game.id} />
-        {view === "tv" && <TvRefresh gameId={game.id} />}
       </>
     );
+  }
+  if (game.state === "ready") {
+    if (view === "vert") redirect(`/spill/${game.id}/lag`);
+    return <TvWaiting gameId={game.id} title={game.title} />;
+  }
   if (game.state === "played") {
     const final = await orReread(play.finalScores(game.hostId, game.id), path);
     return view === "vert" ? (
       <HostFinal gameId={game.id} {...final} />
     ) : (
-      <FinalScores gameId={game.id} tv={view === "tv"} {...final} />
+      <FinalScores {...final} />
     );
   }
   if (game.state !== "playing") redirect(`/spill/${game.id}`);
@@ -107,10 +118,44 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
         hostId={game.hostId}
         gameId={game.id}
         credit={game.questionSet ? QUESTION_SET_CREDIT : undefined}
-        tv={view === "tv"}
         path={path}
       />
     </Suspense>
+  );
+}
+
+// The Game pages' breadcrumb, as on Review: the way back to the Game page.
+function LagBreadcrumb({ gameId, title }: { gameId: string; title: string }) {
+  return (
+    <nav aria-label="Brødsmulesti" className="mb-2">
+      <ol className="flex flex-wrap items-center gap-x-2 text-body-sm">
+        <li>
+          <Link
+            href="/spill"
+            className="inline-flex min-h-11 items-center text-primary underline"
+          >
+            Mine spill
+          </Link>
+        </li>
+        <li className="flex min-w-0 items-center gap-2">
+          <span aria-hidden="true" className="text-ink-muted">
+            ›
+          </span>
+          <Link
+            href={`/spill/${gameId}`}
+            className="inline-flex min-h-11 items-center break-words text-primary underline"
+          >
+            {title}
+          </Link>
+        </li>
+        <li className="flex items-center gap-2">
+          <span aria-hidden="true" className="text-ink-muted">
+            ›
+          </span>
+          <span aria-current="page">Lagoppsett</span>
+        </li>
+      </ol>
+    </nav>
   );
 }
 
@@ -119,20 +164,17 @@ async function PlayStage({
   hostId,
   gameId,
   credit,
-  tv,
   path,
 }: {
   hostId: string;
   gameId: string;
   credit?: string;
-  tv: boolean;
   path: string;
 }) {
   return (
     <PlayView
       gameId={gameId}
       credit={credit}
-      tv={tv}
       {...await orReread(play.load(hostId, gameId), path)}
     />
   );

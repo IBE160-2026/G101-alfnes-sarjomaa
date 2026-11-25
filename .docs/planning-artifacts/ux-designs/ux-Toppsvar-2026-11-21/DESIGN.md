@@ -3,7 +3,7 @@ name: Toppsvar
 description: Party game where a Host turns anonymous Answers about the group into a ranked Board, reviews it, and plays it from one shared screen. Next.js + Tailwind CSS; tokens map 1:1 onto a Tailwind theme.
 status: final
 created: 2026-11-21
-updated: 2026-11-24
+updated: 2026-11-25
 sources:
   - ../../prds/prd-Toppsvar-2026-10-12/prd.md
   - ../../briefs/brief-Toppsvar-2026-09-14/brief.md
@@ -430,6 +430,7 @@ The play view's **control bar** (`control-bar`) is part of the play view layout,
 - The action row under the key holds the five controls and "?" (accessible name "Hurtigtaster") as `button-secondary` buttons, each control with its shortcut in brackets ("Bom [M]", "Angre [Z]", "Neste lag [T]", "Vis resten uten poeng [U]", "Neste spørsmål [N]"). "Neste spørsmål [N]" (or "Vis sluttstilling [N]") turns `button-primary` once every slot is revealed, as the control bar makes it bold, so the view keeps one primary action. "Vis resten uten poeng [U]" shows its pressed state with a `primary` border on `primary-soft` and bold text. A visible polite status line (`body`, `ink-muted`) sits under the row and reads out each result, as the play view's live region does.
 - The right column lists the Teams with Scores in the TeamScore layout but on light tokens: the current Team is a card on `primary-soft` with `primary` text and the words "Svarer nå", never mint. Below it a link "Åpne TV-visning" styled as `button-secondary` (opens a new window) and the line "Trykk F i TV-vinduet for fullskjerm." in `body-sm` `ink-muted`. *Amended after the Story 8.5 review:* under it, in the same style, "Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten."
 - **TV page** (`/spill/[id]/tv`), stage family only. The play view with the Host's parts removed: the same canvas, tokens, Team column and Reveal staging, but tiles without buttons (so no `board-tile-pending` look and no unscored-mode preview), no control bar, no shortcut hint and no `?` overlay. The "Bom" panel is the play view's. The FR-33 credit stays in the Team column.
+- *Amended 2026-11-25 (Story 8.6, group decision after testing the two pages):* the one-screen play view is removed, so the **control bar** and the stage's `?` overlay above are history, and the play view's tokens and budget now serve the TV page alone. The 64 px control-bar row stays empty on the TV page, so the canvas and its budget are unchanged. Before play starts, the TV page shows a **waiting screen** on the same canvas: the Game title in `tv-question` `stage-ink` and "Spillet starter snart" under it in `tv-team` `stage-muted`, centred, with nothing to operate. Team setup moves to its own light Host page, `/spill/[id]/lag`, with no change to the form.
 
 ## Do's and Don'ts
 

@@ -1,0 +1,65 @@
+# Story 8.6 impeccable audit (audit)
+
+Branch `epic-8-to-skjermer`, scope Story 8.6 (play always uses two views), `git diff main...epic-8-to-skjermer`. Mode: Operate. Contract: `DESIGN.md` and `EXPERIENCE.md` in `.docs/planning-artifacts/ux-designs/ux-Toppsvar-2026-11-21/`, including the 2026-11-25 amendments for Story 8.6. The launcher was unavailable, so the bundled detector did not run. This is a source audit checked against fresh screenshots. The app was started with `npm run demo` in a separate worktree on the branch head, with no model key, so it ran on the seeded PGlite database and the replay judge. Playwright logged in with the demo login and created a Game from the "Jobb og reise" Question set. The Host page and a TV page ran as two pages in one browser context. The TV page was opened on `/tv` while the Game was *ready*, so it showed the waiting screen. The Host went from the Game page through "Start spillet" to `/lag`, submitted once with an empty and an over-long name, then started with three Teams and landed on the Game page in *playing*. From there the Host clicked "Åpne TV-visning" and "Vertsvisning med fasit", made a Reveal on `/vert`, played to Sluttstilling, and opened the Game page in *played*. A second Game with an 80-character title checked the waiting screen's longest title. A second probe opened a waiting TV page in a separate browser context, standing in for a TV on another device, and timed how fast it followed the start. Host pages were captured at 1280×800 and 360×780, and `/tv` at 1920×1080 and letterboxed at 1280×720. The PNGs are kept outside the repo. File names are cited below.
+
+Files in scope: `src/app/spill/[id]/lag/page.tsx`, `src/app/spill/[id]/play-page.tsx`, `src/app/spill/[id]/skjerm/page.tsx`, the *ready*, *playing* and *played* sections of `src/app/spill/[id]/page.tsx`, `src/components/TeamSetup.tsx`, `src/components/PlayView.tsx` (`TvWaiting`, `FinalScores`), `src/components/TvBoard.tsx`, `src/components/FullscreenKey.tsx`, `src/components/OpenTvLink.tsx` and `src/components/RouteFocus.tsx`.
+
+## Scores
+
+| Dimension | Score | Key finding |
+|---|---|---|
+| Accessibility | 4 | Every control on `/lag` and the Game page has a visible 3 px `ink` ring, a 44 px target and a name that contains its visible text. The waiting TV has nothing to tab to, and nothing on it takes focus when it moves into play. The text pairs measure 8.28:1 to 14.95:1 on the stage and 6.89:1 on `paper`. |
+| Performance | 4 | A waiting TV in the same browser left the waiting screen 107 ms after the click on "Start spillet". The Host reached the Game page at 203 ms. A TV in another browser context followed in 1012 ms, within the 2 s poll. |
+| Theming | 4 | `/lag` and the Game page use only light tokens, and the waiting screen only stage tokens (`stage`, `stage-ink`, `stage-muted`, `tv-question`, `tv-team`), as the 2026-11-25 amendment to `DESIGN.md` sets out. |
+| Responsive | 4 | No horizontal scroll at 360 or 1280 px. The Game page links stack at 360 px. The waiting screen fills 1280×720 at scale 0.667, and an 80-character title wraps to two centred lines at 1920. |
+| Implementation integrity | 3 | The story deletes more than it adds, and the waiting screen is built from the TV page's own canvas, tokens and sync hook. `/lag` is the one new Host page, and it misses the Game breadcrumb that the contract gives Game pages (S1). |
+| **Total** | **19/20** | Excellent. No must-fix. One should-fix before the PR. |
+
+Verdict on integrity: pass. Story 8.6 removes the one-screen stage and adds one small component, `TvWaiting`. It uses the same `STAGE` wrapper, `stage-canvas`, type tokens, `TvRefresh` and `FullscreenKey` as the TV page in play, so the waiting screen cannot drift from the screen that replaces it. `/lag` mounts the unchanged `TeamSetup` on a light Host page. On the Game page the old `/skjerm` links became `PRIMARY_LINK`, `SECONDARY_LINK` and `OpenTvLink`, so the page keeps one primary action in every state. The single gap is navigation on the new page (S1).
+
+## Should
+
+### S1. [P2] `/lag` has no breadcrumb and never names the Game (`src/app/spill/[id]/play-page.tsx:86-88`, `src/components/TeamSetup.tsx:117`)
+
+`/lag` renders `TeamSetup` alone: "Hvem spiller?", the name fields and "Start spillet" (`03-lag-1280.png`, `03-lag-360.png`). There is no `Mine spill › {Game title}` breadcrumb, no link back to the Game page, and no visible Game title. Only the tab title, "Lagoppsett – Fredagsquiz – Toppsvar", says which Game this is. `EXPERIENCE.md` (Navigation) says "Game pages show a breadcrumb `Mine spill › {Game title}`". The Game page and Review (`src/app/spill/[id]/gjennomgang/page.tsx:68`) both have one.
+
+Before Story 8.6 the form lived on `/skjerm`, which turned into the full-window stage after the start, so a dead end on the form did not matter much. Now `/lag` is an ordinary Host page reached from a link on the Game page. A Host who opens it to look, or who has two Games ready, has no way back except the browser's Back button or "Mine spill" and a search for the Game again. Nothing is lost, which is why this is P2 and not P1.
+
+Fix: render the Game page's breadcrumb above "Hvem spiller?". `playPage` already has `game.title` and `game.id` at line 86, so `/lag` can pass them in or render the `<nav aria-label="Brødsmulesti">` itself. The breadcrumb's "Mine spill" link leads back to the list, and the current-page item names the Game. `/vert` has no breadcrumb either, but there the page `<h1>` is the Question and the page is a play surface, so it is left alone. Suggested command: `/impeccable layout`.
+
+## Nice
+
+### N1. [P3] The two-window line on the Game page reads as translated (`src/app/spill/[id]/page.tsx:250-253`)
+
+"Spillet trenger to vinduer, ett på PC-en og ett på TV-en, eller to enheter." (`06-game-playing-1280.png`). Three small problems. "Spillet trenger" is a calque of "the game needs". The house style is the "du" form, and the line below it already addresses the Host ("Bruk TV-en …"). And "eller to enheter" comes after the comma list as an afterthought, so it is unclear whether it replaces the two windows or the PC and the TV. The line also does not say which window goes where, though the two links above it are named after exactly that. The mirroring sentence under it reads naturally and should stay as it is.
+
+A version that ties the line to the two links and keeps it short: "Åpne vertsvisningen på PC-en og TV-visningen på TV-en, eller på en annen enhet." The spec asks for "one line saying play needs two windows or two devices", and this still says that. The Story 8.6 review decided to leave the F hint off the Game page, and this audit does not change that. Suggested command: `/impeccable clarify`.
+
+## Checks that passed
+
+- **The waiting screen follows into play.** In the same browser, the TV page left "Spillet starter snart" 107 ms after the click on "Start spillet", before the Host reached the Game page at 203 ms. It showed Question 1, the three Teams and the FR-33 credit (`05-tv-after-start-1920.png`). A TV page in a separate browser context, standing in for another device, followed in 1012 ms. Focus on the TV stayed on `body` through the change, so no ring appeared on the room's screen. The idle limit after `TV_IDLE_MS` for a TV that waits more than 10 minutes was not driven. It is recorded as a `shortcut:` at `src/components/TvBoard.tsx:76` and as checklist row T9.
+- **Nothing to operate on the waiting screen.** It has no form, no input and no button. The Host chrome (skip link, wordmark, "Mine spill", the logout form) is in the DOM but not rendered (`getClientRects().length` 0). Tab reaches nothing in the page. The only thing it reaches is the Next.js dev badge, which exists only under `next dev`. One `<h1>`, the Game title, and the line "Spillet starter snart" (`02-tv-waiting-1920.png`, `02-tv-waiting-after-tab-1920.png`).
+- **FR-24 legibility on `/tv`.** At 1920×1080 the title on the waiting screen is 56 px (`tv-question`, weight 700) and "Spillet starter snart" 48 px (`tv-team`, weight 600). An 80-character title wraps to two balanced, centred lines (`02-tv-waiting-long-title-1920.png`). Letterboxed at 1280×720 the canvas scales by 0.667 and fills the window: 37 and 32 px (`02-tv-waiting-1280x720.png`). Contrast is 14.95:1 for `stage-ink` and 8.28:1 for `stage-muted` on `stage`. Sluttstilling on the TV has no deletion line, no link and no focus ring (`09-tv-sluttstilling-1920.png`).
+- **Team setup on `/lag`.** The form, validation and copy are unchanged from the stage: "Laget trenger et navn." and "Navnet kan ha maks 14 tegn." show inline, the first invalid field takes focus with its ring, and with four Teams every row gets a "Fjern" button whose accessible name includes the Team number (`04-lag-errors-360.png`, `04-lag-errors-1280.png`). Fields are 48 px and buttons 44 px. After the client-side move from the Game page, focus lands on the `<h1>` "Hvem spiller?" without a visible ring (`03-lag-focus-h1-1280.png`), and Tab then goes field, field, "Legg til lag", "Start spillet" with a 3 px `ink` ring on each stop (`03-lag-focus-tab-360.png`).
+- **Game page in *playing*.** "Spillet er i gang", "Spørsmål 1 av 5." and the Scores, then "Vertsvisning med fasit" as the one primary link (18 px, weight 600) and "Åpne TV-visning" as the secondary (16 px, weight 400, same as `button-secondary`). Both are 44 px tall, on one row at 1280 px and stacked at 360 px (`06-game-playing-1280.png`, `06-game-playing-360.png`). The two-window line and the mirroring warning sit under them in `body-sm` `ink-muted`, 6.89:1 on `paper`, capped at `max-w-prose` (573 px at 1280). Tab reaches both links with a visible ring (`06-game-playing-focus-vertlink-1280.png`, `06-game-playing-focus-tvlink-1280.png`). "Fortsett spillet" is gone. After the start, focus lands on the Game page's `<h1>` without a ring (`05-game-playing-after-start-1280.png`).
+- **"Åpne TV-visning" from the Game page.** The accessible name adds " i et nytt vindu". The click opens the named popup, which loads the TV page and letterboxes it in the default window (`07-open-tv-popup.png`).
+- **Game page in *played*.** The final Scores, then "Åpne TV-visning" as the one primary link, then the deletion Notice. No link to `/skjerm` is left (`10-game-played-1280.png`, `10-game-played-360.png`). Tab goes from the breadcrumb to "Åpne TV-visning" and on to "Slett spillet".
+- **Redirects.** `/vert` in *ready* lands on `/lag`. `/lag` in *played* and `/skjerm` for a *played* Game land on the Game page. Each of these answered 200 and then redirected in the browser, since the layout had already started streaming. A user sees the same result.
+- **Titles.** "Lagoppsett – Fredagsquiz – Toppsvar", "TV – Fredagsquiz – Toppsvar" in *ready* and *playing*, and "Vertsvisning – Fredagsquiz – Toppsvar", so the three windows can be told apart.
+- **Norwegian copy.** "Spillet starter snart", "Vertsvisning med fasit", "Lagoppsett" and the mirroring warning read naturally, in bokmål, with no exclamation marks. The one exception is N1.
+
+Noted, not a finding: the *ready* Game page has no link to the TV page, so the waiting screen only appears when someone opens `/tv` by URL, reloads it, or leaves it open. The Story 8.6 review rejected adding a link, because the intent puts the TV link in *playing*. This audit leaves that decision as it is.
+
+Outside scope: `npm run demo` runs `next dev`, so the Next.js dev badge shows in the bottom-left corner of every page, including the TV, and at 360 px it covers part of the mirroring warning (`06-game-playing-360.png`). This was already the case before Story 8.6.
+
+## Recommended order
+
+1. S1: add the Game breadcrumb to `/lag`.
+2. N1: rewrite the two-window line in the "du" form, naming which view goes where.
+
+## Fixes
+
+Fix round on 2026-11-25, on `epic-8-to-skjermer`. None was rejected.
+
+- **S1, fixed in `c9f1c4b`.** `/lag` renders the breadcrumb `Mine spill › {Game title} › Lagoppsett` above "Hvem spiller?". It uses the same markup as Review: the Game title links back to the Game page, and "Lagoppsett" is the current page. The `/lag` row in `EXPERIENCE.md` records it, and the `/lag` integration test checks the breadcrumb and the link. The page was checked at 1280×800 and 360×780. At 360 px the breadcrumb wraps the same way it does on Review, and focus after the client-side move still lands on the `<h1>`.
+- **N1, fixed in `c9f1c4b`.** The line on the Game page in *playing* now reads "Åpne vertsvisningen på PC-en og TV-visningen på TV-en eller en annen enhet." The mirroring warning is unchanged. The Playing row in `EXPERIENCE.md` and the tests that assert the text were updated.

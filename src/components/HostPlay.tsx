@@ -6,12 +6,9 @@ import { OpenTvLink } from "@/components/OpenTvLink";
 import { SHORTCUTS, usePlay } from "@/components/usePlay";
 import type { AnswerKey } from "@/server/play";
 
-// F belongs to the TV window; the Host view has every other play shortcut.
-const HOST_SHORTCUTS = SHORTCUTS.filter(([key]) => key !== "F");
-
 // FR-24 to FR-27: the Host view on a light Host page. The answer key with every slot's
-// label and Count, the moves of the shared screen (usePlay) and the Teams; the TV page
-// follows over the channel.
+// label and Count, the play moves (usePlay) and the Teams; the TV page follows over the
+// channel and the poll.
 export function HostPlay({
   gameId,
   question,
@@ -68,7 +65,7 @@ export function HostPlay({
           {board.map((slot) => (
             <li
               key={slot.id}
-              // A revealed row takes focus after its Reveal, as the stage tile does.
+              // A revealed row takes focus after its Reveal, if its button had it.
               data-slot={slot.revealed ? slot.id : undefined}
               tabIndex={slot.revealed ? -1 : undefined}
               // 5rem below sm still holds "Avslør" and "Uten poeng", so a 360 px phone keeps room for the label.
@@ -205,7 +202,7 @@ export function HostPlay({
           Hurtigtaster
         </h2>
         <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
-          {HOST_SHORTCUTS.map(([key, action]) => (
+          {SHORTCUTS.map(([key, action]) => (
             <div key={key} className="contents">
               <dt>
                 <kbd className="font-sans font-bold">{key}</kbd>

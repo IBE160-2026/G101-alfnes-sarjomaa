@@ -23,8 +23,6 @@ const STALE: ErrorCode[] = [
   "NOTHING_TO_UNDO",
 ];
 
-export const BOM_MS = 1500;
-
 export const SHORTCUTS = [
   ["1–8", "Avslør plassen med det nummeret"],
   ["M", "Bom"],
@@ -32,7 +30,6 @@ export const SHORTCUTS = [
   ["T", "Neste lag"],
   ["U", "Vis resten uten poeng"],
   ["N, →", "Neste spørsmål"],
-  ["F", "Fullskjerm av og på"],
   ["?", "Vis hurtigtastene"],
   ["Esc", "Lukk"],
 ];
@@ -44,7 +41,7 @@ export function postToTv(gameId: string, message: PlayMessage) {
   channel.close();
 }
 
-// FR-24 to FR-27: the play moves and shortcuts shared by the stage and the Host view.
+// FR-24 to FR-27: the Host view's play moves and shortcuts.
 // Every move is saved by a Server Action; the revalidated page shows the result. A
 // slot's element carries data-slot inside listRef, so focus can follow a Reveal.
 export function usePlay({
@@ -72,12 +69,9 @@ export function usePlay({
   // Held as the Question it was switched on for, so it is off on any other (no remount).
   const [unscoredFor, setUnscoredFor] = useState<number>();
   const unscored = unscoredFor === questionPosition;
-  // Bom is visual only (FR-26 covers Reveals): a new key restarts the panel's animation.
-  const [miss, setMiss] = useState(0);
-  const missTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // The slot to focus once it renders in this state (a revealed row, or a tile again).
+  // The slot to focus once it renders in this state (a revealed row, or its Avslør again).
   const focusAfter = useRef<{ id: string; revealed: boolean }>(undefined);
-  // The Question whose <h1> takes focus once it renders (a focused tile unmounted).
+  // The Question whose <h1> takes focus once it renders (a focused row unmounted).
   const focusQuestion = useRef<number>(undefined);
 
   const canUndo = lastReveal !== null;
@@ -102,7 +96,7 @@ export function usePlay({
         postToTv(gameId, "changed");
         return onOk(result.data);
       }
-      // Not revealed by this tab, so no animation when a refresh shows it revealed.
+      // Not saved, so the Avslør leaves its pending state.
       setClicked(undefined);
       if (!result) setFailure("Mistet forbindelsen.");
       else if (STALE.includes(result.code)) {
@@ -114,7 +108,7 @@ export function usePlay({
 
   function reveal(id: string) {
     if (busy.current) return;
-    // Marked now, so only a tile revealed from this tab animates (not a reload or refresh).
+    // Marked now, so the Host view shows this Avslør as pending until the save returns.
     setClicked(id);
     const hadFocus = slotElement(id)?.contains(document.activeElement);
     const focusRow = () => {
@@ -156,7 +150,7 @@ export function usePlay({
             ? `Angret. «${label}» er skjult igjen, ${count} poeng trukket fra ${team}.`
             : `Angret. «${label}» er skjult igjen.`,
         );
-        // Angre goes with the last Reveal, so focus goes to the tile it hid again.
+        // Angre goes with the last Reveal, so focus goes to the Avslør it shows again.
         if ((hadFocus && last) || focusedSlot === boardSlotId)
           focusAfter.current = { id: boardSlotId, revealed: false };
       },
@@ -183,15 +177,12 @@ export function usePlay({
     );
   }
 
+  // Bom is visual only (FR-26 covers Reveals): the TV shows the panel, nothing is saved.
   function bom() {
     postToTv(gameId, "bom");
-    setMiss((n) => n + 1);
     // A trailing no-break space on every other miss, so a repeat is announced again.
     setSaid((said) => (said === "Bom." ? "Bom.\u00a0" : "Bom."));
-    clearTimeout(missTimer.current);
-    missTimer.current = setTimeout(() => setMiss(0), BOM_MS);
   }
-  useEffect(() => () => clearTimeout(missTimer.current), []);
 
   function toggleUnscored() {
     setUnscoredFor(unscored ? undefined : questionPosition);
@@ -245,7 +236,6 @@ export function usePlay({
     said,
     failure,
     unscored,
-    miss,
     canUndo,
     allRevealed,
     reveal,

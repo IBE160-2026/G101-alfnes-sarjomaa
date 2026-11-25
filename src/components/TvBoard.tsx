@@ -2,12 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BoardTiles, BomPanel } from "@/components/Board";
 import { FullscreenKey } from "@/components/FullscreenKey";
-import { BOM_MS } from "@/components/usePlay";
 import { TV_IDLE_MS, TV_POLL_MS } from "@/lib/limits";
 import { playChannel, type PlayMessage } from "@/lib/play";
 import type { PlayView } from "@/server/play";
+
+// How long the Bom panel stays up.
+const BOM_MS = 1500;
+
+// UX-DR21 list budget: 696 px for up to eight rows with 8 px gaps, each 80–104 px.
+const rowHeight = (n: number) =>
+  Math.min(104, Math.max(80, (696 - 8 * (n - 1)) / n));
 
 const revealedIds = (board: PlayView["board"]) =>
   board
@@ -67,10 +72,82 @@ function useTvSync(gameId: string, version = "") {
   return miss;
 }
 
-// On the TV page beside Team setup, so it moves into play once the Host starts.
+// On the TV's waiting screen, so it moves into play once the Host starts.
+// shortcut: a waiting TV on another device stops polling after TV_IDLE_MS and follows the start only once focused or visible again; poll until play starts if TVs wait that long.
 export function TvRefresh({ gameId }: { gameId: string }) {
   useTvSync(gameId);
   return null;
+}
+
+// The TV's list: hidden tiles show only their rank.
+function BoardTiles({
+  board,
+  revealing,
+}: {
+  board: PlayView["board"];
+  revealing: (id: string) => boolean;
+}) {
+  const height = rowHeight(board.length);
+  return (
+    <ol className="col-start-1 row-start-2 flex min-h-0 flex-col gap-2">
+      {board.map((slot) => (
+        <li key={slot.id} className="flex" style={{ flex: `0 1 ${height}px` }}>
+          {slot.revealed ? (
+            <div
+              data-slot={slot.id}
+              data-revealing={revealing(slot.id) ? "" : undefined}
+              // min-w-0: an unbroken 40-character label wraps inside the tile (A9).
+              className={`flex min-w-0 flex-1 items-center rounded-md border-2 px-6 ${
+                slot.scored
+                  ? "border-stage-ink bg-stage-ink text-ink"
+                  : "border-dashed border-stage-line bg-stage-raised text-stage-ink"
+              }`}
+            >
+              <span className="w-14 shrink-0 text-tv-label">
+                {slot.position}
+              </span>
+              <span className="reveal-label min-w-0 flex-1 break-words text-tv-label leading-[1.05]">
+                {slot.label}
+              </span>
+              {slot.scored ? (
+                <span className="reveal-count ml-6 min-w-24 shrink-0 rounded-full bg-count-badge px-4 py-2 text-center text-tv-count tabular-nums text-stage-ink">
+                  {slot.count}
+                  <span className="sr-only"> poeng</span>
+                </span>
+              ) : (
+                <span className="reveal-count ml-6 flex shrink-0 items-baseline gap-4">
+                  <span className="text-tv-count tabular-nums text-stage-muted">
+                    {slot.count}
+                  </span>
+                  <span className="font-sans text-tv-control text-stage-muted">
+                    uten poeng
+                  </span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-1 items-center rounded-md border-2 border-stage-line bg-stage-tile px-6 text-tv-label">
+              <span className="w-14">{slot.position}</span>
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// "Bom" over the list; a new key restarts its animation. Visual only: a miss saves nothing.
+function BomPanel({ miss }: { miss: number }) {
+  if (miss === 0) return null;
+  return (
+    <div
+      key={miss}
+      aria-hidden="true"
+      className="bom-panel pointer-events-none col-start-1 row-start-2 place-self-center rounded-md border-2 border-stage-line bg-stage-raised px-16 py-6 text-tv-score text-stage-ink"
+    >
+      Bom
+    </div>
+  );
 }
 
 // The TV page's list: no controls, only F.
@@ -100,7 +177,7 @@ export function TvBoard({
     <>
       <BoardTiles board={board} revealing={(id) => seen.revealing.has(id)} />
       <BomPanel miss={miss} />
-      <FullscreenKey className="hidden" />
+      <FullscreenKey />
     </>
   );
 }

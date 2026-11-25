@@ -1,10 +1,6 @@
-import Link from "next/link";
 import type { CSSProperties } from "react";
-import { Board } from "@/components/Board";
 import { FullscreenKey } from "@/components/FullscreenKey";
-import { FocusOnMount } from "@/components/RouteFocus";
-import { TvBoard } from "@/components/TvBoard";
-import { formatDate } from "@/lib/format";
+import { TvBoard, TvRefresh } from "@/components/TvBoard";
 import type { PlayView as Data, FinalScores as Final } from "@/server/play";
 
 // 56 px up to this many characters, 48 px above (EXPERIENCE.md, play view rules).
@@ -13,19 +9,17 @@ const SHORT_QUESTION = 80;
 const STAGE =
   "fixed inset-0 overflow-hidden bg-stage font-display text-stage-ink [&_:focus-visible]:outline-focus-inverse";
 
-// FR-24, UX-DR21: the shared screen from saved state, on a fixed 1920×1080 canvas that
+// FR-24, UX-DR21: the TV page from saved state, on a fixed 1920×1080 canvas that
 // globals.css scales to the window. Fixed over the Host page, whose chrome globals.css
-// hides while a [data-stage] element is on the page. `tv`: the TV page, with no controls.
+// hides while a [data-stage] element is on the page. No controls; only F.
 export function PlayView({
   gameId,
   question,
   total,
   teams,
   board,
-  lastReveal,
   credit,
-  tv = false,
-}: Data & { gameId: string; credit?: string; tv?: boolean }) {
+}: Data & { gameId: string; credit?: string }) {
   return (
     <div data-stage="" className={STAGE}>
       {/* pb-[3px]: the budget's remainder, 1080 − 48 − 221 − 24 − 696 − 24 − 64 = 3, so the list row is 696 px. */}
@@ -87,35 +81,20 @@ export function PlayView({
             ))}
           </ol>
         </div>
-        {tv ? (
-          <TvBoard
-            gameId={gameId}
-            board={board}
-            version={JSON.stringify([question.position, teams, board])}
-          />
-        ) : (
-          <Board
-            gameId={gameId}
-            questionPosition={question.position}
-            total={total}
-            board={board}
-            lastReveal={lastReveal}
-          />
-        )}
+        <TvBoard
+          gameId={gameId}
+          board={board}
+          version={JSON.stringify([question.position, teams, board])}
+        />
       </div>
     </div>
   );
 }
 
 // FR-27, UX-DR21: "Sluttstilling" on the same canvas. The top Score takes the active
-// card look with "Vinner", or "Uavgjort" on every Team that shares it. On the TV page
-// (`tv`) the Host-only line and link are left out; F still works.
-export function FinalScores({
-  gameId,
-  teams,
-  deleteAfter,
-  tv = false,
-}: Final & { gameId: string; tv?: boolean }) {
+// card look with "Vinner", or "Uavgjort" on every Team that shares it. Nothing to operate
+// but F; the deletion date is on the Host view.
+export function FinalScores({ teams }: Pick<Final, "teams">) {
   const top = teams[0].score;
   const tied = teams.filter((t) => t.score === top).length > 1;
   return (
@@ -125,8 +104,6 @@ export function FinalScores({
           <h1 id="sluttstilling" className="text-tv-question">
             Sluttstilling
           </h1>
-          {/* Nobody operates the TV, so it shows no focus ring to the room. */}
-          {!tv && <FocusOnMount id="sluttstilling" />}
           <ol aria-label="Sluttstilling" className="mt-12 flex flex-col gap-4">
             {teams.map((team) => {
               const best = team.score === top;
@@ -155,24 +132,30 @@ export function FinalScores({
               );
             })}
           </ol>
-          {tv ? (
-            <FullscreenKey className="hidden" />
-          ) : (
-            <div className="mt-12 flex items-center justify-between gap-8 font-sans text-tv-control">
-              <p className="text-stage-muted">
-                {`Spillet slettes automatisk ${formatDate(deleteAfter)}.`}
-              </p>
-              <FullscreenKey className="text-stage-muted" />
-              <Link
-                href={`/spill/${gameId}`}
-                className="inline-flex min-h-11 items-center rounded-sm text-stage-ink underline underline-offset-4"
-              >
-                Tilbake til spillet
-              </Link>
-            </div>
-          )}
+          <FullscreenKey />
         </div>
       </div>
+    </div>
+  );
+}
+
+// FR-23: the TV page while the Host sets up Teams on /lag. Nothing to operate but F; it
+// moves into play on a channel "changed" or the next poll.
+export function TvWaiting({
+  gameId,
+  title,
+}: {
+  gameId: string;
+  title: string;
+}) {
+  return (
+    <div data-stage="" className={STAGE}>
+      <div className="stage-canvas flex flex-col items-center justify-center gap-8 px-16 text-center">
+        <h1 className="text-tv-question break-words text-balance">{title}</h1>
+        <p className="text-tv-team text-stage-muted">Spillet starter snart</p>
+      </div>
+      <TvRefresh gameId={gameId} />
+      <FullscreenKey />
     </div>
   );
 }
