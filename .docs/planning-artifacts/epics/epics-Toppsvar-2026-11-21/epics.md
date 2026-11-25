@@ -2,7 +2,7 @@
 title: Toppsvar Epics and Stories
 status: final
 created: 2026-11-21
-updated: 2026-11-24
+updated: 2026-11-25
 stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - .docs/planning-artifacts/prds/prd-Toppsvar-2026-10-12/prd.md
@@ -214,8 +214,8 @@ The examiner clones the repository, runs three commands, logs in as the demo Hos
 **FRs covered:** FR-14 (README), FR-31, FR-32. **Also:** SM-1, SM-2, SM-3, NFR-1, NFR-2 (pilot, first to cut), NFR-3, NFR-5 (manual timing), NFR-6 (manual), NFR-8; AD-19, AD-20, AD-22, AD-24; UX-DR26.
 
 ### Epic 8: Stage 2 - only after SM-1 passes
-Do not start any story here until SM-1 passes in full on `main` (PRD §6.5). FR-33 comes first. Stories carry acceptance criteria only; design detail is decided when Stage 2 starts, inside AD-4, AD-13, AD-15 and AD-16. *Amended 2026-11-24:* Story 8.5 started before SM-1 passed, by the group's decision after the pilot test.
-**FRs covered:** FR-33, FR-22, FR-28, FR-29, and (Story 8.5) a second surface for FR-23 to FR-27.
+Do not start any story here until SM-1 passes in full on `main` (PRD §6.5). FR-33 comes first. Stories carry acceptance criteria only; design detail is decided when Stage 2 starts, inside AD-4, AD-13, AD-15 and AD-16. *Amended 2026-11-24:* Story 8.5 started before SM-1 passed, by the group's decision after the pilot test. *Amended 2026-11-25:* so did Story 8.6, by the group's decision after testing Story 8.5.
+**FRs covered:** FR-33, FR-22, FR-28, FR-29, and (Story 8.5) a second surface for FR-23 to FR-27, which (Story 8.6) becomes the only one.
 
 ## Story Conventions
 
@@ -1554,6 +1554,49 @@ So that the room does not see my controls and I can see every Group's label and 
 **When** it renders
 **Then** it links "Fortsett spillet", "Åpne TV-visning" and "Vertsvisning med fasit"
 
+### Story 8.6: Play needs two views: host view and TV view
+
+As a Host,
+I want play to always run as the Host view on my laptop and the TV view on the TV,
+So that I always have the answer key and the room never sees my controls.
+
+*Amended 2026-11-25, recording the group's decision of 2026-11-25 after testing Story 8.5 on the pilot:* the one-screen stage at `/spill/[id]/skjerm` does not help, because the Host cannot see the answer key there, and "Start spillet" went straight into it. Story 8.6 removes the stage and "Fortsett spillet". Team setup moves to its own Host page, `/spill/[id]/lag`; after the start the Host lands on the Game page, which links the Host view and the TV page. `/skjerm` only redirects to the Game page. PRD §4.7 (FR-23 to FR-27), EXPERIENCE.md, DESIGN.md and the spine (AD-15, AD-16, AD-17, Conventions) are amended in the same change. The spec is `.docs/implementation-artifacts/spec-8-6-play-needs-two-views-host-view-and-tv-view.md`.
+
+**Architecture:** AD-5 (every play page owner-only), AD-16 (no change to `play`), AD-17 (the waiting TV page uses the existing channel and poll). **Tables:** none, and no migration.
+
+**Acceptance Criteria:**
+
+**AC1 (FR-23 · integration)**
+**Given** a *ready* Game
+**When** `/spill/[id]/lag` is rendered
+**Then** it shows Team setup ("Hvem spiller?") on a Host page
+**And** a Game in any other state redirects to `/spill/[id]`, another Host's or a missing Game is not-found, and `/spill/[id]/vert` in *ready* redirects to `/spill/[id]/lag`
+
+**AC2 (FR-23, FR-24 · integration)**
+**Given** a *ready* Game
+**When** `/spill/[id]/tv` is rendered
+**Then** it shows the Game title and "Spillet starter snart" on the stage canvas, with no form, field or button
+
+**AC3 (FR-23, FR-24 · e2e)**
+**Given** `/spill/[id]/tv` open on its waiting screen in the same browser
+**When** the Host names the Teams on `/spill/[id]/lag` and clicks "Start spillet"
+**Then** the Host lands on `/spill/[id]` with "Spillet er i gang", and the TV page shows the first Question within 1.5 s
+
+**AC4 (FR-23, FR-27 · integration)**
+**Given** a Game page
+**When** it renders in *ready*, *playing* and *played*
+**Then** "Start spillet" links to `/spill/[id]/lag`; in *playing* "Vertsvisning med fasit" is the primary link and "Åpne TV-visning" the secondary one, with the two-window line and the mirroring warning, and no "Fortsett spillet"; in *played* "Åpne TV-visning" shows the final Scores on the TV page
+
+**AC5 (FR-24 · integration)**
+**Given** any Game id
+**When** `/spill/[id]/skjerm` is requested
+**Then** it redirects to `/spill/[id]` and renders no stage
+
+**AC6 (FR-24 to FR-27, NFR-6 · e2e)**
+**Given** the end-to-end tests that ran through the one-screen stage
+**When** they run through `/spill/[id]/vert` and `/spill/[id]/tv` instead
+**Then** every FR-24 to FR-27 criterion still has a passing test, and axe finds no serious violation on `/lag`, the waiting TV page and the *playing* Game page
+
 ## FR Coverage by Story
 
 Every Stage 1 FR maps to at least one Stage 1 story; every Stage 2 FR maps to one story in Epic 8. Story numbers below are the stories whose acceptance criteria cite the requirement.
@@ -1565,11 +1608,11 @@ Every Stage 1 FR maps to at least one Stage 1 story; every Stage 2 FR maps to on
 | FR-3 | 1.5, 2.3, 4.3, 6.4 | FR-19 | 5.1 |
 | FR-4 | 2.1, 2.2 | FR-20 | 5.2, 5.3, 5.4 |
 | FR-5 | 2.2 | FR-21 | 5.4, 5.5 |
-| FR-6 | 2.3, 2.4, 2.5 | FR-23 | 6.1, 8.5 |
-| FR-7 | 2.4, 2.5 | FR-24 | 6.2, 8.5 |
-| FR-8 | 2.6 | FR-25 | 6.2, 6.3, 8.5 |
-| FR-9 | 2.3, 2.7 | FR-26 | 6.3, 8.5 |
-| FR-10 | 2.3, 3.1 | FR-27 | 6.2, 6.3, 6.4, 8.5 |
+| FR-6 | 2.3, 2.4, 2.5 | FR-23 | 6.1, 8.5, 8.6 |
+| FR-7 | 2.4, 2.5 | FR-24 | 6.2, 8.5, 8.6 |
+| FR-8 | 2.6 | FR-25 | 6.2, 6.3, 8.5, 8.6 |
+| FR-9 | 2.3, 2.7 | FR-26 | 6.3, 8.5, 8.6 |
+| FR-10 | 2.3, 3.1 | FR-27 | 6.2, 6.3, 6.4, 8.5, 8.6 |
 | FR-11 | 1.3, 2.3, 2.4, 3.2, 3.3, 6.5 | FR-30 | 6.5 |
 | FR-12 | 2.2, 2.5, 2.6, 3.3, 4.3, 5.1 | FR-31 | 7.1, 7.4 |
 | FR-13 | 3.1, 3.2, 5.5 | FR-32 | 7.2 |
@@ -1577,7 +1620,7 @@ Every Stage 1 FR maps to at least one Stage 1 story; every Stage 2 FR maps to on
 | FR-15 | 4.1, 4.2, 4.4, 7.1 | FR-28 *(Stage 2)* | 8.3 |
 | FR-16 | 5.1, 5.3 | FR-29, FR-33 *(Stage 2)* | 8.4, 8.1 |
 
-**NFRs:** NFR-1 in 1.1, 7.1, 7.4; NFR-2 in 1.1 (configuration only) and 7.5; NFR-3 in 1.1 and every story with unit or integration proof; NFR-4 in 2.4, 5.1, 6.2; NFR-5 in 5.2, 6.2, 7.3 (manual); NFR-6 in 1.2, 1.3, 2.1, 2.4, 5.1, 5.5, 6.5, 7.3, 8.5; NFR-7 in 1.2 and every screen story; NFR-8 in 1.1, 7.4.
+**NFRs:** NFR-1 in 1.1, 7.1, 7.4; NFR-2 in 1.1 (configuration only) and 7.5; NFR-3 in 1.1 and every story with unit or integration proof; NFR-4 in 2.4, 5.1, 6.2; NFR-5 in 5.2, 6.2, 7.3 (manual); NFR-6 in 1.2, 1.3, 2.1, 2.4, 5.1, 5.5, 6.5, 7.3, 8.5, 8.6; NFR-7 in 1.2 and every screen story; NFR-8 in 1.1, 7.4.
 
 **Anonymity guarantees (FR-11 to FR-13, SM-3):** schema and data inspection after close (3.2) and after confirm (5.5 AC4); Host-session tests during Collection at integration and e2e level (3.3 AC1, AC2); server-output capture (3.3 AC3, 6.5 AC3); manual SM-3 audit (7.3 AC4).
 
@@ -1602,6 +1645,6 @@ The group delegated product decisions for this run, as it did for the PRD on 202
 13. **FR-12 "no setting weakens §4.4".** Proven by fixed-set tests on the `env.ts` keys and `game` columns (3.3 AC5).
 14. **Cuttable work at the end.** The CI Postgres job (7.3 AC5), the pilot deployment (7.5), FR-32 live regeneration and SM-4 (7.2 AC3) follow the delivery-notes cut order, which mirrors the PRD §6.5 slip list (amended 2026-11-23); the pilot is its own story because NFR-2 and SM-6 need it.
 15. **Stage 2.** One epic, acceptance criteria only, taken from the PRD consequences, FR-33 first. FR-29 "switch on" is read as off by default.
-16. **Left out on purpose.** EXPERIENCE.md Open Question 3 (Host preview of the answer form) and 4 (extended display) are not in the PRD, so no story builds them. Open Question 1 (palette) is built as specified. *Amended 2026-11-24:* Open Question 4 is now built as Story 8.5, by the group's decision after the pilot test, and the PRD §4.7 is amended with it; Open Question 3 stays out.
+16. **Left out on purpose.** EXPERIENCE.md Open Question 3 (Host preview of the answer form) and 4 (extended display) are not in the PRD, so no story builds them. Open Question 1 (palette) is built as specified. *Amended 2026-11-24:* Open Question 4 is now built as Story 8.5, by the group's decision after the pilot test, and the PRD §4.7 is amended with it; Open Question 3 stays out. *Amended 2026-11-25:* Story 8.6 makes the two pages the only way to play.
 17. **Demo and evaluation rulings need a live key once (resolved 2026-11-22).** AD-14 allows rulings only from `npm run judge:record`. The group has an OpenRouter key: a group member runs the recording for Stories 7.1 and 7.2 with the key in an untracked `.env`; the AI developer never handles the key.
 18. 2026-11-21: synchronised with the impeccable critique (commit fc91eaf).
