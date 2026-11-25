@@ -12,9 +12,10 @@ import {
   undoReveal,
 } from "@/app/spill/[id]/actions";
 import GamePage from "@/app/spill/[id]/page";
-import ScreenPage, {
-  generateMetadata as screenMetadata,
-} from "@/app/spill/[id]/skjerm/page";
+import LagPage, {
+  generateMetadata as lagMetadata,
+} from "@/app/spill/[id]/lag/page";
+import ScreenPage from "@/app/spill/[id]/skjerm/page";
 import TvPage, {
   generateMetadata as tvMetadata,
 } from "@/app/spill/[id]/tv/page";
@@ -205,21 +206,19 @@ async function prerender(node: ReactNode) {
   for await (const chunk of prelude) html += chunk;
   return html;
 }
-const screen = async (id: string) => prerender(await ScreenPage(props(id)));
-// The first flush: only the Suspense fallback of the play view.
-const screenShell = async (id: string) =>
-  renderToStaticMarkup(await ScreenPage(props(id)));
+const lag = async (id: string) =>
+  renderToStaticMarkup(await LagPage(props(id)));
 const tv = async (id: string) => prerender(await TvPage(props(id)));
+// The first flush: only the Suspense fallback of the play view.
+const tvShell = async (id: string) =>
+  renderToStaticMarkup(await TvPage(props(id)));
 const hostView = async (id: string) =>
   renderToStaticMarkup(await HostViewPage(props(id)));
-// The TV page keeps F with its hint display:none, so the room never sees it.
-const visible = (html: string) =>
-  html.replace('<p class="hidden">Trykk F for fullskjerm.</p>', "");
 const gamePage = async (id: string) =>
   renderToStaticMarkup(await GamePage(props(id)));
 
 describe("play.start", () => {
-  it("FR-23: the startPlay action names two trimmed Teams, points play_state at Question 1 and Team 1, moves ready to playing, touches updated_at and revalidates the Game and screen pages; play.load gives both Scores 0 with Team 1 current", async () => {
+  it("FR-23: the startPlay action names two trimmed Teams, points play_state at Question 1 and Team 1, moves ready to playing, touches updated_at and revalidates the Game page and the Host view; play.load gives both Scores 0 with Team 1 current", async () => {
     const { id, questionIds } = await gameIn();
     expect(
       await startPlay({ gameId: id, teams: [" Hyttegjengen ", "Lag 2"] }),
@@ -245,9 +244,7 @@ describe("play.start", () => {
       .where(eq(game.id, id));
     expect(updatedAt.getTime()).toBeGreaterThan(T0.getTime());
     expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
-    expect(nextCache.revalidatePath).toHaveBeenCalledWith(
-      `/spill/${id}/skjerm`,
-    );
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}/vert`);
     expect(await play.load(hostId, id)).toEqual({
       question: { position: 1, text: QUESTIONS[0] },
       total: 3,
@@ -382,7 +379,7 @@ describe("play.answerKey", () => {
 });
 
 describe("play.reveal", () => {
-  it("FR-25, AD-16: the revealSlot action reveals slot 1 for the current Team with seq 1, returns label, Count and Team, revalidates the Game and screen pages, and leaves Team 1 current; load shows slot 1 revealed and Scores [5, 0]", async () => {
+  it("FR-25, AD-16: the revealSlot action reveals slot 1 for the current Team with seq 1, returns label, Count and Team, revalidates the Game page and the Host view, and leaves Team 1 current; load shows slot 1 revealed and Scores [5, 0]", async () => {
     const { id, slotIds, teamIds } = await playing();
     nextCache.revalidatePath.mockClear();
     expect(
@@ -393,9 +390,7 @@ describe("play.reveal", () => {
       }),
     ).toEqual({ ok: true, data: { label: "Kari", count: 5, team: "Lag 1" } });
     expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
-    expect(nextCache.revalidatePath).toHaveBeenCalledWith(
-      `/spill/${id}/skjerm`,
-    );
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}/vert`);
     expect(await revealsOf(id)).toEqual([
       { boardSlotId: slotIds[0][0], teamId: teamIds[0], seq: 1 },
     ]);
@@ -564,9 +559,7 @@ describe("play.undo", () => {
       data: { boardSlotId: slotIds[0][1], label: "Ola", count: 3, team: null },
     });
     expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
-    expect(nextCache.revalidatePath).toHaveBeenCalledWith(
-      `/spill/${id}/skjerm`,
-    );
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}/vert`);
     expect(await revealsOf(id)).toEqual([
       { boardSlotId: slotIds[0][0], teamId: teamIds[0], seq: 1 },
     ]);
@@ -724,7 +717,7 @@ describe("play.nextTeam", () => {
       });
       expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
       expect(nextCache.revalidatePath).toHaveBeenCalledWith(
-        `/spill/${id}/skjerm`,
+        `/spill/${id}/vert`,
       );
       const { teams } = await play.load(hostId, id);
       expect(teams.filter((t) => t.current).map((t) => t.name)).toEqual([name]);
@@ -861,11 +854,12 @@ describe("Score property", () => {
   });
 });
 
-describe("/spill/[id]/skjerm", () => {
-  it("FR-23, UX-DR22: a ready Game shows Team setup with Hvem spiller?, Lag 1 and Lag 2, no Fjern, Legg til lag and Start spillet, titled by the Game", async () => {
+describe("/spill/[id]/lag", () => {
+  it("FR-23, UX-DR22 (AC1): a ready Game shows Team setup with Hvem spiller?, Lag 1 and Lag 2, no Fjern, Legg til lag and Start spillet on a light Host page, titled by the Game", async () => {
     const { id } = await gameIn();
-    const html = await screen(id);
+    const html = await lag(id);
     expect(html).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
+    expect(html).not.toContain("data-stage");
     expect(html).toContain('value="Lag 1"');
     expect(html).toContain('value="Lag 2"');
     const shown = text(html);
@@ -874,49 +868,59 @@ describe("/spill/[id]/skjerm", () => {
     expect(shown).toContain("Legg til lag");
     expect(shown).toContain("Start spillet");
     expect(shown).not.toContain("Fjern");
-    expect(await screenMetadata(props(id))).toEqual({ title: "Hyttetur" });
-    expect(await screenMetadata(props(randomUUID()))).toEqual({
+    expect(await lagMetadata(props(id))).toEqual({ title: "Hyttetur" });
+    expect(await lagMetadata(props(randomUUID()))).toEqual({
       title: "Vi finner ikke dette spillet",
     });
   });
 
-  it("FR-23: a playing Game shows the stage with the Question, Spørsmål 1 av 3, Svarer nå on Team 1, every Score 0, the controls without Angre and Trykk F for fullskjerm.", async () => {
+  it.each(["draft", "collecting", "grouping", "in_review"] as const)(
+    "FR-23 (AC1): a Game in %s redirects to the Game page",
+    async (state) => {
+      const { id } = await gameIn(state);
+      await expect(lag(id)).rejects.toEqual(new RedirectError(`/spill/${id}`));
+    },
+  );
+
+  it("FR-23 (AC1): a playing or played Game redirects to the Game page, so Team setup never runs twice", async () => {
+    const { id } = await playing();
+    await expect(lag(id)).rejects.toEqual(new RedirectError(`/spill/${id}`));
+    await finishGame(id);
+    await expect(lag(id)).rejects.toEqual(new RedirectError(`/spill/${id}`));
+  });
+});
+
+describe("/spill/[id]/skjerm", () => {
+  it("FR-23 (AC5): any id, ready, playing, foreign-looking or malformed, redirects to the Game page, which owns not-found", async () => {
+    const { id } = await playing();
+    for (const any of [id, randomUUID(), "ikke-en-id"])
+      await expect(ScreenPage(props(any))).rejects.toEqual(
+        new RedirectError(`/spill/${any}`),
+      );
+  });
+});
+
+describe("/spill/[id]/tv", () => {
+  it("FR-23 (AC2): a ready Game shows the waiting screen on the stage canvas, the Game title and Spillet starter snart, with no form, input or button", async () => {
     const { id } = await gameIn();
-    await play.start(hostId, { gameId: id, teams: ["Hyttegjengen", "Lag 2"] });
-    const html = await screen(id);
+    const html = await tv(id);
     expect(html).toContain("data-stage");
-    expect(html).toContain(`text-tv-question">${QUESTIONS[0]}</h1>`);
-    expect(text(html)).toContain(
-      "Spørsmål 1 av 3 Svarer nå Hyttegjengen 0 poeng Lag 2 0 poeng 1 2 3 Bom [M] Neste lag [T] Vis resten uten poeng [U] Neste spørsmål [N] ? Trykk F for fullskjerm.",
-    );
-    // FR-33: a Host-written Game never shows the Question-set credit.
-    expect(html).not.toContain(QUESTION_SET_CREDIT);
+    expect(html).toContain("stage-canvas");
+    expect(html).toMatch(/<h1[^>]*>Hyttetur<\/h1>/);
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(text(html).trim()).toBe("Hyttetur Spillet starter snart");
+    for (const control of ["<form", "<input", "<button", "Hvem spiller"])
+      expect(html, control).not.toContain(control);
   });
 
-  it("FR-24, FR-27: the first flush of a playing Game's screen is the stage with Henter spillet …", async () => {
+  it("FR-24, FR-27: the first flush of a playing Game's TV page is the stage with Henter spillet …", async () => {
     const { id } = await playing();
-    expect(await screenShell(id)).toMatch(
+    expect(await tvShell(id)).toMatch(
       /<div data-stage=""[^>]*><p role="status" class="animate-appear[^"]*">Henter spillet\u00a0…<\/p><\/div>/,
     );
   });
 
-  it("FR-24, FR-25: the playing screen shows one rank-only tile Avslør plass N per slot, a revealed slot with label and Count, and the real Scores", async () => {
-    const { id, slotIds } = await playing();
-    await play.reveal(hostId, {
-      gameId: id,
-      boardSlotId: slotIds[0][1],
-      scored: true,
-    });
-    const html = await screen(id);
-    expect(html).toContain('aria-label="Avslør plass 1"');
-    expect(html).toContain('aria-label="Avslør plass 3"');
-    expect(html).not.toContain("Avslør plass 2");
-    expect(text(html)).toContain(
-      "Svarer nå Lag 1 3 poeng Lag 2 0 poeng 1 2 Ola 3 poeng 3",
-    );
-  });
-
-  it("FR-24 (AC2): before and after revealing every slot of Question 1, the screen holds only revealed Board labels, never a hidden label, a discarded or below-limit Group or any Answer text", async () => {
+  it("FR-24 (AC2): before and after revealing every slot of Question 1, the TV page holds only revealed Board labels, never a hidden label, a discarded or below-limit Group or any Answer text", async () => {
     const { id, questionIds, slotIds } = await playing();
     const db = await getDb();
     const [discarded, below] = [randomUUID(), randomUUID()];
@@ -953,7 +957,7 @@ describe("/spill/[id]/skjerm", () => {
           boardSlotId: slotIds[0][n - 1],
           scored: true,
         });
-      const html = await screen(id);
+      const html = await tv(id);
       for (const label of labels.slice(0, n)) expect(html).toContain(label);
       for (const label of [
         ...labels.slice(n),
@@ -966,7 +970,7 @@ describe("/spill/[id]/skjerm", () => {
     }
   });
 
-  it("FR-23: the Question is 56 px (text-tv-question) up to 80 characters and 48 px (text-tv-question-long) above", async () => {
+  it("FR-24: the TV page's Question is 56 px (text-tv-question) up to 80 characters and 48 px (text-tv-question-long) above", async () => {
     const { id, questionIds } = await gameIn();
     await play.start(hostId, { gameId: id, teams: ["Lag 1", "Lag 2"] });
     for (const [length, size] of [
@@ -980,22 +984,10 @@ describe("/spill/[id]/skjerm", () => {
         .update(question)
         .set({ text: long })
         .where(eq(question.id, questionIds[0]));
-      expect(await screen(id)).toContain(`${size}">${long}</h1>`);
+      expect(await tv(id)).toContain(`${size}">${long}</h1>`);
     }
   });
 
-  it.each(["draft", "collecting", "grouping", "in_review"] as const)(
-    "FR-23: a Game in %s redirects to the Game page",
-    async (state) => {
-      const { id } = await gameIn(state);
-      await expect(screen(id)).rejects.toEqual(
-        new RedirectError(`/spill/${id}`),
-      );
-    },
-  );
-});
-
-describe("/spill/[id]/tv", () => {
   it("FR-24, FR-25 (AC1): a playing Game with one revealed slot shows the Question, the revealed label and Count, the Teams and Scores and rank-only hidden tiles, with no control and no hidden label or Count in the markup", async () => {
     const { id, slotIds } = await playing();
     await play.reveal(hostId, {
@@ -1021,6 +1013,8 @@ describe("/spill/[id]/tv", () => {
       "Spørsmål 1 av 3 Svarer nå Lag 1 3 poeng Lag 2 0 poeng 1 2 Ola 3 poeng 3",
     );
     expect(html).not.toContain("<button");
+    // FR-33: a Host-written Game never shows the Question-set credit.
+    expect(html).not.toContain(QUESTION_SET_CREDIT);
     for (const control of [
       "Avslør plass",
       "Bom",
@@ -1031,15 +1025,14 @@ describe("/spill/[id]/tv", () => {
       "Hurtigtaster",
       "Trykk F",
     ])
-      expect(visible(html), control).not.toContain(control);
+      expect(html, control).not.toContain(control);
     // Hidden slots of this Question (Kari 5, Per 2) and every later Question's Board.
     for (const hidden of ["Kari", "Per", "Oslo", "Bergen", "Molde"])
       expect(html, hidden).not.toContain(hidden);
   });
 
-  it("FR-23, FR-27, AD-5 (AC3): ready shows Team setup, draft redirects, played shows Sluttstilling with no deletion line or link; titled TV – the Game, or the not-found title for a missing Game", async () => {
+  it("FR-23, FR-27, AD-5 (AC3): draft redirects, played shows Sluttstilling with no deletion line or link; titled TV – the Game, or the not-found title for a missing Game", async () => {
     const { id } = await gameIn();
-    expect(await tv(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
     expect(await tvMetadata(props(id))).toEqual({ title: "TV – Hyttetur" });
     expect(await tvMetadata(props(randomUUID()))).toEqual({
       title: "Vi finner ikke dette spillet",
@@ -1054,7 +1047,7 @@ describe("/spill/[id]/tv", () => {
     expect(html).toMatch(/<h1 id="sluttstilling"[^>]*>Sluttstilling<\/h1>/);
     expect(text(html)).toContain("Sluttstilling Uavgjort Lag 1 0 poeng");
     for (const host of ["slettes", "Tilbake til spillet", "Trykk F", "<a "])
-      expect(visible(html), host).not.toContain(host);
+      expect(html, host).not.toContain(host);
   });
 
   it("FR-27, AD-17: a last move or a delete that commits between the page's state read and play.load (a poll at the wrong moment) renders /tv again instead of the error page, so the TV shows Sluttstilling", async () => {
@@ -1120,9 +1113,11 @@ describe("/spill/[id]/vert", () => {
     });
   });
 
-  it("FR-23, FR-27 (AC3): ready shows Team setup, draft redirects, played shows the final standing with the deletion date and Tilbake til spillet", async () => {
+  it("FR-23, FR-27 (AC1, AC3): ready redirects to Team setup on /lag, draft redirects to the Game page, played shows the final standing with the deletion date and Tilbake til spillet", async () => {
     const { id } = await gameIn();
-    expect(await hostView(id)).toMatch(/<h1[^>]*>Hvem spiller\?<\/h1>/);
+    await expect(hostView(id)).rejects.toEqual(
+      new RedirectError(`/spill/${id}/lag`),
+    );
     const draft = await gameIn("draft");
     await expect(hostView(draft.id)).rejects.toEqual(
       new RedirectError(`/spill/${draft.id}`),
@@ -1142,31 +1137,30 @@ describe("/spill/[id]/vert", () => {
 });
 
 describe("Game page", () => {
-  it("FR-23, FR-24: in ready it links Start spillet to the screen; in playing it shows Spillet er i gang, the Question, each Team with its Score, Fortsett spillet, Åpne TV-visning and Vertsvisning med fasit, and the mirroring warning", async () => {
+  it("FR-23, FR-24 (AC4): in ready it links Start spillet to /lag; in playing it shows Spillet er i gang, the Question, each Team with its Score, Vertsvisning med fasit (primary), Åpne TV-visning (secondary), the two-window line and the mirroring warning, and no Fortsett spillet", async () => {
     const { id } = await gameIn();
-    const link = (label: string) =>
+    expect(await gamePage(id)).toMatch(
       new RegExp(
-        `<a class="[^"]*bg-primary[^"]*" href="/spill/${id}/skjerm">${label}</a>`,
-      );
-    expect(await gamePage(id)).toMatch(link("Start spillet"));
+        `<a class="[^"]*bg-primary[^"]*" href="/spill/${id}/lag">Start spillet</a>`,
+      ),
+    );
     await play.start(hostId, { gameId: id, teams: ["Hyttegjengen", "Lag 2"] });
     const html = await gamePage(id);
-    expect(html).toMatch(link("Fortsett spillet"));
-    expect(html).not.toContain("Start spillet");
+    expect(html).toMatch(
+      new RegExp(
+        `<a class="[^"]*bg-primary[^"]*" href="/spill/${id}/vert">Vertsvisning med fasit</a>`,
+      ),
+    );
+    expect(html).toMatch(
+      new RegExp(
+        `<a href="/spill/${id}/tv" target="toppsvar-tv" class="[^"]*border-line-strong[^"]*">Åpne TV-visning`,
+      ),
+    );
     expect(text(html)).toContain(
-      "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Fortsett spillet Åpne TV-visning i et nytt vindu Vertsvisning med fasit Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten.",
+      "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Vertsvisning med fasit Åpne TV-visning i et nytt vindu Spillet trenger to vinduer, ett på PC-en og ett på TV-en, eller to enheter. Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten.",
     );
-    // Story 8.5 (AC7): the TV page and the Host view beside the shared screen.
-    expect(html).toMatch(
-      new RegExp(
-        `<a href="/spill/${id}/tv" target="toppsvar-tv"[^>]*>Åpne TV-visning`,
-      ),
-    );
-    expect(html).toMatch(
-      new RegExp(
-        `<a class="[^"]*" href="/spill/${id}/vert">Vertsvisning med fasit</a>`,
-      ),
-    );
+    for (const gone of ["Start spillet", "Fortsett spillet", "/skjerm"])
+      expect(html, gone).not.toContain(gone);
   });
 });
 
@@ -1236,7 +1230,7 @@ describe("play.nextQuestion", () => {
       });
       expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
       expect(nextCache.revalidatePath).toHaveBeenCalledWith(
-        `/spill/${id}/skjerm`,
+        `/spill/${id}/vert`,
       );
       expect((await rowsOf(id)).playState).toEqual([
         {
@@ -1287,9 +1281,7 @@ describe("play.nextQuestion", () => {
     });
     expect((await rowsOf(id)).state).toBe("played");
     expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}`);
-    expect(nextCache.revalidatePath).toHaveBeenCalledWith(
-      `/spill/${id}/skjerm`,
-    );
+    expect(nextCache.revalidatePath).toHaveBeenCalledWith(`/spill/${id}/vert`);
     expect(await rawSums(id)).toEqual([5, 0]);
     expect(await revealsOf(id)).toHaveLength(1);
   });
@@ -1400,7 +1392,7 @@ describe("play.finalScores", () => {
 });
 
 describe("Sluttstilling (AC3)", () => {
-  it("FR-27, UX-DR21: the screen of a finished Game shows Sluttstilling, the Teams by Score with Vinner on the top Team, the deletion date and Tilbake til spillet to the Game page", async () => {
+  it("FR-27, UX-DR21: the TV page of a finished Game shows Sluttstilling, the Teams by Score with Vinner on the top Team, and nothing for the Host", async () => {
     const { id, slotIds } = await playing();
     await play.nextTeam(hostId, { gameId: id });
     await play.reveal(hostId, {
@@ -1409,38 +1401,36 @@ describe("Sluttstilling (AC3)", () => {
       scored: true,
     });
     await finishGame(id);
-    const html = await screen(id);
+    const html = await tv(id);
     expect(html).toContain("data-stage");
     expect(html).toMatch(/<h1 id="sluttstilling"[^>]*>Sluttstilling<\/h1>/);
     expect(html).toContain('<ol aria-label="Sluttstilling"');
-    expect(html).toMatch(
-      new RegExp(`<a [^>]*href="/spill/${id}"[^>]*>Tilbake til spillet</a>`),
-    );
-    expect(text(html)).toContain(
-      `Sluttstilling Vinner Lag 2 5 poeng Lag 1 0 poeng Spillet slettes automatisk ${await deleteDate(id)}. Trykk F for fullskjerm. Tilbake til spillet`,
+    expect(text(html).trim()).toBe(
+      "Sluttstilling Vinner Lag 2 5 poeng Lag 1 0 poeng",
     );
     expect(text(html)).not.toContain("Uavgjort");
   });
 
   it("FR-27: a tied top Score shows Uavgjort on each tied Team and no Vinner", async () => {
     const id = await tiedGame();
-    const shown = text(await screen(id));
+    const shown = text(await tv(id));
     expect(shown).toContain(
       "Sluttstilling Uavgjort Lag 2 7 poeng Uavgjort Lag 3 7 poeng Lag 1 3 poeng",
     );
     expect(shown).not.toContain("Vinner");
   });
 
-  it("FR-3, FR-27: the Game page of a played Game shows Sluttstilling with each Team and Score, Vis sluttstilling to the screen and the deletion notice 30 days after played_at", async () => {
+  it("FR-3, FR-27 (AC4): the Game page of a played Game shows Sluttstilling with each Team and Score, Åpne TV-visning to the TV page's Sluttstilling and the deletion notice 30 days after played_at", async () => {
     const id = await tiedGame();
     const html = await gamePage(id);
     expect(html).toMatch(
       new RegExp(
-        `<a class="[^"]*bg-primary[^"]*" href="/spill/${id}/skjerm">Vis sluttstilling</a>`,
+        `<a href="/spill/${id}/tv" target="toppsvar-tv" class="[^"]*bg-primary[^"]*">Åpne TV-visning`,
       ),
     );
+    expect(html).not.toContain("/skjerm");
     expect(text(html)).toContain(
-      `Sluttstilling Lag 2 7 poeng Lag 3 7 poeng Lag 1 3 poeng Vis sluttstilling Spillet og alle svarene slettes automatisk ${await deleteDate(id)}.`,
+      `Sluttstilling Lag 2 7 poeng Lag 3 7 poeng Lag 1 3 poeng Åpne TV-visning i et nytt vindu Spillet og alle svarene slettes automatisk ${await deleteDate(id)}.`,
     );
     // Static page text, not a status message (EXPERIENCE.md: one polite region per page).
     expect(html).not.toMatch(/role="status"[^>]*>Spillet og alle svarene/);

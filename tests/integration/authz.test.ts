@@ -28,7 +28,7 @@ import ReviewPage, {
   generateMetadata as reviewMetadata,
 } from "@/app/spill/[id]/gjennomgang/page";
 import GamePage from "@/app/spill/[id]/page";
-import ScreenPage from "@/app/spill/[id]/skjerm/page";
+import LagPage from "@/app/spill/[id]/lag/page";
 import TvPage from "@/app/spill/[id]/tv/page";
 import HostViewPage from "@/app/spill/[id]/vert/page";
 import { createGame } from "@/app/spill/actions";
@@ -669,7 +669,7 @@ describe("Host B against Host A's Game", () => {
     ).toBe("NOT_FOUND");
     expect(
       await rejection(
-        ScreenPage({
+        LagPage({
           params: Promise.resolve({ id }),
           searchParams: Promise.resolve({}),
         }),
@@ -677,7 +677,7 @@ describe("Host B against Host A's Game", () => {
     ).toBeInstanceOf(NotFoundError);
   });
 
-  it("FR-24 to FR-27, AD-5: B's play.answerKey and B's TV page and Host view of A's playing or played Game, a random UUID or a malformed ID give NOT_FOUND", async () => {
+  it("FR-23 to FR-27, AD-5: B's play.answerKey and B's Team setup page, TV page and Host view of A's playing or played Game, a random UUID or a malformed ID give NOT_FOUND", async () => {
     const db = await getDb();
     const [{ id: playingOfA }, { id: playedOfA }] = await db
       .insert(game)
@@ -703,7 +703,7 @@ describe("Host B against Host A's Game", () => {
         params: Promise.resolve({ id }),
         searchParams: Promise.resolve({}),
       };
-      for (const Page of [TvPage, HostViewPage])
+      for (const Page of [LagPage, TvPage, HostViewPage])
         expect(await rejection(Page(props)), id).toBeInstanceOf(NotFoundError);
     }
   });

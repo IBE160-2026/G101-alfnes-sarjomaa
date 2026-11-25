@@ -1,12 +1,9 @@
-import { playMetadata, playPage } from "@/app/spill/[id]/play-page";
+import { redirect } from "next/navigation";
 
-export function generateMetadata({ params }: PageProps<"/spill/[id]/skjerm">) {
-  return playMetadata(params, "skjerm");
-}
-
-// FR-23 to FR-27: the one shared screen, controls included.
-export default function ScreenPage({
+// The one-screen stage is gone (Story 8.6); an old bookmark lands on the Game page, which
+// owns not-found.
+export default async function ScreenPage({
   params,
 }: PageProps<"/spill/[id]/skjerm">) {
-  return playPage(params, "skjerm");
+  redirect(`/spill/${encodeURIComponent((await params).id)}`);
 }

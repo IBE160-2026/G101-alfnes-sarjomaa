@@ -223,10 +223,7 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
         <p className="mt-4">
           {n === 1 ? "1 spørsmål er klart." : `${n} spørsmål er klare.`}
         </p>
-        <Link
-          href={`/spill/${game.id}/skjerm`}
-          className={`mt-6 ${PRIMARY_LINK}`}
-        >
+        <Link href={`/spill/${game.id}/lag`} className={`mt-6 ${PRIMARY_LINK}`}>
           Start spillet
         </Link>
       </section>,
@@ -243,17 +240,18 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           Spørsmål {question.position} av {total}.
         </p>
         <ScoreList teams={teams} />
-        {/* One shared screen, or the TV page beside the Host view (Story 8.5). */}
+        {/* Play always runs on two pages: the Host view here, the TV page on the TV (Story 8.6). */}
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link href={`/spill/${game.id}/skjerm`} className={PRIMARY_LINK}>
-            Fortsett spillet
-          </Link>
-          <OpenTvLink gameId={game.id} className={SECONDARY_LINK} />
-          <Link href={`/spill/${game.id}/vert`} className={SECONDARY_LINK}>
+          <Link href={`/spill/${game.id}/vert`} className={PRIMARY_LINK}>
             Vertsvisning med fasit
           </Link>
+          <OpenTvLink gameId={game.id} className={SECONDARY_LINK} />
         </div>
-        <p className="mt-2 text-body-sm text-ink-muted">
+        <p className="mt-2 max-w-prose text-body-sm text-ink-muted">
+          Spillet trenger to vinduer, ett på PC-en og ett på TV-en, eller to
+          enheter.
+        </p>
+        <p className="mt-1 max-w-prose text-body-sm text-ink-muted">
           Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet
           fasiten.
         </p>
@@ -268,12 +266,8 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           Sluttstilling
         </h2>
         <ScoreList teams={teams} />
-        <Link
-          href={`/spill/${game.id}/skjerm`}
-          className={`mt-6 ${PRIMARY_LINK}`}
-        >
-          Vis sluttstilling
-        </Link>
+        {/* The TV page in played is Sluttstilling. */}
+        <OpenTvLink gameId={game.id} className={`mt-6 ${PRIMARY_LINK}`} />
         <Notice tone="info" live={false} className="mt-6 max-w-prose">
           {game.questionSet ? "Spillet" : "Spillet og alle svarene"} slettes
           automatisk {formatDate(deleteAfter)}.

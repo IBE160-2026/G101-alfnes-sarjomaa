@@ -12,7 +12,6 @@ import {
 import { startPlay } from "@/app/spill/[id]/actions";
 import { Button } from "@/components/Button";
 import { Notice } from "@/components/Notice";
-import { focusPageHeading } from "@/components/RouteFocus";
 import { TextField } from "@/components/TextField";
 import { callAction, NETWORK } from "@/components/useFormAction";
 import { postToTv } from "@/components/usePlay";
@@ -23,7 +22,8 @@ import { teamNameSchema } from "@/lib/play";
 type Row = { key: number; name: string; error?: string };
 type Failure = { started: true } | { message: string };
 
-// FR-23, UX-DR22: two to four named Teams, then play starts on the server.
+// FR-23, UX-DR22: two to four named Teams, then play starts on the server and the Host
+// goes to the Game page, which opens the Host view and the TV page.
 export function TeamSetup({ gameId }: { gameId: string }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -38,9 +38,6 @@ export function TeamSetup({ gameId }: { gameId: string }) {
   ]);
   const [failure, setFailure] = useState<Failure>();
   const [pending, startTransition] = useTransition();
-  // On success the refreshed page swaps this form for the play view, so focus goes to
-  // its <h1> when this unmounts, once the stage has streamed in past "Henter spillet …".
-  const acted = useRef(false);
 
   useEffect(() => {
     const target = focusAfter.current;
@@ -56,13 +53,6 @@ export function TeamSetup({ gameId }: { gameId: string }) {
   useEffect(() => {
     if (failure) noticeRef.current?.focus();
   }, [failure]);
-
-  useEffect(
-    () => () => {
-      if (acted.current) focusPageHeading();
-    },
-    [],
-  );
 
   function add() {
     const key = nextKey.current++;
@@ -101,17 +91,14 @@ export function TeamSetup({ gameId }: { gameId: string }) {
         startPlay({ gameId, teams: rows.map((r) => r.name) }),
       );
       if (result?.ok) {
-        acted.current = true;
-        // A TV page still on Team setup in this browser follows into play.
-        return postToTv(gameId, "changed");
+        // A waiting TV page in this browser follows into play; RouteFocus moves focus.
+        postToTv(gameId, "changed");
+        return router.replace(`/spill/${gameId}`);
       }
       if (result?.code === "NOT_FOUND") return router.refresh();
-      // A rejected call may still have started play, so the page refreshes too, and
-      // focus follows if that swaps in the play view.
-      if (!result) {
-        acted.current = true;
-        router.refresh();
-      }
+      // A rejected call may still have started play: the refreshed /lag then redirects to
+      // the Game page.
+      if (!result) router.refresh();
       setFailure(
         result?.code === "WRONG_STATE"
           ? { started: true }
