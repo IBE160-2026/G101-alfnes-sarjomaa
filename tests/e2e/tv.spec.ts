@@ -361,7 +361,7 @@ test("FR-23 to FR-27, NFR-6 (spec 8.6, AC6): axe finds nothing serious on Team s
   await page.getByRole("button", { name: "Start spillet" }).click();
   await expect(page.getByText("Spillet er i gang")).toBeVisible();
   await expect(
-    page.getByText("Spillet trenger to vinduer, ett på PC-en og ett på TV-en"),
+    page.getByText("Åpne vertsvisningen på PC-en og TV-visningen på TV-en"),
   ).toBeVisible();
   expect(await seriousViolations(page)).toEqual([]);
   await page.goto(`${gamePath}/lag`);

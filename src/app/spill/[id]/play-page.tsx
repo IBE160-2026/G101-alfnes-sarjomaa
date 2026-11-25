@@ -85,7 +85,12 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
   const path = `/spill/${game.id}/${view}`;
   if (view === "lag") {
     if (game.state !== "ready") redirect(`/spill/${game.id}`);
-    return <TeamSetup gameId={game.id} />;
+    return (
+      <>
+        <LagBreadcrumb gameId={game.id} title={game.title} />
+        <TeamSetup gameId={game.id} />
+      </>
+    );
   }
   if (game.state === "ready") {
     if (view === "vert") redirect(`/spill/${game.id}/lag`);
@@ -116,6 +121,41 @@ export async function playPage(params: Promise<{ id: string }>, view: View) {
         path={path}
       />
     </Suspense>
+  );
+}
+
+// The Game pages' breadcrumb, as on Review: the way back to the Game page.
+function LagBreadcrumb({ gameId, title }: { gameId: string; title: string }) {
+  return (
+    <nav aria-label="Brødsmulesti" className="mb-2">
+      <ol className="flex flex-wrap items-center gap-x-2 text-body-sm">
+        <li>
+          <Link
+            href="/spill"
+            className="inline-flex min-h-11 items-center text-primary underline"
+          >
+            Mine spill
+          </Link>
+        </li>
+        <li className="flex min-w-0 items-center gap-2">
+          <span aria-hidden="true" className="text-ink-muted">
+            ›
+          </span>
+          <Link
+            href={`/spill/${gameId}`}
+            className="inline-flex min-h-11 items-center break-words text-primary underline"
+          >
+            {title}
+          </Link>
+        </li>
+        <li className="flex items-center gap-2">
+          <span aria-hidden="true" className="text-ink-muted">
+            ›
+          </span>
+          <span aria-current="page">Lagoppsett</span>
+        </li>
+      </ol>
+    </nav>
   );
 }
 

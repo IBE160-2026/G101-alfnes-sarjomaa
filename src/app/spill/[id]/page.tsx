@@ -248,8 +248,8 @@ export default async function GamePage({ params }: PageProps<"/spill/[id]">) {
           <OpenTvLink gameId={game.id} className={SECONDARY_LINK} />
         </div>
         <p className="mt-2 max-w-prose text-body-sm text-ink-muted">
-          Spillet trenger to vinduer, ett på PC-en og ett på TV-en, eller to
-          enheter.
+          Åpne vertsvisningen på PC-en og TV-visningen på TV-en eller en annen
+          enhet.
         </p>
         <p className="mt-1 max-w-prose text-body-sm text-ink-muted">
           Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet

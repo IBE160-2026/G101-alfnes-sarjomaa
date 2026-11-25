@@ -862,7 +862,9 @@ describe("/spill/[id]/lag", () => {
     expect(html).not.toContain("data-stage");
     expect(html).toContain('value="Lag 1"');
     expect(html).toContain('value="Lag 2"');
+    expect(html).toContain(`href="/spill/${id}"`);
     const shown = text(html);
+    expect(shown).toContain("Mine spill › Hyttetur › Lagoppsett Hvem spiller?");
     expect(shown).toContain("Navn på lag 1");
     expect(shown).toContain("Navn på lag 2");
     expect(shown).toContain("Legg til lag");
@@ -1159,7 +1161,7 @@ describe("Game page", () => {
       ),
     );
     expect(text(html)).toContain(
-      "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Vertsvisning med fasit Åpne TV-visning i et nytt vindu Spillet trenger to vinduer, ett på PC-en og ett på TV-en, eller to enheter. Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten.",
+      "Spillet er i gang Spørsmål 1 av 3. Hyttegjengen 0 poeng Lag 2 0 poeng Vertsvisning med fasit Åpne TV-visning i et nytt vindu Åpne vertsvisningen på PC-en og TV-visningen på TV-en eller en annen enhet. Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle i rommet fasiten.",
     );
     for (const gone of ["Start spillet", "Fortsett spillet", "/skjerm"])
       expect(html, gone).not.toContain(gone);
