@@ -139,7 +139,9 @@ test.describe("on the demo server (npm run demo)", () => {
     await page.getByRole("link", { name: "Start spillet" }).click();
     await slow(page.locator("h1")).toHaveText("Hvem spiller?");
     await page.getByRole("button", { name: "Start spillet" }).click();
-    await slow(page.locator("[data-stage]")).toBeVisible();
+    await slow(page).toHaveURL(gamePath);
+    await page.goto(`${gamePath}/tv`);
+    await slow(page.locator(".stage-canvas")).toBeVisible();
     await expect(page.getByText(BAND)).toBeHidden();
   });
 });

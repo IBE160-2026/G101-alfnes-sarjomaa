@@ -18,12 +18,14 @@ async function readyGame(page: Page) {
   return new URL(page.url()).pathname;
 }
 
-// The same Game, started on the Host view with Lag 1 and Lag 2.
+// The same Game, started on /lag with Lag 1 and Lag 2, then the Host view.
 async function playingOnHostView(page: Page) {
   const gamePath = await readyGame(page);
-  await page.goto(`${gamePath}/vert`);
+  await page.goto(`${gamePath}/lag`);
   await expect(page.locator("h1")).toHaveText("Hvem spiller?");
   await page.getByRole("button", { name: "Start spillet" }).click();
+  await expect(page.getByText("Spillet er i gang")).toBeVisible();
+  await page.goto(`${gamePath}/vert`);
   await expect(page.locator("h1")).toHaveText(home.questions[0].text);
   return gamePath;
 }
@@ -47,12 +49,14 @@ const tileOf = (tv: Page, n: number) =>
 const fontSize = (locator: Locator) =>
   locator.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
 
-test("FR-23 to FR-27 (AC4), AD-17: with the TV page reported hidden, so its poll never refreshes and only the channel can move it, Start spillet and every move on the Host view (buttons and keys) show on the TV page in the same browser within 1.5 s, Bom (which leaves again), unscored Reveals, a Reveal on /skjerm and Sluttstilling included, and only the Host view focuses Sluttstilling", async ({
+test("FR-23 to FR-27 (AC4), AD-17: with the TV page reported hidden, so its poll never refreshes and only the channel can move it, Start spillet on /lag moves the waiting TV page into Question 1 and the Host to the Game page, and every move on the Host view (buttons and keys) shows on the TV page in the same browser within 1.5 s, Bom (which leaves again), unscored Reveals and Sluttstilling included, and only the Host view focuses Sluttstilling", async ({
   page,
   context,
 }) => {
   const gamePath = await readyGame(page);
+  // Spec 8.6 (AC1): the Host view sends an early Host to Team setup.
   await page.goto(`${gamePath}/vert`);
+  await expect(page).toHaveURL(new RegExp(`${gamePath}/lag$`));
   await expect(page.locator("h1")).toHaveText("Hvem spiller?");
   const tv = await context.newPage();
   // The poll refreshes only a visible page, so with the page reported hidden only the
@@ -62,17 +66,26 @@ test("FR-23 to FR-27 (AC4), AD-17: with the TV page reported hidden, so its poll
   );
   await tv.setViewportSize({ width: 1920, height: 1080 });
   await tv.goto(`${gamePath}/tv`);
-  await expect(tv.locator("h1")).toHaveText("Hvem spiller?");
-  // Hydrated (React owns the form), so the channel listener is up before the Host starts.
+  // Spec 8.6 (AC2, AC3): the waiting screen, nothing to operate.
+  await expect(tv.locator("h1")).toHaveText("Fredag");
+  await expect(tv.getByText("Spillet starter snart")).toBeVisible();
+  for (const role of ["button", "textbox"] as const)
+    await expect(tv.getByRole(role)).toHaveCount(0);
+  // Hydrated (React owns the stage), so the channel listener is up before the Host starts.
   await tv.waitForFunction(() =>
-    Object.keys(document.querySelector("form")!).some((k) =>
+    Object.keys(document.querySelector("[data-stage]")!).some((k) =>
       k.startsWith("__reactFiber"),
     ),
   );
 
   await page.getByRole("button", { name: "Start spillet" }).click();
-  await expect(page.locator("h1")).toHaveText(home.questions[0].text);
+  await expect(page).toHaveURL(new RegExp(`${gamePath}$`));
+  await expect(page.getByText("Spillet er i gang")).toBeVisible();
+  // RouteFocus moves focus to the Game page's heading.
+  await expect(page.locator("h1")).toBeFocused();
   await expect(tv.locator("h1")).toHaveText(home.questions[0].text, SYNC);
+  await page.getByRole("link", { name: "Vertsvisning med fasit" }).click();
+  await expect(page.locator("h1")).toHaveText(home.questions[0].text);
 
   const key = keyRows(page);
   const label = (n: number) => labelOf(page, n);
@@ -147,13 +160,6 @@ test("FR-23 to FR-27 (AC4), AD-17: with the TV page reported hidden, so its poll
     await expect(page.locator("h1")).toHaveText(q.text);
     await expect(tv.locator("h1")).toHaveText(q.text, SYNC);
   }
-  // The shared screen posts on the same channel; the hidden TV can only follow that.
-  const lastFirst = await label(1);
-  await page.goto(`${gamePath}/skjerm`);
-  await expect(page.locator("h1")).toHaveText(home.questions.at(-1)!.text);
-  await page.keyboard.press("1");
-  await expect(tile(1)).toContainText(lastFirst, SYNC);
-  await page.goto(`${gamePath}/vert`);
   await page.getByRole("button", { name: "Vis sluttstilling [N]" }).click();
   await expect(page.locator("h1")).toHaveText("Sluttstilling");
   await expect(tv.locator("h1")).toHaveText("Sluttstilling", SYNC);
@@ -328,4 +334,27 @@ test("FR-24 (AC6), NFR-6: Åpne TV-visning opens the TV page in its own window a
   await expect(
     page.getByRole("button", { name: "Avslør plass 2" }),
   ).toBeVisible();
+});
+
+test("FR-23, NFR-6 (spec 8.6, AC6): axe finds nothing serious on Team setup at /lag, the waiting TV page and the playing Game page; /skjerm sends an old bookmark to the Game page", async ({
+  page,
+}) => {
+  const gamePath = await readyGame(page);
+  await page.goto(`${gamePath}/tv`);
+  await expect(page.getByText("Spillet starter snart")).toBeVisible();
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.goto(`${gamePath}/lag`);
+  await expect(page.locator("h1")).toHaveText("Hvem spiller?");
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.getByRole("button", { name: "Start spillet" }).click();
+  await expect(page.getByText("Spillet er i gang")).toBeVisible();
+  await expect(
+    page.getByText("Spillet trenger to vinduer, ett på PC-en og ett på TV-en"),
+  ).toBeVisible();
+  expect(await seriousViolations(page)).toEqual([]);
+  await page.goto(`${gamePath}/lag`);
+  await expect(page).toHaveURL(new RegExp(`${gamePath}$`));
+  await page.goto(`${gamePath}/skjerm`);
+  await expect(page).toHaveURL(new RegExp(`${gamePath}$`));
+  await expect(page.locator("h1")).toHaveText("Fredag");
 });

@@ -18,7 +18,7 @@ const Q2 = "Hvilken farge har hytta?";
 const ANSWERS = [SETS, [["Rød"], ["Blå"], ["Rød"]]];
 const TEAMS = ["Hyttegjengen", "Byfolket"];
 
-test("FR-30, FR-11, NFR-3, NFR-6: with no model key and every browser request outside localhost blocked a full round runs end to end: register, two Questions, three Answer sets from three browsers, close, the fallback Grouping with the NO_KEY Notice, one merge, mark, lock, two Teams, scored and unscored Reveals, one undo, the next Question and Sluttstilling with each Score equal to that Team's scored Counts; axe is clean on the answer form, Review, the play view and Sluttstilling; the server-output scan covers the round's Tokens and Answers", async ({
+test("FR-30, FR-11, NFR-3, NFR-6: with no model key and every browser request outside localhost blocked a full round runs end to end: register, two Questions, three Answer sets from three browsers, close, the fallback Grouping with the NO_KEY Notice, one merge, mark, lock, two Teams, scored and unscored Reveals, one undo, the next Question and Sluttstilling with each Score equal to that Team's scored Counts; axe is clean on the answer form, Review, the Host view, the TV page and Sluttstilling; the server-output scan covers the round's Tokens and Answers", async ({
   page,
   browser,
   baseURL,
@@ -88,30 +88,40 @@ test("FR-30, FR-11, NFR-3, NFR-6: with no model key and every browser request ou
   for (const [n, name] of TEAMS.entries())
     await page.getByLabel(`Navn på lag ${n + 1}`).fill(name);
   await page.getByRole("button", { name: "Start spillet" }).click();
+  await expect(page).toHaveURL(gamePath);
+  // Played as at a party: the Host view here, the TV page in a second window.
+  await page.getByRole("link", { name: "Vertsvisning med fasit" }).click();
   const heading = page.locator("h1");
   await expect(heading).toHaveText(QUESTION);
+  const tv = await page.context().newPage();
+  await tv.setViewportSize({ width: 1920, height: 1080 });
+  await tv.goto(`${gamePath}/tv`);
+  await expect(tv.locator("h1")).toHaveText(QUESTION);
 
-  const stage = page.locator("[data-stage]");
-  const tile = (n: number) => stage.locator("[data-slot]").nth(n - 1);
-  const teams = stage.getByRole("list", { name: "Lag" }).getByRole("listitem");
-  const status = stage.locator('[role="status"].sr-only');
-  const control = page
-    .getByText("Trykk F for fullskjerm.", { exact: true })
-    .locator("..");
-  const toggle = control.getByRole("button", { name: /uten poeng \[U\]$/ });
+  const stage = tv.locator("[data-stage]");
+  const tile = (n: number) =>
+    stage.locator(".stage-canvas > ol > li").nth(n - 1);
+  const teams = page.getByRole("region", { name: "Lag" }).getByRole("listitem");
+  const tvTeams = stage
+    .getByRole("list", { name: "Lag" })
+    .getByRole("listitem");
+  const status = page.locator('p[role="status"]');
+  const toggle = page.getByRole("button", { name: /uten poeng \[U\]$/ });
+  const reveal = (n: number) =>
+    page.getByRole("button", { name: `Avslør plass ${n}` });
   // The Counts each Team was credited with, read off the tiles as the room saw them.
   const counts: number[][] = TEAMS.map(() => []);
   const sum = (team: number) => counts[team].reduce((a, b) => a + b, 0);
-  const expectScores = (current: number) =>
-    expect(teams).toHaveText(
-      TEAMS.map(
-        (name, t) =>
-          `${t === current ? "Svarer nå" : ""}${name}${sum(t)} poeng`,
-      ),
+  const expectScores = async (current: number) => {
+    const shown = TEAMS.map(
+      (name, t) => `${t === current ? "Svarer nå" : ""}${name}${sum(t)} poeng`,
     );
+    await expect(teams).toHaveText(shown);
+    await expect(tvTeams).toHaveText(shown);
+  };
   // The expected text pins the locked Board (the merge's recount included); the Count comes from it.
   const scored = async (n: number, team: number, text: string) => {
-    await tile(n).click();
+    await reveal(n).click();
     await expect(tile(n)).toHaveText(text);
     counts[team].push(Number(/(\d+) poeng$/.exec(text)![1]));
     await expectScores(team);
@@ -125,21 +135,24 @@ test("FR-30, FR-11, NFR-3, NFR-6: with no model key and every browser request ou
   await scored(2, 1, "2Frida2 poeng");
   await scored(3, 1, "3Anne1 poeng");
   await page.keyboard.press("z");
-  await expect(tile(3)).toHaveRole("button");
+  await expect(reveal(3)).toBeVisible();
+  await expect(tile(3)).toHaveText("3");
   counts[1].pop();
   await expectScores(1);
 
-  // The rest of tile 3 unscored: no Score changes. Axe with scored and unscored tiles.
+  // The rest of slot 3 unscored: no Score changes. Axe with scored and unscored tiles.
   await page.keyboard.press("u");
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await tile(3).click();
+  await reveal(3).click();
   await expect(tile(3)).toContainText("uten poeng");
   await expectScores(1);
   expect(await seriousViolations(page)).toEqual([]);
+  expect(await seriousViolations(tv)).toEqual([]);
 
   // Question 2: back to Hyttegjengen for a scored Reveal, then the end.
   await page.keyboard.press("n");
   await expect(heading).toHaveText(Q2);
+  await expect(tv.locator("h1")).toHaveText(Q2);
   await expect(
     stage.getByText("Spørsmål 2 av 2", { exact: true }),
   ).toBeVisible();
@@ -147,12 +160,13 @@ test("FR-30, FR-11, NFR-3, NFR-6: with no model key and every browser request ou
   await page.keyboard.press("t");
   await expect(status).toHaveText("Hyttegjengen svarer nå.");
   await scored(1, 0, "1Rød2 poeng");
-  await control
+  await page
     .getByRole("button", { name: "Vis sluttstilling [N]", exact: true })
     .click();
 
   // Sluttstilling: each Team with the sum of its scored Counts, highest first.
   await expect(heading).toHaveText("Sluttstilling");
+  await expect(tv.locator("h1")).toHaveText("Sluttstilling");
   const ranked = TEAMS.map((name, t) => ({ name, score: sum(t) })).sort(
     (a, b) => b.score - a.score,
   );
@@ -164,7 +178,7 @@ test("FR-30, FR-11, NFR-3, NFR-6: with no model key and every browser request ou
       ({ name, score }, r) => `${r === 0 ? "Vinner" : ""}${name}${score} poeng`,
     ),
   );
-  expect(await seriousViolations(page)).toEqual([]);
+  expect(await seriousViolations(tv)).toEqual([]);
 
   // FR-11: the recorder saw this round's Tokens and Answers, so the teardown scans for them.
   const recorded = readFileSync(

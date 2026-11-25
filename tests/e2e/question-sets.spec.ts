@@ -13,7 +13,7 @@ import {
 
 const [home] = QUESTION_SETS;
 
-test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, plays its Board from the data and credits ProtoQA under the Question count, clear of the Question and the Teams at 1920×1080 and 1280×720, with the control bar as for any Game", async ({
+test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, plays its Board from the data and credits ProtoQA under the Question count, clear of the Question and the Teams on the TV page at 1920×1080 and 1280×720, while the Host view plays it", async ({
   page,
 }) => {
   await registerHost(page);
@@ -48,86 +48,77 @@ test("FR-33 (AC1, AC2, AC3), NFR-6: a Game from a Question set lands in Klar, pl
     if (i > 1) await page.getByRole("button", { name: "Legg til lag" }).click();
     await page.getByLabel(`Navn på lag ${i + 1}`).fill(name);
   }
-  await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByRole("button", { name: "Start spillet" }).click();
+  await expect(page).toHaveURL(gamePath);
+  await page.goto(`${gamePath}/vert`);
   await expect(page.locator("h1")).toHaveText(home.questions[0].text);
+  const tv = await page.context().newPage();
+  await tv.setViewportSize({ width: 1920, height: 1080 });
+  await tv.goto(`${gamePath}/tv`);
+  await expect(tv.locator("h1")).toHaveText(home.questions[0].text);
+  // Hydrated (React owns the stage and the Host view), so the channel listener and the
+  // Host view's keys are up before the first key.
+  for (const [p, selector] of [
+    [tv, ".stage-canvas"],
+    [page, `[aria-labelledby="fasit"]`],
+  ] as const)
+    await p.waitForFunction(
+      (s) =>
+        Object.keys(document.querySelector(s) ?? {}).some((k) =>
+          k.startsWith("__react"),
+        ),
+      selector,
+    );
 
-  // AC2, AC3: slot 1 is the data's top Group, in Norwegian, and the stage credits the source.
-  const stage = page.locator("[data-stage]");
-  const tile = (n: number) => stage.locator("[data-slot]").nth(n - 1);
+  // AC2, AC3: slot 1 is the data's top Group, in Norwegian, and the TV credits the source.
+  const stage = tv.locator("[data-stage]");
+  const tile = (n: number) =>
+    stage.locator(".stage-canvas > ol > li").nth(n - 1);
   const [top] = home.questions[0].groups;
   await page.keyboard.press("1");
   await expect(tile(1).locator(".reveal-label")).toHaveText(top.label);
   await expect(tile(1)).toContainText(`${top.count} poeng`);
   await expect(stage.getByText(CREDIT, { exact: true })).toBeVisible();
-  expect(await seriousViolations(page)).toEqual([]);
+  // The credit is the TV's alone: the Host view names no source.
+  await expect(page.getByText(CREDIT, { exact: true })).toHaveCount(0);
+  expect(await seriousViolations(tv)).toEqual([]);
 
-  // Worst case for the bar: the last Question, Angre shown, every slot revealed, the
-  // unscored toggle on, "Vis sluttstilling", "Alle svarene er avslørt." and the F hint.
+  // The last Question with every slot revealed.
   for (const q of home.questions.slice(1)) {
     await page.keyboard.press("n");
     await expect(page.locator("h1")).toHaveText(q.text);
   }
+  await expect(tv.locator("h1")).toHaveText(home.questions.at(-1)!.text);
   const last = home.questions.at(-1)!;
   for (let n = 1; n <= last.groups.length; n++) {
     await page.keyboard.press(String(n));
-    await expect(tile(n)).not.toHaveRole("button");
+    await expect(tile(n).locator("[data-slot]")).toHaveCount(1);
   }
-  await expect(
-    stage.getByText("Alle svarene er avslørt.", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    stage.getByRole("button", { name: "Vis sluttstilling [N]" }),
-  ).toBeVisible();
-  // The bar is the same as on any Game: 64 px, every item inside it.
-  const bar = stage
-    .getByText("Trykk F for fullskjerm.", { exact: true })
-    .locator("..");
   const credit = stage.getByText(CREDIT, { exact: true });
   const cards = stage.getByRole("list", { name: "Lag" });
   const box = async (locator: Locator) => (await locator.boundingBox())!;
+  // The credit sits in the Team column, right of the Question and above the Teams, and the
+  // last Team card still ends inside the canvas.
   const fits = async () => {
-    const b = await box(bar);
-    for (const child of await bar.locator("> *").all()) {
-      const c = await box(child);
-      expect(c.x).toBeGreaterThanOrEqual(b.x);
-      expect(c.x + c.width).toBeLessThanOrEqual(b.x + b.width + 0.5);
-      expect(c.y).toBeGreaterThanOrEqual(b.y - 0.5);
-      expect(c.y + c.height).toBeLessThanOrEqual(b.y + b.height + 0.5);
-    }
-    expect(
-      await bar.evaluate(
-        (el) =>
-          el.scrollWidth <= el.clientWidth &&
-          el.scrollHeight <= el.clientHeight,
-      ),
-    ).toBe(true);
-    // The credit sits in the Team column, right of the Question and above the Teams,
-    // and the last Team card still ends above the bar.
     await expect(credit).toBeVisible();
     const cr = await box(credit);
-    const q = await box(page.locator("h1"));
+    const q = await box(tv.locator("h1"));
     const t = await box(cards);
+    const c = await box(tv.locator(".stage-canvas"));
     expect(cr.x).toBeGreaterThanOrEqual(q.x + q.width);
     expect(cr.x + cr.width).toBeLessThanOrEqual(t.x + t.width + 0.5);
     expect(cr.y + cr.height).toBeLessThanOrEqual(t.y);
-    expect(t.y + t.height).toBeLessThanOrEqual(b.y);
+    expect(t.y + t.height).toBeLessThanOrEqual(c.y + c.height + 0.5);
   };
-  expect((await box(bar)).height).toBe(64);
   await fits();
-  await page.keyboard.press("u");
-  await expect(
-    stage.getByRole("button", { name: "Avslører uten poeng [U]" }),
-  ).toBeVisible();
-  await fits();
-  await page.screenshot({
+  await tv.screenshot({
     path: test.info().outputPath("question-set-stage-1920.png"),
     animations: "disabled",
   });
   // Scaled to a smaller window, the canvas keeps the same layout.
-  await page.setViewportSize({ width: 1280, height: 720 });
+  await tv.setViewportSize({ width: 1280, height: 720 });
   await fits();
-  await page.screenshot({
+  await tv.screenshot({
     path: test.info().outputPath("question-set-stage-1280.png"),
     animations: "disabled",
   });
