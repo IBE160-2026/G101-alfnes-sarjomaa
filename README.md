@@ -31,6 +31,16 @@ ser alle fasiten. I vertsvisningen avslører tall plasser, `M` gir bom, `Z` angr
 lag, `U` avslører uten poeng og `N` går til neste spørsmål. `F` i TV-vinduet gir fullskjerm.
 Lagene ser bare brett og poeng.
 
+<details>
+<summary><b>TV-en på en annen enhet</b>: logg inn som verten</summary>
+
+TV-visningen kan også åpnes på en annen enhet, for eksempel en PC koblet til TV-en. Den må være
+logget inn som verten. Der vises aldri bom, fordi bom ikke lagres. TV-en følger trekkene innen
+et par sekunder, men hviler etter ti minutter uten trekk, til noen klikker i vinduet eller henter
+det fram igjen.
+
+</details>
+
 ![TV-visningen med to avslørte svar, kilden til spørsmålssettet og poengene til tre lag](docs-assets/skjermbilder/spill-brett.png)
 
 | Deltakeren svarer på mobilen | Verten følger innsamlingen |

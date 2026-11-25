@@ -50,7 +50,7 @@ sources:
 | *in review* | Til gjennomgang | Summary: Questions, Groups proposed, any fallback | "Gå til gjennomgangen" |
 | *ready* | Klar | "Brettet er låst." Question count | "Start spillet" |
 | *playing* | Spilles | Current Question and Scores | "Fortsett spillet". *Amended 2026-11-24 (Story 8.5):* two more links beside it, "Åpne TV-visning" and "Vertsvisning med fasit". *Amended 2026-11-25 (Story 8.6, group decision after testing the two pages):* "Fortsett spillet" is removed; "Vertsvisning med fasit" is the primary link and "Åpne TV-visning" the secondary |
-| *played* | Ferdig | Final Scores; auto-deletion date | — |
+| *played* | Ferdig | Final Scores; auto-deletion date | —. *Amended 2026-11-25 (Story 8.6):* "Åpne TV-visning", to the TV page's Sluttstilling |
 
 Every state shows "Slett spillet" at the bottom of the page (FR-3).
 

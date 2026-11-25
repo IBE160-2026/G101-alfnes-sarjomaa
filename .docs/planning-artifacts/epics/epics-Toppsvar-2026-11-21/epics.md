@@ -1136,6 +1136,8 @@ So that the room can play as teams on the TV.
 **Then** Team setup shows "Hvem spiller?" with "Lag 1" and "Lag 2" prefilled, "Legg til lag" up to four, "Fjern" down to two, the errors "Laget trenger et navn." and "Navnet kan ha maks 14 tegn.", and "Start spillet" opens the play view with "Trykk F for fullskjerm."
 **And** for a *playing* Game the Game page offers "Fortsett spillet", which resumes the play view; Games in other states redirect to the Game page
 
+*Amended 2026-11-25 (Story 8.6):* `/spill/[id]/skjerm` and "Fortsett spillet" are gone. "Start spillet" leads to Team setup at `/spill/[id]/lag`, and play runs on the Host view and the TV page.
+
 ### Story 6.2: Show the Board on the shared screen and make scored Reveals
 
 As a Host,
@@ -1553,6 +1555,8 @@ So that the room does not see my controls and I can see every Group's label and 
 **Given** a *playing* Game page
 **When** it renders
 **Then** it links "Fortsett spillet", "Åpne TV-visning" and "Vertsvisning med fasit"
+
+*Amended 2026-11-25 (Story 8.6):* "Fortsett spillet" is gone; "Vertsvisning med fasit" is the primary link and "Åpne TV-visning" the secondary one.
 
 ### Story 8.6: Play needs two views: host view and TV view
 

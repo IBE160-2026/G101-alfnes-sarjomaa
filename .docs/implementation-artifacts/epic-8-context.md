@@ -4,7 +4,7 @@
 
 ## Goal
 
-Add the Stage 2 features on top of the finished Stage 1 loop. Done: ready-made Norwegian Question sets (FR-33, crowdsourced CC BY 4.0 ProtoQA part only) and a two-page play mode, a clean TV page for the room beside a Host page with the answer key and the controls. Both were started before SM-1 passed, by group decisions of 2026-11-23 and 2026-11-24. Upcoming Story 8.6 makes the two views the only way to play: the one-screen stage at `/spill/[id]/skjerm` is removed, play always runs on `/spill/[id]/vert` and `/spill/[id]/tv`, and Team setup moves to its own page `/spill/[id]/lag`. Stories 8.2 to 8.4 (reorder Groups, assisted Guess matching, strikes and steals) stay behind the SM-1 gate. Any departure from the architecture spine is amended in the same change.
+Add the Stage 2 features on top of the finished Stage 1 loop. Done: ready-made Norwegian Question sets (FR-33, crowdsourced CC BY 4.0 ProtoQA part only) and a two-page play mode, a clean TV page for the room beside a Host page with the answer key and the controls. Both were started before SM-1 passed, by group decisions of 2026-11-23 and 2026-11-24. Story 8.6 made the two views the only way to play: the one-screen stage at `/spill/[id]/skjerm` is removed, play always runs on `/spill/[id]/vert` and `/spill/[id]/tv`, and Team setup moves to its own page `/spill/[id]/lag`. Stories 8.2 to 8.4 (reorder Groups, assisted Guess matching, strikes and steals) stay behind the SM-1 gate. Any departure from the architecture spine is amended in the same change.
 
 ## Stories
 
