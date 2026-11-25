@@ -49,7 +49,7 @@ const tileOf = (tv: Page, n: number) =>
 const fontSize = (locator: Locator) =>
   locator.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
 
-test("FR-23 to FR-27 (AC4), AD-17: with the TV page reported hidden, so its poll never refreshes and only the channel can move it, Start spillet on /lag moves the waiting TV page into Question 1 and the Host to the Game page, and every move on the Host view (buttons and keys) shows on the TV page in the same browser within 1.5 s, Bom (which leaves again), unscored Reveals and Sluttstilling included, and only the Host view focuses Sluttstilling", async ({
+test("FR-23 to FR-27 (Story 8.5 AC4; Story 8.6 AC1–AC3), AD-17: with the TV page reported hidden, so its poll never refreshes and only the channel can move it, Start spillet on /lag moves the waiting TV page into Question 1 and the Host to the Game page, and every move on the Host view (buttons and keys) shows on the TV page in the same browser within 1.5 s, Bom (which leaves again), unscored Reveals and Sluttstilling included, and only the Host view focuses Sluttstilling", async ({
   page,
   context,
 }) => {
@@ -79,11 +79,16 @@ test("FR-23 to FR-27 (AC4), AD-17: with the TV page reported hidden, so its poll
   );
 
   await page.getByRole("button", { name: "Start spillet" }).click();
-  await expect(page).toHaveURL(new RegExp(`${gamePath}$`));
-  await expect(page.getByText("Spillet er i gang")).toBeVisible();
-  // RouteFocus moves focus to the Game page's heading.
-  await expect(page.locator("h1")).toBeFocused();
-  await expect(tv.locator("h1")).toHaveText(home.questions[0].text, SYNC);
+  // Story 8.6 (AC3): the TV's 1.5 s runs from the click, alongside the Host's own move.
+  await Promise.all([
+    expect(tv.locator("h1")).toHaveText(home.questions[0].text, SYNC),
+    (async () => {
+      await expect(page).toHaveURL(new RegExp(`${gamePath}$`));
+      await expect(page.getByText("Spillet er i gang")).toBeVisible();
+      // RouteFocus moves focus to the Game page's heading.
+      await expect(page.locator("h1")).toBeFocused();
+    })(),
+  ]);
   await page.getByRole("link", { name: "Vertsvisning med fasit" }).click();
   await expect(page.locator("h1")).toHaveText(home.questions[0].text);
 
@@ -257,6 +262,8 @@ test("FR-24 (AC5): on the TV page the play keys do nothing and there is no butto
   await expect(page.locator("h1")).toHaveText(home.questions[0].text);
   expect(await page.locator(".stage-canvas").innerHTML()).toBe(before);
 
+  // Ctrl+F is the browser's find and Shift+F is not F: neither toggles.
+  for (const key of ["Control+f", "Shift+F"]) await page.keyboard.press(key);
   expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
   await page.keyboard.press("f");
   await expect
@@ -336,7 +343,7 @@ test("FR-24 (AC6), NFR-6: Åpne TV-visning opens the TV page in its own window a
   ).toBeVisible();
 });
 
-test("FR-23 to FR-27, NFR-6 (spec 8.6, AC6): axe finds nothing serious on Team setup at /lag, the waiting TV page and the playing Game page; /skjerm sends an old bookmark to the Game page", async ({
+test("FR-23 to FR-27, NFR-6 (Story 8.6, AC6): axe finds nothing serious on Team setup at /lag, the waiting TV page and the playing Game page; /skjerm sends an old bookmark to the Game page", async ({
   page,
 }) => {
   const gamePath = await readyGame(page);

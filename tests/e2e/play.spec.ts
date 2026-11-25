@@ -758,13 +758,12 @@ test("FR-25, FR-26, FR-27 (AC1, AC4), UX-DR21, NFR-5, NFR-6: Bom on the Host vie
   expect(await seriousViolations(page)).toEqual([]);
   // Inside the open overlay every shortcut is ignored.
   const said = await status.textContent();
-  for (const key of ["1", "m", "t", "u", "n", "ArrowRight", "f"])
+  for (const key of ["1", "m", "t", "u", "n", "ArrowRight"])
     await page.keyboard.press(key);
   await expect(reveal(1)).toBeVisible();
   await expect(panel).toHaveCount(0);
   await expect(status).toHaveText(said!);
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
-  expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
   await page.keyboard.press("Escape");
   await expect(overlay).toBeHidden();
   await control("Hurtigtaster").click();

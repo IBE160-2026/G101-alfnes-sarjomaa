@@ -677,13 +677,14 @@ describe("Host B against Host A's Game", () => {
     ).toBeInstanceOf(NotFoundError);
   });
 
-  it("FR-23 to FR-27, AD-5: B's play.answerKey and B's Team setup page, TV page and Host view of A's playing or played Game, a random UUID or a malformed ID give NOT_FOUND", async () => {
+  it("FR-23 to FR-27, AD-5: B's play.answerKey and B's Team setup page, TV page and Host view of A's ready, playing or played Game, a random UUID or a malformed ID give NOT_FOUND, so no redirect or waiting screen leaks A's Game", async () => {
     const db = await getDb();
-    const [{ id: playingOfA }, { id: playedOfA }] = await db
+    const [{ id: playingOfA }, { id: playedOfA }, { id: readyOfA }] = await db
       .insert(game)
       .values([
         { hostId: hosts.A, title: "As TV", state: "ready" },
         { hostId: hosts.A, title: "As ferdige", state: "ready" },
+        { hostId: hosts.A, title: "As klare", state: "ready" },
       ])
       .returning({ id: game.id });
     for (const gameId of [playingOfA, playedOfA]) {
@@ -694,7 +695,7 @@ describe("Host B against Host A's Game", () => {
     }
     await play.nextQuestion(hosts.A, { gameId: playedOfA, position: 1 });
     as("B");
-    for (const id of [playingOfA, playedOfA, randomUUID(), "abc"]) {
+    for (const id of [readyOfA, playingOfA, playedOfA, randomUUID(), "abc"]) {
       expect(
         ((await rejection(play.answerKey(hosts.B, id))) as DomainError).code,
         id,
