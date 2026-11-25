@@ -7,26 +7,31 @@ Her ligger appen, og dokumentasjon av hvordan vi bygde, testet og kvalitetssikre
 
 **Toppsvar** er et Family Feud-aktig festspill. Verten lager spørsmål om sin egen gjeng, og
 deltakerne svarer anonymt i fritekst. En språkmodell grupperer like svar til rangerte topplister.
-Verten retter, og gjengen spiller fra én delt skjerm. En vert med to skjermer kan i stedet åpne
-TV-visningen, som bare viser brettet for rommet, og styre spillet fra vertsvisningen med fasit på
-sin egen skjerm. Trinn 2: ferdige spørsmålssett, uten innsamling.
+Verten retter, og gjengen spiller. Spillet trenger to vinduer, ett på PC-en og ett på TV-en,
+eller to enheter: TV-visningen viser bare brettet for rommet, og verten styrer spillet fra
+vertsvisningen med fasit på sin egen skjerm. Trinn 2: ferdige spørsmålssett, uten innsamling.
 
 Pilot: <https://toppsvar.vercel.app>. Lokalt trengs verken nøkkel eller konto, se [Utvikling](#utvikling).
 
 ## Slik ser det ut
 
-Et oppdiktet spill, «Hyttetur 2026». Gjennomgang, låst brett og spill er fra piloten, der dommeren
-grupperte live. Resten er lokalt, uten nøkkel.
+Et oppdiktet spill, «Hyttetur 2026». Gjennomgang, låst brett og lagoppsett er fra piloten, der
+dommeren grupperte live. Spillet på TV-en og i vertsvisningen er tatt lokalt i demomodus, med et
+ferdig spørsmålssett. Resten er lokalt, uten nøkkel.
 
 **Gjennomgangen.** Verten slår sammen, flytter, gir nytt navn og forkaster grupper. Her er to
 valgt. Dommeren hadde alt slått sammen «Ullsokker», «ullsokker» og «ullsokkar».
 
 ![Gjennomgangen med to grupper valgt og valglinja nederst](docs-assets/skjermbilder/gjennomgang-valg.png)
 
-**Spillet på TV-en.** Verten bruker tastaturet: tall avslører plasser, `M` bom, `Z` angre, `T`
-neste lag, `U` avslør uten poeng, `N` neste spørsmål. Lagene ser bare brett og poeng.
+**Spillet på TV-en.** Spillet spilles alltid med to vinduer eller to enheter. «Start spillet»
+åpner lagoppsettet. Når lagene er navngitt, havner verten på spillsiden og åpner «Vertsvisning
+med fasit» på PC-en og «Åpne TV-visning» på TV-en. Bruk TV-en som utvidet skjerm, ikke speilet, ellers ser alle fasiten. I
+vertsvisningen avslører tall plasser, `M` gir bom, `Z` angrer, `T` gir neste lag, `U` avslører
+uten poeng og `N` går til neste spørsmål. `F` i TV-vinduet gir fullskjerm. Lagene ser bare brett
+og poeng.
 
-![Brettet på storskjermen med tre avslørte svar og poengene til tre lag](docs-assets/skjermbilder/spill-brett.png)
+![TV-visningen med to avslørte svar, kilden til spørsmålssettet og poengene til tre lag](docs-assets/skjermbilder/spill-brett.png)
 
 | Deltakeren svarer på mobilen | Verten følger innsamlingen |
 |---|---|
@@ -48,8 +53,8 @@ neste lag, `U` avslør uten poeng, `N` neste spørsmål. Lagene ser bare brett o
 | Forkastede grupper | ![Forkastet-seksjonen med Angre forkasting](docs-assets/skjermbilder/gjennomgang-forkastet.png) |
 | Brettet er låst | ![Spillsiden etter at brettet er låst](docs-assets/skjermbilder/brett-last.png) |
 | Lagene navngis | ![Lagoppsettet med tre lag](docs-assets/skjermbilder/lagoppsett.png) |
-| Hurtigtastene | ![Brettet med oversikten over hurtigtaster åpen](docs-assets/skjermbilder/spill-hurtigtaster.png) |
-| Sluttstillingen | ![Sluttstillingen med vinnerlaget øverst](docs-assets/skjermbilder/sluttstilling.png) |
+| Vertsvisningen med fasit | ![Vertsvisningen med fasiten, lagene og oversikten over hurtigtaster åpen](docs-assets/skjermbilder/spill-hurtigtaster.png) |
+| Sluttstillingen på TV-en | ![Sluttstillingen på TV-visningen med vinnerlaget øverst](docs-assets/skjermbilder/sluttstilling.png) |
 
 </details>
 
@@ -148,7 +153,7 @@ Velg et sett under «Spørsmål» når du lager spillet. Da er brettet klart med
 innsamling og gjennomgang (FR-33, trinn 2). Spørsmålene og tellingene kommer fra
 [ProtoQA](https://github.com/iesl/protoqa-data) av ProtoQA-forfatterne (IESL, UMass Amherst),
 lisensiert under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), oversatt og
-tilpasset av oss. Spillskjermen viser kilden.
+tilpasset av oss. TV-visningen viser kilden.
 [Kreditering og endringer](data/protoqa/ATTRIBUTION.md).
 
 <details>
@@ -200,7 +205,7 @@ Per 23. november. Trinn 1 fryses 1. desember.
   ikke kjørt. Det som ikke er ferdig ved frysen, flyttes til trinn 2.
 - **Trinn 2 er startet** før trinn 1 er godkjent, etter gruppens valg. [Ferdige
   spørsmålssett](#ferdige-spørsmålssett) (FR-33) er på plass, og det samme er TV-visning og
-  vertsvisning med fasit (story 8.5). Egen rekkefølge på brettet (FR-22),
+  vertsvisning med fasit (story 8.5), som siden story 8.6 er den eneste måten å spille på. Egen rekkefølge på brettet (FR-22),
   hjelp til gjetninger (FR-28) og strikes og steals (FR-29) gjenstår.
 - **Dommeren mot ProtoQA (SM-2): B-cubed F1 0.6849**, under målet på 0.70. Spørsmål med mange
   ulike svar faller tilbake til én gruppe per svar, og verten slår sammen i gjennomgangen.
