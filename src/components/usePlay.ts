@@ -69,9 +69,9 @@ export function usePlay({
   // Held as the Question it was switched on for, so it is off on any other (no remount).
   const [unscoredFor, setUnscoredFor] = useState<number>();
   const unscored = unscoredFor === questionPosition;
-  // The slot to focus once it renders in this state (a revealed row, or a tile again).
+  // The slot to focus once it renders in this state (a revealed row, or its Avslør again).
   const focusAfter = useRef<{ id: string; revealed: boolean }>(undefined);
-  // The Question whose <h1> takes focus once it renders (a focused tile unmounted).
+  // The Question whose <h1> takes focus once it renders (a focused row unmounted).
   const focusQuestion = useRef<number>(undefined);
 
   const canUndo = lastReveal !== null;
@@ -96,7 +96,7 @@ export function usePlay({
         postToTv(gameId, "changed");
         return onOk(result.data);
       }
-      // Not revealed by this tab, so no animation when a refresh shows it revealed.
+      // Not saved, so the Avslør leaves its pending state.
       setClicked(undefined);
       if (!result) setFailure("Mistet forbindelsen.");
       else if (STALE.includes(result.code)) {
@@ -108,7 +108,7 @@ export function usePlay({
 
   function reveal(id: string) {
     if (busy.current) return;
-    // Marked now, so only a tile revealed from this tab animates (not a reload or refresh).
+    // Marked now, so the Host view shows this Avslør as pending until the save returns.
     setClicked(id);
     const hadFocus = slotElement(id)?.contains(document.activeElement);
     const focusRow = () => {
@@ -150,7 +150,7 @@ export function usePlay({
             ? `Angret. «${label}» er skjult igjen, ${count} poeng trukket fra ${team}.`
             : `Angret. «${label}» er skjult igjen.`,
         );
-        // Angre goes with the last Reveal, so focus goes to the tile it hid again.
+        // Angre goes with the last Reveal, so focus goes to the Avslør it shows again.
         if ((hadFocus && last) || focusedSlot === boardSlotId)
           focusAfter.current = { id: boardSlotId, revealed: false };
       },

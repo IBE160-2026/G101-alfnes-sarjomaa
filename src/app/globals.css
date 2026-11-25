@@ -148,8 +148,8 @@ body:has([data-stage]) [data-host-chrome] {
   scale: min(tan(atan2(100vw, 1920px)), tan(atan2(100vh, 1080px)));
 }
 
-/* The staged Reveal (UX-DR14), only on the tile this tab revealed: fill 180 ms, label
-   from 120 ms, Count badge from 300 ms. */
+/* The staged Reveal (UX-DR14) on the TV page, for each tile revealed since its last
+   render: fill 180 ms, label from 120 ms, Count badge from 300 ms. */
 @keyframes reveal-fill {
   from {
     background-color: var(--color-stage-tile);
@@ -193,7 +193,7 @@ body:has([data-stage]) [data-host-chrome] {
   content: counter(score);
 }
 
-/* "Bom" (FR-25 miss): 150 ms in, 1.2 s hold, 150 ms out; Board.tsx removes it at 1.5 s. */
+/* "Bom" (FR-25 miss): 150 ms in, 1.2 s hold, 150 ms out; TvBoard.tsx removes it at 1.5 s. */
 @keyframes bom {
   0%,
   100% {

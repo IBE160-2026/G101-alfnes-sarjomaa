@@ -12,8 +12,8 @@ export function focusHeading(
   heading.focus();
 }
 
-// Focuses the heading with this id once mounted, for a stage that replaced the focused
-// control (the Board and its live region unmount when the Game finishes).
+// Focuses the heading with this id once mounted, for a page that replaced the focused
+// control (the Host view's answer key and controls unmount when the Game finishes).
 export function FocusOnMount({ id }: { id: string }) {
   useEffect(() => focusHeading(document.getElementById(id)), [id]);
   return null;
