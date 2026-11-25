@@ -2,10 +2,10 @@
 title: 'Story 8.6: Play needs two views: host view and TV view'
 type: 'feature'
 created: '2026-11-25'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '87638b6ec13b4b9c59a66becdc6e1e4d855ce583'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 context:
   - '{project-root}/.docs/implementation-artifacts/epic-8-context.md'
 warnings: ['oversized']
@@ -94,6 +94,33 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-11-25 — Review pass
+- verdicts: 23 findings — high 0, medium 3, low 16, false 4, maybe-false 0 (12 patched, 11 rejected, 0 deferred)
+- findings:
+  - `[low]` `[patch]` (blind) epic-8-context.md calls 8.6 upcoming and describes the 8.5 routes — fixed: the context now describes the state after 8.6 and keeps the old note as history.
+  - `[medium]` `[patch]` (blind) a waiting TV on another device stops polling after `TV_IDLE_MS`, because its `version` never changes — fixed by recording it: a `shortcut:` comment at `TvRefresh`, plus the limit in the spine's AD-17 note, EXPERIENCE.md and checklist row T9. Behaviour kept, so a forgotten TV window still rests.
+  - `[low]` `[reject]` (blind) the waiting screen has no link from `/lag` or the *ready* Game page — the intent puts the TV link in *playing*. The waiting screen serves a TV opened by URL, reloaded, or left open, and adding a link is new UI nobody asked for.
+  - `[low]` `[reject]` (blind) no test of a waiting TV on another device following the start — that path is the same `useTvSync` poll the existing second-context Reveal test proves.
+  - `[low]` `[patch]` (blind) the `/skjerm` redirect skips `auth.requireHost` with no note in AD-5 — fixed: the spine's routes row says the Game page does the owner check.
+  - `[low]` `[patch]` (blind) three EXPERIENCE.md passages still describe the stage (Navigation, the Play view error row, the Team setup row) — fixed with 2026-11-25 notes.
+  - `[false]` `[reject]` (blind) PRD §1 and DESIGN.md still say "one shared screen" — the room still watches one shared screen, the TV; only the Host's controls moved.
+  - `[low]` `[patch]` (blind) AC labels did not match the test titles (AC5 FR-24 against FR-23; AC6) — fixed: AC5 is FR-23, AC6 is FR-23 to FR-27 and NFR-6, and the tv.spec title matches.
+  - `[low]` `[reject]` (blind) e2e hydration waits read `__react*` keys — the same pattern 8.5's tv.spec already used. It fails loudly on a React change and is test-only.
+  - `[low]` `[reject]` (blind) `FullscreenKey` returns null (could be a hook), and the F hint is not on the Game page — a rename is churn with no behaviour change. The hint stays on `/vert` so the Game page copy stays short, as asked.
+  - `[low]` `[patch]` (blind) `/lag` had the same title as the Game page — fixed: "Lagoppsett – {tittel}", with tests and EXPERIENCE.md updated.
+  - `[low]` `[patch]` (blind) the README hard wrap was broken and the status date was 23 November — fixed: rewrapped, dated 25 November.
+  - `[low]` `[patch]` (blind) the manual checklist had no real two-window check, and T6 did not say where it is timed — fixed: new row T9, and T6 is timed on the Host view.
+  - `[medium]` `[patch]` (verification-gap) F on the waiting TV and on the TV Sluttstilling was untested — fixed: e2e presses F on both and polls `document.fullscreenElement` on, then off.
+  - `[low]` `[reject]` (edge) the waiting screen is unreachable from the UI — same as the blind row above.
+  - `[low]` `[reject]` (edge) a lost start response posts no channel message — rare, and a visible TV's 2 s poll still picks it up.
+  - `[low]` `[patch]` (edge) `focusPageHeading` was still exported with no outside caller — fixed: no longer exported.
+  - `[medium]` `[patch]` (intent) the waiting TV on another device rests after 10 minutes — same root cause and fix as the blind row.
+  - `[low]` `[reject]` (intent) the redirect after the start is proven only in a browser — it is client-side by design, and e2e AC3 covers it.
+  - `[low]` `[reject]` (intent) the *played* Game page links the TV, not `/vert` — a recorded choice (EXPERIENCE.md, epics AC4). The Game page already shows the final Scores, so the remaining job is showing the room.
+  - `[false]` `[reject]` (intent) stage-only criteria retired, not moved — every FR-24 to FR-27 consequence keeps a test on `/vert` + `/tv`. Only the stage's own chrome checks (control bar, hint, pending border) went, as TRACE records.
+  - `[false]` `[reject]` (intent) bookkeeping unfinished — finalize sets the spec and sprint-status to done and commits them.
+  - `[false]` `[reject]` (intent) screenshots — the reviewer confirmed that both match their alt texts. That is a confirmation, not a defect.
+
 ## Design Notes
 
 - **Waiting screen.** `TvWaiting({ gameId, title })` in `PlayView.tsx`: `data-stage` + `STAGE` + `stage-canvas`, centred `h1` (Game title, `text-tv-question`, `break-words text-balance`) and `p` "Spillet starter snart" (`text-tv-team text-stage-muted`), plus `<TvRefresh>` and `<FullscreenKey />`. One `<h1>`.
@@ -109,3 +136,24 @@ deferred: []
 
 **Manual checks (if no CLI):**
 - Screenshots: `/tv` at 1920×1080 with two reveals; `/vert` at 1280 wide with the shortcut dialog open; both under ~400 KB.
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** Play always runs on two pages. The one-screen stage and "Fortsett spillet" are removed. Team setup is its own Host page, `/spill/[id]/lag` (title "Lagoppsett – {tittel}"). After a successful start the Host is sent to the Game page, which links "Vertsvisning med fasit" (primary) and "Åpne TV-visning" (secondary), with the two-window line and the mirroring warning. `/tv` in *ready* is a waiting screen (Game title, "Spillet starter snart", only F) that follows into play over the channel or the poll; `/vert` in *ready* redirects to `/lag`. `/skjerm` only redirects to `/spill/[id]`. No change to `play`'s logic; the play actions revalidate `/vert` instead of `/skjerm`.
+
+**Files.**
+- `src/app/spill/[id]/play-page.tsx`, `lag/page.tsx`, `skjerm/page.tsx` -- the state switch for lag/tv/vert, the new page and the redirect.
+- `src/app/spill/[id]/page.tsx`, `actions.ts` -- the *ready*, *playing* and *played* links and copy; the revalidate path.
+- `src/components/PlayView.tsx` -- TV-only `PlayView`/`FinalScores`, new `TvWaiting`.
+- `src/components/TvBoard.tsx` -- takes the TV's tiles and Bom panel; `Board.tsx` deleted (252 lines).
+- `src/components/FullscreenKey.tsx`, `usePlay.ts`, `HostPlay.tsx`, `TeamSetup.tsx`, `RouteFocus.tsx` -- stage-only state removed; redirect after the start.
+- Tests: `tests/integration/play.test.ts`, `authz.test.ts`, `tests/e2e/play.spec.ts`, `tv.spec.ts`, `no-key.spec.ts`, `question-sets.spec.ts`, `demo.spec.ts`, `tests/TRACE.md`, `tests/manual/checklist.md`.
+- Docs: PRD (§0, §4.7, §11) and `PRD.md`, EXPERIENCE.md, DESIGN.md, ARCHITECTURE-SPINE.md, epics.md (Story 8.6), sprint-status, epic-8-context, README with three new screenshots.
+
+**Review.** 23 findings. 12 patched as 10 fixes: 2 entries at medium (the waiting TV's idle rest on another device, recorded rather than changed; F on the waiting TV and the TV Sluttstilling now tested) and 8 at low. 11 rejected with reasons in the triage log, 0 deferred. Follow-up review recommended: true. Two medium entries were patched. The unverified risk is the deliberate idle limit itself: a TV opened on another device more than 10 minutes before the start does not follow until someone wakes it, and nobody has checked that on real hardware (checklist T9).
+
+**Verification.** `npx prettier --check .`, `npm run lint`, `npm run typecheck` and `npm run test` (833 passed, 1 skipped) passed before every commit. `npm run test:e2e` on a scratch config (dev server on 3106, deleted afterwards) passed 106 of 106 on the first run, after the review fixes. Screenshots inspected: `spill-brett.png` (`/tv` 1920×1080, two reveals, 124 KB), `spill-hurtigtaster.png` (`/vert` 1280 wide, shortcut dialog open, 124 KB), `sluttstilling.png` (`/tv` played, 50 KB).
+
+**Residual risks.** The idle rest above. The TV's hidden tiles never showed the unscored-mode dashes, and still don't (TV tiles were always rendered with it off). `docs-assets/diagrammer/vertsflyt.excalidraw`/`.png` still say "2–4 lag, én skjerm", and the landing page says "spill topplista sammen på én skjerm"; both are left as they are (the room still watches one screen).
